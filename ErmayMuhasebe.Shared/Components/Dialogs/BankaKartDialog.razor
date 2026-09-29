@@ -57,7 +57,7 @@
                 
                 <div class="mb-2">
                     <label class="form-label">YETKİLİ KİŞİ</label>
-                    <input type="text" @bind="Model.SubeAdi" class="dark-input" placeholder="Kasa sorumlusunun adı..." />
+                    <input type="text" @bind="Model.Yetkili" class="dark-input" placeholder="Kasa sorumlusunun adı..." />
                 </div>
             }
             else
@@ -126,6 +126,13 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public BankaKart Model { get; set; } = new();
 
-    void Submit() => MudDialog.Close(DialogResult.Ok(Model));
+    void Submit()
+    {
+        if (Model.Id == 0)
+        {
+            Model.GuncelBakiye = Model.AcilisBakiyesi;
+        }
+        MudDialog.Close(DialogResult.Ok(Model));
+    }
     void Cancel() => MudDialog.Cancel();
 }

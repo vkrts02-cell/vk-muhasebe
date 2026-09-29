@@ -41,6 +41,11 @@ public interface IUnitOfWork : IDataProvider
     /// </summary>
     Task InsertWithIdAsync<T>(T entity) where T : class;
 
+    // Mali Yıl Devir & Yansıtma
+    Task<ErmayMuhasebe.Services.RolloverResult> RolloverYearAsync(int sourceYear, int targetYear, ErmayMuhasebe.Services.RolloverOptions? options = null, System.IProgress<string>? progress = null);
+    Task<ErmayMuhasebe.Services.RolloverResult> ReflectBalancesForwardAsync(int sourceYear, System.IProgress<string>? progress = null);
+    List<int> GetAvailableYears();
+
     /// <summary>
 
     /// Transaction başlatır

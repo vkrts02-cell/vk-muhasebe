@@ -28,6 +28,8 @@ public partial class ModuleWindow : Window
 
     public void SetModuleInfo(string title, Symbol icon)
     {
+        this.Title = string.IsNullOrWhiteSpace(title) ? "VK Muhasebe" : title;
+
         var titleBlock = this.FindControl<TextBlock>("ModuleTitle");
         if (titleBlock != null) titleBlock.Text = title;
 

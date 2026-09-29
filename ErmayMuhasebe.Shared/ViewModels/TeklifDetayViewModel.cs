@@ -13,9 +13,9 @@ namespace ErmayMuhasebe.Shared.ViewModels;
 
 public partial class TeklifItemViewModel : ObservableObject
 {
-    private decimal _miktar = 1;
-    private decimal _birimFiyat;
-    private decimal _kdvOrani = 10;
+    private decimal? _miktar = 1;
+    private decimal? _birimFiyat;
+    private decimal? _kdvOrani = 10;
 
     private string _birim = "Adet";
 
@@ -37,26 +37,26 @@ public partial class TeklifItemViewModel : ObservableObject
         set => SetProperty(ref _birim, value);
     }
 
-    public decimal Miktar
+    public decimal? Miktar
     {
         get => _miktar;
         set { if (SetProperty(ref _miktar, value)) OnAmountChanged(); }
     }
 
-    public decimal BirimFiyat
+    public decimal? BirimFiyat
     {
         get => _birimFiyat;
         set { if (SetProperty(ref _birimFiyat, value)) OnAmountChanged(); }
     }
 
-    public decimal KdvOrani
+    public decimal? KdvOrani
     {
         get => _kdvOrani;
         set { if (SetProperty(ref _kdvOrani, value)) OnAmountChanged(); }
     }
 
-    public decimal Tutar => Miktar * BirimFiyat;
-    public decimal KdvTutari => Tutar * (KdvOrani / 100m);
+    public decimal Tutar => (Miktar ?? 0) * (BirimFiyat ?? 0);
+    public decimal KdvTutari => Tutar * ((KdvOrani ?? 0) / 100m);
     public decimal GenelToplam => Tutar + KdvTutari;
 
     public string? Aciklama { get; set; }
@@ -288,11 +288,11 @@ public partial class TeklifDetayViewModel : ViewModelBase
             {
                 StokId = i.Stok.Id,
                 StokAdi = i.Ad,
-                Miktar = (double)i.Miktar,
+                Miktar = (double)(i.Miktar ?? 0),
                 Birim = i.Birim,
-                BirimFiyat = i.BirimFiyat,
+                BirimFiyat = i.BirimFiyat ?? 0,
                 Tutar = i.Tutar,
-                KdvOrani = (double)i.KdvOrani,
+                KdvOrani = (double)(i.KdvOrani ?? 0),
                 Aciklama = i.Aciklama ?? ""
             }).ToList();
             

@@ -475,6 +475,20 @@
                             </div>
                         </div>
 
+                        <!-- Başlangıç Yılı -->
+                        <div style="font-size: 16px; font-weight: 700; color: #10b981; margin-bottom: 12px; margin-top: 25px;">Başlangıç Yılı</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px;">
+                            <input type="number" class="settings-input-field" @bind="_startingYear" style="border-color: rgba(16, 185, 129, 0.2);" placeholder="Örn: 2028" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" 
+                                       Style="padding: 0 25px; height: 45px;" OnClick="SaveStartingYear" 
+                                       Disabled="@(_isProcessingYear)" StartIcon="@Icons.Material.Filled.Save">
+                                <span style="font-weight: 800;">KAYDET</span>
+                            </MudButton>
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 12px; margin-bottom: 25px; font-style: italic; line-height: 1.4;">
+                            * Programın dropdown listesindeki ilk yıl. (Örn: 2028)
+                        </div>
+
                         <!-- Delete Year -->
                         <div style="font-size: 16px; font-weight: 700; color: #ef4444; margin-bottom: 12px;">YÃ„Â±l Silme</div>
                         <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px;">
@@ -766,6 +780,7 @@
     private bool _isMaintenanceMode;
     
     // Year Management State
+    private int _startingYear = 2026;
     private List<int> _availableYears = new();
     private int _selectedYearToSwitch;
     private int _transferFromYear;
@@ -921,6 +936,12 @@
 
             await LoadUsers();
             await LoadAvailableYears();
+
+            var profil = await DbService.GetFirmaProfiliAsync();
+            if (profil != null && profil.StartingYear > 2000)
+            {
+                _startingYear = profil.StartingYear;
+            }
         }
         catch (Exception ex)
         {
@@ -972,8 +993,28 @@
         finally { _isProcessingYear = false; }
     }
 
-    
-
+    private async Task SaveStartingYear()
+    {
+        _isProcessingYear = true;
+        try
+        {
+            var profil = await DbService.GetFirmaProfiliAsync();
+            if (profil != null)
+            {
+                profil.StartingYear = _startingYear;
+                await DbService.SaveFirmaProfiliAsync(profil);
+                Snackbar.Add("Başlangıç yılı başarıyla kaydedildi.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Başlangıç yılı kaydedilemedi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessingYear = false;
+        }
+    }
     private async Task DeleteYear()
     {
         if (_selectedYearToDelete == YearContext.CurrentYear)
@@ -1082,7 +1123,9 @@
 
     private async Task FactoryReset()
     {
-        if (_resetPassInput != "ERMAY2025")
+        var profil = await DbService.GetFirmaProfiliAsync();
+        var expectedPass = profil.FactoryResetPassword?.Trim() ?? "";
+        if (_resetPassInput != expectedPass)
         {
             Snackbar.Add("HatalÃ„Â± sÃ„Â±fÃ„Â±rlama Ã…Å¸ifresi!", Severity.Error);
             return;

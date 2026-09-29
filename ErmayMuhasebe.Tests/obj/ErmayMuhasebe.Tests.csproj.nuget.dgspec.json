@@ -14,13 +14,20 @@
         "outputPath": "E:\\avalonia yedek\\ermaymuhasebe\\ErmayMuhasebe.Shared\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\mazik\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\mazik\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -167,6 +174,7 @@
             "sqlite-net-sqlcipher": "1.9.172",
             "SQLitePCLRaw.bundle_e_sqlcipher": "2.1.8",
             "SQLitePCLRaw.provider.e_sqlcipher": "2.1.11",
+            "supabase-csharp": "0.16.2",
             "System.Drawing.Common": "9.0.0",
             "Xamarin.AndroidX.Core.SplashScreen": "1.0.1.15",
             "xunit": "2.9.2",
@@ -188,7 +196,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.317/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.316/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
@@ -202,13 +210,20 @@
         "outputPath": "E:\\avalonia yedek\\ermaymuhasebe\\ErmayMuhasebe.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\mazik\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\mazik\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -314,6 +329,7 @@
             "sqlite-net-sqlcipher": "1.9.172",
             "SQLitePCLRaw.bundle_e_sqlcipher": "2.1.8",
             "SQLitePCLRaw.provider.e_sqlcipher": "2.1.11",
+            "supabase-csharp": "0.16.2",
             "System.Drawing.Common": "9.0.0",
             "Xamarin.AndroidX.Core.SplashScreen": "1.0.1.15",
             "xunit": "2.9.2",
@@ -335,7 +351,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.317/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.316/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

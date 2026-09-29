@@ -431,7 +431,7 @@
                                  Tutar = tutar,
                                  OnayKodu = hareket.EvrakNo,
                                  YonlendirilenCariId = _yonlendirilenCariId,
-                                 YonlendirmeTarihi = DateTime.Now
+                                 YonlendirmeTarihi = hareket.Tarih
                              };
                              await DbService.SaveKrediKartiWithTransactionAsync(kkIslem);
                         }
@@ -447,7 +447,7 @@
                                  Tutar = tutar,
                                  EvrakNo = hareket.EvrakNo ?? "",
                                  YonlendirilenCariId = _yonlendirilenCariId,
-                                 YonlendirmeTarihi = DateTime.Now
+                                 YonlendirmeTarihi = hareket.Tarih
                              };
                              await DbService.SaveEftIslemAsync(eft);
                         }

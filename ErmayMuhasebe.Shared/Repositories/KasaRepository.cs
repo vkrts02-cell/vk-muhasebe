@@ -48,6 +48,8 @@ public class KasaRepository : BaseRepository<KasaHareket>, IKasaRepository
         // Bulut senkronizasyonu
         await _syncService.SyncKasaHareketAsync(entity);
         
+        if (entity.KasaId > 0) _dbService.AutoReflectKasa(entity.KasaId);
+
         return entity.Id;
     }
 
@@ -57,6 +59,7 @@ public class KasaRepository : BaseRepository<KasaHareket>, IKasaRepository
         if (entity != null && entity.Id > 0)
         {
             await _syncService.DeleteKasaHareketAsync(entity.Id);
+            if (entity.KasaId > 0) _dbService.AutoReflectKasa(entity.KasaId);
         }
         return await db.DeleteAsync(entity);
     }
@@ -66,7 +69,9 @@ public class KasaRepository : BaseRepository<KasaHareket>, IKasaRepository
         var db = await GetConnectionAsync();
         if (id > 0)
         {
+            var entity = await GetByIdAsync(id);
             await _syncService.DeleteKasaHareketAsync(id);
+            if (entity != null && entity.KasaId > 0) _dbService.AutoReflectKasa(entity.KasaId);
         }
         return await db.ExecuteAsync("DELETE FROM KasaHareket WHERE Id = ?", id);
     }

@@ -5,7 +5,7 @@
              xmlns:vm="clr-namespace:ErmayMuhasebe.Avalonia.ViewModels"
              xmlns:ic="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
              xmlns:conv="clr-namespace:ErmayMuhasebe.Avalonia.Converters"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
              x:Class="ErmayMuhasebe.Avalonia.Views.YearSelectionView"
              x:DataType="vm:YearSelectionViewModel">
 
@@ -13,140 +13,180 @@
         <conv:ObjectIsNullConverter x:Key="ObjectIsNotNullConverter" Inverted="True" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <Style Selector="Button.LinkButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.LinkButton:pointerover TextBlock">
+            <Setter Property="Foreground" Value="#60A5FA"/>
+            <Setter Property="TextDecorations" Value="Underline"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Whole screen background synced with application theme (#0A0A0A) -->
     <Border Background="{DynamicResource BackgroundBrush}">
-        <Grid>
-
-
-            <StackPanel VerticalAlignment="Center" Spacing="40" MaxWidth="500" HorizontalAlignment="Center">
-                
-                <StackPanel Spacing="15">
-                    <Border Background="#103B82F6" Width="100" Height="100" CornerRadius="30" HorizontalAlignment="Center">
-                        <ic:SymbolIcon Symbol="History" FontSize="60" Foreground="#3B82F6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Width="400" Margin="24">
+            
+            <!-- Ana Seçim Kartı (Uygulama Tasarımı: PanelBrush #161616 & BorderColor) -->
+            <Border Background="{DynamicResource PanelBrush}" 
+                    BorderBrush="{DynamicResource BorderColor}" 
+                    BorderThickness="1.5" 
+                    CornerRadius="22" 
+                    Padding="32"
+                    BoxShadow="0 25 60 0 #60000000">
+                <StackPanel Spacing="22">
                     
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Çalışma Yılı Seçimi" 
-                                   FontSize="36" 
-                                   FontWeight="Black" 
-                                   HorizontalAlignment="Center"
-                                   Foreground="{DynamicResource TextBrush}"/>
+                    <!-- Logo & Başlık Alanı -->
+                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                        <Image Source="avares://ErmayMuhasebe.Avalonia/Assets/vk_logo.png"
+                               Width="68" Height="68"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,4"/>
                         
-                        <TextBlock Text="Devam etmek için aşağıdaki listeden bir yıl seçiniz" 
-                                   FontSize="16" 
-                                   Opacity="0.6"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   Foreground="{DynamicResource TextBrush}"/>
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock Text="Çalışma Yılı Seçimi" 
+                                       FontSize="22" 
+                                       FontWeight="Black" 
+                                       LetterSpacing="-0.5"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                            
+                            <TextBlock Text="Lütfen çalışmak istediğiniz mali yılı seçiniz" 
+                                       FontSize="13" 
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Hata / Bilgi Mesajı -->
+                    <Border Background="#1510B981" BorderBrush="#10B981" BorderThickness="1" CornerRadius="12" Padding="14,10"
+                            IsVisible="{Binding FeedbackMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <Grid ColumnDefinitions="Auto, *">
+                            <ic:SymbolIcon Symbol="Info" FontSize="18" Foreground="#10B981" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding FeedbackMessage}" FontSize="12" Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Yıllar Listesi (SurfaceBrush & BorderColor ile uygulama renk uyumu) -->
+                    <Border Background="{DynamicResource SurfaceBrush}" 
+                            CornerRadius="16" 
+                            BorderThickness="1" 
+                            BorderBrush="{DynamicResource BorderColor}"
+                            Padding="8">
+                        <ListBox ItemsSource="{Binding Years}" 
+                                 SelectedItem="{Binding SelectedYear}"
+                                 Background="Transparent"
+                                 MaxHeight="240">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="x:Int32">
+                                    <Border Padding="16,13" CornerRadius="12">
+                                        <Grid ColumnDefinitions="Auto, *, Auto">
+                                            <ic:SymbolIcon Symbol="CalendarMonth" FontSize="20" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="{Binding, StringFormat='{}{0} Mali Yılı'}" 
+                                                       FontSize="15" 
+                                                       FontWeight="Bold"
+                                                       Margin="14,0,0,0" 
+                                                       VerticalAlignment="Center"/>
+                                            <ic:SymbolIcon Symbol="ChevronRight" FontSize="16" Opacity="0.5" Grid.Column="2" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <ContentPresenter Name="PART_ContentPresenter"
+                                                              Background="{TemplateBinding Background}"
+                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              Content="{TemplateBinding Content}"
+                                                              Padding="{TemplateBinding Padding}"
+                                                              CornerRadius="12"/>
+                                        </ControlTemplate>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#0061FF"/>
+                                    <Setter Property="TextBlock.Foreground" Value="White"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#15FFFFFF"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#1D4ED8"/>
+                                </Style>
+                            </ListBox.Styles>
+                        </ListBox>
+                    </Border>
+
+                    <!-- Butonlar -->
+                    <StackPanel Spacing="12">
+                        <!-- Uygulamayı Başlat / Seçilen Yıla Geç -->
+                        <Button Command="{Binding SelectYearCommand}" 
+                                Height="48"
+                                Background="{DynamicResource FluidBlueGradient}" 
+                                Foreground="White" 
+                                CornerRadius="12"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                FontSize="15"
+                                FontWeight="Bold"
+                                IsEnabled="{Binding SelectedYear, Converter={StaticResource ObjectIsNotNullConverter}}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <ic:SymbolIcon Symbol="ArrowRight" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ActionButtonText}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Vazgeç / Ana Menüye Dön (Oturum Açılmışsa) -->
+                        <Button Command="{Binding CancelCommand}" 
+                                Classes="LinkButton"
+                                HorizontalAlignment="Center"
+                                Margin="0,4,0,0"
+                                IsVisible="{Binding IsAlreadyAuthenticated}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ic:SymbolIcon Symbol="ArrowLeft" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Vazgeç / Ana Menüye Dön" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Farklı Kullanıcı ile Giriş Yap (Giriş Ekranından Gelindiyse) -->
+                        <Button Command="{Binding SwitchUserCommand}" 
+                                Classes="LinkButton"
+                                HorizontalAlignment="Center"
+                                Margin="0,4,0,0"
+                                IsVisible="{Binding !IsAlreadyAuthenticated}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ic:SymbolIcon Symbol="Person" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Farklı Kullanıcı ile Giriş Yap" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </StackPanel>
+            </Border>
 
-                <Border Background="{DynamicResource CardBackgroundBrush}" 
-                        CornerRadius="24" 
-                        BorderThickness="1" 
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BoxShadow="0 15 40 0 #30000000"
-                        Margin="0,10">
-                    <ListBox ItemsSource="{Binding Years}" 
-                             SelectedItem="{Binding SelectedYear}"
-                             Background="Transparent"
-                             Padding="20"
-                             MaxHeight="400">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="12"/>
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="x:Int32">
-                                <Border Padding="25,20" CornerRadius="15">
-                                    <Grid ColumnDefinitions="Auto, *, Auto">
-                                        <ic:SymbolIcon Symbol="Calendar" FontSize="32" Foreground="#3B82F6" Grid.Column="0"/>
-                                        <TextBlock Text="{Binding}" 
-                                                 FontSize="26" 
-                                                 FontWeight="ExtraBold" 
-                                                 Margin="25,0,0,0"
-                                                 VerticalAlignment="Center"
-                                                 Grid.Column="1"/>
-                                        <ic:SymbolIcon Symbol="ChevronRight" FontSize="20" Opacity="0.4" Grid.Column="2"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                        <ListBox.Styles>
-                            <Style Selector="ListBoxItem">
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="Background" Value="Transparent"/>
-                                <Setter Property="Template">
-                                    <ControlTemplate>
-                                        <ContentPresenter Name="PART_ContentPresenter"
-                                                          Background="{TemplateBinding Background}"
-                                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                          Content="{TemplateBinding Content}"
-                                                          Padding="{TemplateBinding Padding}"
-                                                          CornerRadius="15"/>
-                                    </ControlTemplate>
-                                </Setter>
-                            </Style>
-                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                                <Setter Property="Background" Value="#3B82F6"/>
-                                <Setter Property="TextBlock.Foreground" Value="White"/>
-                            </Style>
-                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                                <Setter Property="Background" Value="#153B82F6"/>
-                            </Style>
-                            <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-                                <Setter Property="Background" Value="#2563EB"/>
-                            </Style>
-                        </ListBox.Styles>
-                    </ListBox>
-                </Border>
-
-                <StackPanel Spacing="15">
-                    <Button Command="{Binding SelectYearCommand}" 
-                            Content="Uygulamayı Başlat" 
-                            Background="#2563EB" 
-                            Foreground="White" 
-                            Height="65"
-                            CornerRadius="20"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            FontSize="20"
-                            FontWeight="Black"
-                            IsEnabled="{Binding SelectedYear, Converter={StaticResource ObjectIsNotNullConverter}}">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="RenderTransform" Value="scale(1.01)"/>
-                            </Style>
-                            <Style Selector="Button:pressed">
-                                <Setter Property="RenderTransform" Value="scale(0.99)"/>
-                            </Style>
-                        </Button.Styles>
-                    </Button>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- Loading Overlay -->
-            <Panel IsVisible="{Binding IsBusy}" ZIndex="10">
-                <Border Background="{DynamicResource BackgroundBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-                <StackPanel Spacing="30" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <Border Background="#103B82F6" Width="100" Height="100" CornerRadius="30" HorizontalAlignment="Center">
-                        <ic:SymbolIcon Symbol="History" FontSize="60" Foreground="#3B82F6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <ProgressBar IsIndeterminate="True" 
-                               Width="250" 
-                               Height="4" 
-                               Foreground="#3B82F6"
-                               Background="#40FFFFFF"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding StatusMessage}" 
-                             Foreground="{DynamicResource TextBrush}" 
-                             FontSize="20"
-                             FontWeight="Black"
-                             HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Panel>
         </Grid>
     </Border>
-
 </UserControl>

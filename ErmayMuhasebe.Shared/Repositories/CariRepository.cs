@@ -81,6 +81,7 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
 
         // Bulut senkronizasyonu
         await _syncService.SyncCariAsync(entity);
+        _dbService.AutoReflectCari(entity.Id);
         
         return entity.Id;
     }
@@ -206,29 +207,46 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
             var cari = tran.Find<CariKart>(hareket.CariId);
             if (cari != null)
             {
-                if (hareket.Id != 0) // UPDATE
+                bool isDevir = (hareket.IslemTuru != null && (hareket.IslemTuru == "Devir Fişi" || hareket.IslemTuru == "Açılış Fişi" || hareket.IslemTuru.StartsWith("Devir"))) ||
+                               (!string.IsNullOrEmpty(hareket.EvrakNo) && hareket.EvrakNo.StartsWith("DEVIR-"));
+
+                if (isDevir)
                 {
-                    var oldItem = tran.Find<CariHareket>(hareket.Id);
-                    if (oldItem != null)
+                    cari.DevirBorc = hareket.Borc;
+                    cari.DevirAlacak = hareket.Alacak;
+                    tran.Update(cari);
+                }
+                else
+                {
+                    if (hareket.Id != 0) // UPDATE
                     {
-                        cari.Borc -= oldItem.Borc;
-                        cari.Alacak -= oldItem.Alacak;
-                        
-                        borcDelta = hareket.Borc - oldItem.Borc;
-                        alacakDelta = hareket.Alacak - oldItem.Alacak;
+                        var oldItem = tran.Find<CariHareket>(hareket.Id);
+                        if (oldItem != null)
+                        {
+                            bool oldWasDevir = (oldItem.IslemTuru != null && (oldItem.IslemTuru == "Devir Fişi" || oldItem.IslemTuru == "Açılış Fişi" || oldItem.IslemTuru.StartsWith("Devir"))) ||
+                                               (!string.IsNullOrEmpty(oldItem.EvrakNo) && oldItem.EvrakNo.StartsWith("DEVIR-"));
+                            if (!oldWasDevir)
+                            {
+                                cari.Borc -= oldItem.Borc;
+                                cari.Alacak -= oldItem.Alacak;
+                                
+                                borcDelta = hareket.Borc - oldItem.Borc;
+                                alacakDelta = hareket.Alacak - oldItem.Alacak;
+                            }
+                        }
                     }
-                }
-                else // INSERT
-                {
-                    borcDelta = hareket.Borc;
-                    alacakDelta = hareket.Alacak;
-                }
+                    else // INSERT
+                    {
+                        borcDelta = hareket.Borc;
+                        alacakDelta = hareket.Alacak;
+                    }
 
-                // Apply New
-                cari.Borc += hareket.Borc;
-                cari.Alacak += hareket.Alacak;
+                    // Apply New
+                    cari.Borc += hareket.Borc;
+                    cari.Alacak += hareket.Alacak;
 
-                tran.Update(cari);
+                    tran.Update(cari);
+                }
             }
 
             if (hareket.Id != 0) tran.Update(hareket); else tran.Insert(hareket);
@@ -239,6 +257,7 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
         {
             await _syncService.UpdateFutureBalancesAsync("Cariler", hareket.CariId, borcDelta, alacakDelta);
         }
+        _dbService.AutoReflectCari(hareket.CariId);
         
         return hareket.Id;
     }
@@ -259,6 +278,7 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
                 await SaveAsync(cari);
                 
                 await _syncService.UpdateFutureBalancesAsync("Cariler", hareket.CariId, -hareket.Borc, -hareket.Alacak);
+                _dbService.AutoReflectCari(hareket.CariId);
             }
 
             // CASCADE DELETE: Find and remove linked financial records (Kasa, Banka, KK)
@@ -377,9 +397,19 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
         
         if (cari != null)
         {
-            // 1. Cari toplam borç/alacak güncelle
-            cari.Borc = hareketler.Sum(x => x.Borc);
-            cari.Alacak = hareketler.Sum(x => x.Alacak);
+            // 1. Cari toplam borç/alacak güncelle (Devir fişleri hariç dönem içi hareketler)
+            var nonDevirMoves = hareketler.Where(x => (x.IslemTuru == null || (x.IslemTuru != "Devir Fişi" && x.IslemTuru != "Açılış Fişi" && !x.IslemTuru.StartsWith("Devir"))) && 
+                                                      (x.EvrakNo == null || !x.EvrakNo.StartsWith("DEVIR-"))).ToList();
+            var devirMove = hareketler.FirstOrDefault(x => (x.IslemTuru != null && (x.IslemTuru == "Devir Fişi" || x.IslemTuru == "Açılış Fişi" || x.IslemTuru.StartsWith("Devir"))) || 
+                                                           (x.EvrakNo != null && x.EvrakNo.StartsWith("DEVIR-")));
+            if (devirMove != null)
+            {
+                cari.DevirBorc = devirMove.Borc;
+                cari.DevirAlacak = devirMove.Alacak;
+            }
+
+            cari.Borc = nonDevirMoves.Sum(x => x.Borc);
+            cari.Alacak = nonDevirMoves.Sum(x => x.Alacak);
             await db.UpdateAsync(cari);
             
             // 2. Ödemeleri Faturalarla Eşleştir (FIFO) - Vade Takibi için
@@ -387,6 +417,7 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
 
             // Cloud sync
             await _syncService.SyncCariAsync(cari);
+            _dbService.AutoReflectCari(cariId);
             return 1;
         }
         return 0;
@@ -470,8 +501,8 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
         
         return new CariSummary
         {
-            ToplamBorc = allCaris.Sum(x => x.Borc),
-            ToplamAlacak = allCaris.Sum(x => x.Alacak),
+            ToplamBorc = allCaris.Sum(x => x.Borc + x.DevirBorc),
+            ToplamAlacak = allCaris.Sum(x => x.Alacak + x.DevirAlacak),
             MusteriBakiye = allCaris.Where(c => (c.Tur?.ToLower() ?? "") is "alici" or "alıcı" or "müşteri" || (c.Grup?.ToLower() ?? "") is "müşteri")
                                     .Sum(c => c.Bakiye),
             TedarikciBakiye = allCaris.Where(c => (c.Tur?.ToLower() ?? "") is "satici" or "satıcı" or "tedarikçi" || (c.Grup?.ToLower() ?? "") is "tedarikçi")

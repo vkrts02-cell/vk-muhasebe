@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ErmayMuhasebe.Shared")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0bba233b026b84e9d4e678fe909e5b21ba2f3720")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e334b9af6bf76ba51638bf57fe4c33e2cd9e2664")]
 [assembly: System.Reflection.AssemblyProductAttribute("ErmayMuhasebe.Shared")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ErmayMuhasebe.Shared")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

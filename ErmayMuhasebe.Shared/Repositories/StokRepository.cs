@@ -59,6 +59,7 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
 
         // Bulut senkronizasyonu
         await _syncService.SyncStokAsync(entity);
+        _dbService.AutoReflectStok(entity.Id);
         
         return entity.Id;
     }
@@ -145,6 +146,7 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
         var db = await GetConnectionAsync();
         int result = hareket.Id != 0 ? await db.UpdateAsync(hareket) : await db.InsertAsync(hareket);
         await _syncService.SyncStokHareketAsync(hareket);
+        _dbService.AutoReflectStok(hareket.StokId);
         return result;
     }
 
@@ -175,6 +177,7 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
         }
 
         await RecalculateCostsAsync(hareket.StokId);
+        _dbService.AutoReflectStok(hareket.StokId);
         return result;
     }
 

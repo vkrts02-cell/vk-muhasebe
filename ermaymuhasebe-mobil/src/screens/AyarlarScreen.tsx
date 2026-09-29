@@ -698,6 +698,62 @@ export default function AyarlarScreen() {
             }
           }
         }
+    );
+  };
+
+  const handleReflectBalancesForward = async () => {
+    const nextYear = (parseInt(activeYear) + 1).toString();
+    Alert.alert(
+      'Sonraki Yıla Bakiye Yansıt',
+      `${activeYear} yılı güncel kapanış bakiyeleri (Cari, Kasa, Banka, Stok) ${nextYear} yılı devir bakiyelerine yansıtılacaktır. Onaylıyor musunuz?`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Yansıt',
+          onPress: async () => {
+            setDevirYukleniyor(true);
+            try {
+              let cariCount = 0;
+              const carilerRaw = await readData('Cariler');
+              if (carilerRaw) {
+                const cariList = Array.isArray(carilerRaw) ? carilerRaw.filter(Boolean) : Object.keys(carilerRaw).map(k => ({ ...carilerRaw[k], firebaseKey: k }));
+                for (const c of cariList.filter(x => !x.isDeleted)) {
+                  const bakiye = (Number(c.borc) || 0) + (Number(c.devirBorc) || 0) - (Number(c.alacak) || 0) - (Number(c.devirAlacak) || 0);
+                  const devirBorc = bakiye > 0 ? bakiye : 0;
+                  const devirAlacak = bakiye < 0 ? Math.abs(bakiye) : 0;
+
+                  await writeData(`Cariler/${c.id}`, {
+                    ...c,
+                    devirBorc,
+                    devirAlacak,
+                    bakiye: bakiye
+                  });
+
+                  await writeData(`CariHareketler/DEVIR_${c.id}_${nextYear}`, {
+                    id: `DEVIR_${c.id}_${nextYear}`,
+                    cariId: c.id,
+                    cariUnvan: c.unvan,
+                    islemTuru: 'Devir Fişi',
+                    evrakNo: `DEVIR-${activeYear}`,
+                    aciklama: `${activeYear} Yılı Güncellenen Bakiye Devri`,
+                    borc: devirBorc,
+                    alacak: devirAlacak,
+                    bakiye: bakiye,
+                    tarih: `${nextYear}-01-01T00:00:00.000Z`,
+                    isDeleted: false
+                  });
+                  cariCount++;
+                }
+              }
+
+              Alert.alert('Başarılı', `${activeYear} yılı güncel bakiyeleri ${nextYear} yılına başarıyla yansıtıldı (${cariCount} cari güncellendi).`);
+            } catch (err: any) {
+              Alert.alert('Hata', 'Bakiyeler yansıtılırken hata oluştu: ' + (err?.message || err));
+            } finally {
+              setDevirYukleniyor(false);
+            }
+          }
+        }
       ]
     );
   };
@@ -1166,6 +1222,14 @@ export default function AyarlarScreen() {
                     ) : (
                       <Text style={styles.btnText}>Yıl Devir İşlemini Başlat</Text>
                     )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.btn, { backgroundColor: '#F59E0B', marginTop: 10 }]} 
+                    onPress={handleReflectBalancesForward}
+                    disabled={devirYukleniyor}
+                  >
+                    <Text style={styles.btnText}>Sonraki Yıla Bakiye Yansıt (Devri Yenile)</Text>
                   </TouchableOpacity>
                 </View>
               </>

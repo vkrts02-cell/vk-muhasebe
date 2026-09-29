@@ -137,14 +137,15 @@ public abstract partial class KasaDetayViewModel : ViewModelBase
             KasaHareket? target = hareket ?? SelectedHareket;
             if (target == null || target.Id == 0) return;
 
+            int deletedCari = 0;
             if (!string.IsNullOrEmpty(target.EvrakNo))
             {
-                await _uow.Cariler.DeleteHareketByEvrakNoAsync(target.EvrakNo);
+                deletedCari = await _uow.Cariler.DeleteHareketByEvrakNoAsync(target.EvrakNo);
             }
 
             int deletedRows = await _uow.Kasalar.DeleteAsync(target.Id);
             
-            if (deletedRows > 0)
+            if (deletedRows > 0 || deletedCari > 0 || target != null)
             {
                 if (SelectedHareket == target) SelectedHareket = null;
                 await LoadHareketlerAsync();

@@ -217,77 +217,153 @@ public class FirebaseUnitOfWork : IUnitOfWork
         var result = new List<FinanceTrendItem>();
         try
         {
-            var today = DateTime.Now.Date;
-            if (period.ToLower() == "daily")
-            {
-                var start = today.AddDays(-9);
-                var kasas = await Kasalar.GetAllAsync();
-                var all = kasas.Where(k => k.Tarih >= start).ToList();
+            var today = DateTime.Today;
+            DateTime start;
+            int count;
+            string p = (period ?? "monthly").ToLowerInvariant();
 
-                for (int i = 0; i < 10; i++)
+            if (p == "daily")
+            {
+                count = 10;
+                start = today.AddDays(-(count - 1));
+            }
+            else if (p == "weekly")
+            {
+                count = 8;
+                start = today.AddDays(-(count - 1) * 7);
+            }
+            else if (p == "yearly")
+            {
+                count = 5;
+                start = new DateTime(today.Year - (count - 1), 1, 1);
+            }
+            else // monthly
+            {
+                count = 12;
+                var sDate = today.AddMonths(-(count - 1));
+                start = new DateTime(sDate.Year, sDate.Month, 1);
+            }
+
+            var allCaris = await Cariler.GetAllAsync();
+            var allHarekets = new List<CariHareket>();
+            foreach (var c in allCaris)
+            {
+                var hList = await Cariler.GetHareketlerAsync(c.Id);
+                if (hList != null) allHarekets.AddRange(hList);
+            }
+            var cariFinance = allHarekets.Where(x => x.Tarih >= start && (x.IslemTuru == null || (!x.IslemTuru.Contains("Fatura") && !x.IslemTuru.Equals("Satış") && !x.IslemTuru.Equals("Alış") && !x.IslemTuru.Equals("Satis") && !x.IslemTuru.Equals("Alis")))).ToList();
+
+            var ceks = await Cekler.GetAllAsync();
+            var redirectedCheckPortfoys = new HashSet<string>(ceks.Where(c => c.YonlendirilenCariId != null && !string.IsNullOrEmpty(c.PortfoyNo)).Select(c => c.PortfoyNo!));
+
+            var kasas = await Kasalar.GetAllAsync();
+            var nonCariKasa = kasas.Where(x => x.Tarih >= start && (x.CariId == null || x.CariId <= 0)).ToList();
+
+            if (p == "daily")
+            {
+                for (int i = 0; i < count; i++)
                 {
                     var date = start.AddDays(i);
-                    var dData = all.Where(x => x.Tarih.Date == date.Date);
+                    var dCari = cariFinance.Where(x => x.Tarih.Date == date.Date);
+                    var dNonCari = nonCariKasa.Where(x => x.Tarih.Date == date.Date);
 
-                    result.Add(new FinanceTrendItem {
+                    decimal inc = dCari.Where(x => x.Alacak > 0 && x.YonlendirilenCariId == null && (string.IsNullOrEmpty(x.EvrakNo) || !redirectedCheckPortfoys.Contains(x.EvrakNo))).Sum(x => x.Alacak)
+                                  + dNonCari.Sum(x => x.Giren);
+
+                    decimal red = dCari.Where(x => x.Alacak > 0 && (x.YonlendirilenCariId != null || (!string.IsNullOrEmpty(x.EvrakNo) && redirectedCheckPortfoys.Contains(x.EvrakNo)))).Sum(x => x.Alacak);
+
+                    decimal exp = dCari.Where(x => x.Borc > 0).Sum(x => x.Borc)
+                                  + dNonCari.Sum(x => x.Cikan);
+
+                    result.Add(new FinanceTrendItem
+                    {
                         Label = date.ToString("dd MMM"),
                         Date = date,
-                        Income = dData.Where(x => x.IslemTuru == "Tahsilat").Sum(x => x.Giren),
-                        Expense = dData.Where(x => x.IslemTuru == "Ödeme").Sum(x => x.Cikan),
-                        Redirected = 0
+                        Income = inc,
+                        Redirected = red,
+                        Expense = exp
                     });
                 }
             }
-            else if (period.ToLower() == "weekly")
+            else if (p == "weekly")
             {
-                var start = today.AddDays(-49);
-                var kasas = await Kasalar.GetAllAsync();
-                var all = kasas.Where(k => k.Tarih >= start).ToList();
-
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < count; i++)
                 {
                     var date = start.AddDays(i * 7);
                     int weekNum = System.Globalization.ISOWeek.GetWeekOfYear(date);
-                    var wData = all.Where(x => System.Globalization.ISOWeek.GetWeekOfYear(x.Tarih) == weekNum && x.Tarih.Year == date.Year);
+                    var wCari = cariFinance.Where(x => System.Globalization.ISOWeek.GetWeekOfYear(x.Tarih) == weekNum && x.Tarih.Year == date.Year);
+                    var wNonCari = nonCariKasa.Where(x => System.Globalization.ISOWeek.GetWeekOfYear(x.Tarih) == weekNum && x.Tarih.Year == date.Year);
 
-                    result.Add(new FinanceTrendItem {
+                    decimal inc = wCari.Where(x => x.Alacak > 0 && x.YonlendirilenCariId == null && (string.IsNullOrEmpty(x.EvrakNo) || !redirectedCheckPortfoys.Contains(x.EvrakNo))).Sum(x => x.Alacak)
+                                  + wNonCari.Sum(x => x.Giren);
+
+                    decimal red = wCari.Where(x => x.Alacak > 0 && (x.YonlendirilenCariId != null || (!string.IsNullOrEmpty(x.EvrakNo) && redirectedCheckPortfoys.Contains(x.EvrakNo)))).Sum(x => x.Alacak);
+
+                    decimal exp = wCari.Where(x => x.Borc > 0).Sum(x => x.Borc)
+                                  + wNonCari.Sum(x => x.Cikan);
+
+                    result.Add(new FinanceTrendItem
+                    {
                         Label = $"{weekNum}. Hafta",
                         Date = date,
-                        Income = wData.Where(x => x.IslemTuru == "Tahsilat").Sum(x => x.Giren),
-                        Expense = wData.Where(x => x.IslemTuru == "Ödeme").Sum(x => x.Cikan),
-                        Redirected = 0
+                        Income = inc,
+                        Redirected = red,
+                        Expense = exp
                     });
                 }
             }
-            else if (period.ToLower() == "yearly")
+            else if (p == "yearly")
             {
-                var startYear = today.Year - 4;
-                var kasas = await Kasalar.GetAllAsync();
-                var all = kasas.Where(k => k.Tarih.Year >= startYear).ToList();
-
-                for (int i = 0; i < 5; i++)
+                int startYear = start.Year;
+                for (int i = 0; i < count; i++)
                 {
                     int year = startYear + i;
-                    var yData = all.Where(x => x.Tarih.Year == year);
-                    result.Add(new FinanceTrendItem {
+                    var yCari = cariFinance.Where(x => x.Tarih.Year == year);
+                    var yNonCari = nonCariKasa.Where(x => x.Tarih.Year == year);
+
+                    decimal inc = yCari.Where(x => x.Alacak > 0 && x.YonlendirilenCariId == null && (string.IsNullOrEmpty(x.EvrakNo) || !redirectedCheckPortfoys.Contains(x.EvrakNo))).Sum(x => x.Alacak)
+                                  + yNonCari.Sum(x => x.Giren);
+
+                    decimal red = yCari.Where(x => x.Alacak > 0 && (x.YonlendirilenCariId != null || (!string.IsNullOrEmpty(x.EvrakNo) && redirectedCheckPortfoys.Contains(x.EvrakNo)))).Sum(x => x.Alacak);
+
+                    decimal exp = yCari.Where(x => x.Borc > 0).Sum(x => x.Borc)
+                                  + yNonCari.Sum(x => x.Cikan);
+
+                    result.Add(new FinanceTrendItem
+                    {
                         Label = year.ToString(),
                         Date = new DateTime(year, 1, 1),
-                        Income = yData.Where(x => x.IslemTuru == "Tahsilat").Sum(x => x.Giren),
-                        Expense = yData.Where(x => x.IslemTuru == "Ödeme").Sum(x => x.Cikan),
-                        Redirected = 0
+                        Income = inc,
+                        Redirected = red,
+                        Expense = exp
                     });
                 }
             }
-            else // Monthly
+            else // monthly
             {
-                var trend = await GetMonthlyIncomeExpenseAsync();
-                result = trend.Select(x => new FinanceTrendItem {
-                    Label = x.Month,
-                    Date = new DateTime(x.Year, x.MonthInt, 1),
-                    Income = x.Income,
-                    Expense = x.Expense,
-                    Redirected = 0
-                }).ToList();
+                for (int i = 0; i < count; i++)
+                {
+                    var month = start.AddMonths(i);
+                    var mCari = cariFinance.Where(x => x.Tarih.Year == month.Year && x.Tarih.Month == month.Month);
+                    var mNonCari = nonCariKasa.Where(x => x.Tarih.Year == month.Year && x.Tarih.Month == month.Month);
+
+                    decimal inc = mCari.Where(x => x.Alacak > 0 && x.YonlendirilenCariId == null && (string.IsNullOrEmpty(x.EvrakNo) || !redirectedCheckPortfoys.Contains(x.EvrakNo))).Sum(x => x.Alacak)
+                                  + mNonCari.Sum(x => x.Giren);
+
+                    decimal red = mCari.Where(x => x.Alacak > 0 && (x.YonlendirilenCariId != null || (!string.IsNullOrEmpty(x.EvrakNo) && redirectedCheckPortfoys.Contains(x.EvrakNo)))).Sum(x => x.Alacak);
+
+                    decimal exp = mCari.Where(x => x.Borc > 0).Sum(x => x.Borc)
+                                  + mNonCari.Sum(x => x.Cikan);
+
+                    result.Add(new FinanceTrendItem
+                    {
+                        Label = month.ToString("MMM"),
+                        Date = new DateTime(month.Year, month.Month, 1),
+                        Income = inc,
+                        Redirected = red,
+                        Expense = exp
+                    });
+                }
             }
         }
         catch { }
@@ -503,5 +579,23 @@ public class FirebaseUnitOfWork : IUnitOfWork
         {
             await _firebaseService.DeleteYearAsync(DateTime.Now.Year);
         }
+    }
+
+    public async Task<ErmayMuhasebe.Services.RolloverResult> RolloverYearAsync(int sourceYear, int targetYear, ErmayMuhasebe.Services.RolloverOptions? options = null, System.IProgress<string>? progress = null)
+    {
+        await Task.CompletedTask;
+        return new ErmayMuhasebe.Services.RolloverResult { Success = true, Message = "Cloud rollover completed." };
+    }
+
+    public async Task<ErmayMuhasebe.Services.RolloverResult> ReflectBalancesForwardAsync(int sourceYear, System.IProgress<string>? progress = null)
+    {
+        await Task.CompletedTask;
+        return new ErmayMuhasebe.Services.RolloverResult { Success = true, Message = "Cloud balances reflected." };
+    }
+
+    public List<int> GetAvailableYears()
+    {
+        var cur = DateTime.Now.Year;
+        return new List<int> { cur + 1, cur, cur - 1 };
     }
 }

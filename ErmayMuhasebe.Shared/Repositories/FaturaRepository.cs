@@ -243,7 +243,13 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
                 cariToRecalc.Alacak = totalAlacak;
                 await db.UpdateAsync(cariToRecalc);
                 await _syncService.SyncCariAsync(cariToRecalc);
+                _dbService.AutoReflectCari(entity.CariId);
             }
+        }
+
+        foreach (var sId in affectedStokIds)
+        {
+            _dbService.AutoReflectStok(sId);
         }
 
         return 1;
@@ -729,7 +735,12 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
             await _syncService.SyncStokHareketAsync(sh);
         }
 
-        if (updateStok)
+        if (updateCari && fatura.CariId > 0)
+        {
+            _dbService.AutoReflectCari(fatura.CariId);
+        }
+
+        if (updateStok && detaylar != null)
         {
             var updatedStokIds = detaylar.Select(d => d.StokId).Distinct().ToList();
             var dbConn = await GetConnectionAsync();
@@ -740,6 +751,7 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
                 {
                     await _syncService.SyncStokAsync(stk);
                 }
+                _dbService.AutoReflectStok(sId);
             }
         }
 

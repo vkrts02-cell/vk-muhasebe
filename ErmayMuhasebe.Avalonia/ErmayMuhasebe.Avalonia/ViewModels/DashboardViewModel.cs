@@ -17,6 +17,7 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Globalization;
+using Avalonia.Media;
 using SVM = ErmayMuhasebe.Shared.ViewModels;
 using AVM = ErmayMuhasebe.Avalonia.ViewModels;
 
@@ -27,9 +28,18 @@ namespace ErmayMuhasebe.Avalonia.ViewModels;
 /// </summary>
 public partial class DashboardViewModel : ViewModelBase
 {
+    private static readonly IBrush PositiveBrush = new SolidColorBrush(Color.Parse("#10B981"));
+    private static readonly IBrush PositiveBgBrush = new SolidColorBrush(Color.Parse("#2A10B981"));
+    private static readonly BoxShadows PositiveShadow = BoxShadows.Parse("0 4 15 0 #2010B981");
+
+    private static readonly IBrush NegativeBrush = new SolidColorBrush(Color.Parse("#EF4444"));
+    private static readonly IBrush NegativeBgBrush = new SolidColorBrush(Color.Parse("#2AEF4444"));
+    private static readonly BoxShadows NegativeShadow = BoxShadows.Parse("0 4 15 0 #20EF4444");
+
     private readonly IUnitOfWork _uow;
     private readonly ThemeService _themeService;
     private readonly IPdfService _pdfService;
+    private readonly IYearContext? _yearContext;
 
     // KPI Cards
     [ObservableProperty] private decimal _gunlukSatis;
@@ -46,6 +56,14 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private decimal _karlilik;
     [ObservableProperty] private double _karlilikOrani;
     [ObservableProperty] private decimal _toplamMaliyet;
+
+    // Net Bakiye Durumu (Toplam Alacak - Toplam Borç)
+    [ObservableProperty] private decimal _netBakiye;
+    [ObservableProperty] private string _netBakiyeText = "+0,00 ₺";
+    [ObservableProperty] private IBrush _netColorBrush = PositiveBrush;
+    [ObservableProperty] private IBrush _netBgBrush = PositiveBgBrush;
+    [ObservableProperty] private BoxShadows _netBoxShadow = PositiveShadow;
+    [ObservableProperty] private bool _isNetPozitif = true;
 
     // Lists
     [ObservableProperty] private ObservableCollection<RecentTransactionItem> _recentTransactions = new();
@@ -101,7 +119,12 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsWindowsFluent));
     }
 
-    public DashboardViewModel(IUnitOfWork uow, ThemeService themeService, IPdfService pdfService, bool disableAutoRefresh = false)
+    public DashboardViewModel(
+        IUnitOfWork uow, 
+        ThemeService themeService, 
+        IPdfService pdfService, 
+        IYearContext? yearContext = null, 
+        bool disableAutoRefresh = false)
     {
         DisableAutoRefresh = disableAutoRefresh;
         System.Diagnostics.Debug.WriteLine("=== DashboardViewModel Constructor START ===");
@@ -109,6 +132,18 @@ public partial class DashboardViewModel : ViewModelBase
         _uow = uow;
         _themeService = themeService;
         _pdfService = pdfService;
+        _yearContext = yearContext;
+
+        if (_yearContext != null)
+        {
+            _yearContext.YearChanged += (newYear) =>
+            {
+                if (!DisableAutoRefresh)
+                {
+                    _ = LoadStatsAsync();
+                }
+            };
+        }
         
         // Set initial theme
         CurrentTheme = _themeService.CurrentTheme.ToString();
@@ -340,7 +375,7 @@ public partial class DashboardViewModel : ViewModelBase
     private async Task LoadGoalTrackingDataAsync()
     {
         var today = DateTime.Now;
-        var currentYear = today.Year;
+        var currentYear = _yearContext?.CurrentYear ?? today.Year;
         var currentMonth = today.Month;
 
         var monthlyTargets = await _uow.GetSatisHedefleriAsync(currentYear);
@@ -431,7 +466,34 @@ public partial class DashboardViewModel : ViewModelBase
             Karlilik = stats.Karlilik;
             KarlilikOrani = stats.KarlilikOrani;
             ToplamMaliyet = stats.ToplamMaliyet;
+
+            UpdateNetDurum();
         });
+    }
+
+    partial void OnToplamAlacakChanged(decimal value) => UpdateNetDurum();
+    partial void OnToplamBorcChanged(decimal value) => UpdateNetDurum();
+
+    private void UpdateNetDurum()
+    {
+        var fark = ToplamAlacak - ToplamBorc;
+        NetBakiye = fark;
+        if (fark >= 0)
+        {
+            NetBakiyeText = $"+{fark:N2} ₺";
+            NetColorBrush = PositiveBrush;
+            NetBgBrush = PositiveBgBrush;
+            NetBoxShadow = PositiveShadow;
+            IsNetPozitif = true;
+        }
+        else
+        {
+            NetBakiyeText = $"-{Math.Abs(fark):N2} ₺";
+            NetColorBrush = NegativeBrush;
+            NetBgBrush = NegativeBgBrush;
+            NetBoxShadow = NegativeShadow;
+            IsNetPozitif = false;
+        }
     }
 
     private async Task LoadListsAsync()

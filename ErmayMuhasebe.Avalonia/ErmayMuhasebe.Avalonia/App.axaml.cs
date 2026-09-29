@@ -63,6 +63,7 @@ public partial class App : Application, IRecipient<ShowCariDetailMessage>, IReci
         services.AddSingleton<IFinansService, FinansService>();
         services.AddSingleton<ErmayMuhasebe.Repositories.DataProviders.IDataProvider, ErmayMuhasebe.Repositories.DataProviders.SqliteDataProvider>();
         services.AddSingleton<DovizService>();
+        services.AddSingleton<YearRolloverService>();
         if (OperatingSystem.IsIOS() || OperatingSystem.IsAndroid())
         {
             services.AddSingleton<PdfService, HttpPdfService>();
@@ -419,13 +420,7 @@ public partial class App : Application, IRecipient<ShowCariDetailMessage>, IReci
                     var view = viewLocator.Build(vm);
                     if (existingWindow is ModuleWindow mw)
                     {
-                        string currentTitle = "Modül";
-                        Symbol currentIcon = Symbol.Box;
-                        if (vm is AVM.MusteriTakipDetayViewModel mtdVm2 && !string.IsNullOrWhiteSpace(mtdVm2.CariUnvan))
-                        {
-                            currentTitle = $"{mtdVm2.CariUnvan} - Müşteri Takip Klasörü";
-                            currentIcon = Symbol.FolderPeople;
-                        }
+                        var (currentTitle, currentIcon) = ResolveModuleTitleAndIcon(vm);
                         mw.SetModuleInfo(currentTitle, currentIcon);
                         if (view != null) mw.SetContent(view);
                     }
@@ -459,31 +454,7 @@ public partial class App : Application, IRecipient<ShowCariDetailMessage>, IReci
                     // Generic ModuleWindow içine UserControl olarak göm
                     var moduleWindow = new ModuleWindow { DataContext = vm };
                     
-                    string title = "Modül";
-                    Symbol icon = Symbol.Box;
-
-                    var mainVm = Services?.GetRequiredService<AVM.MainViewModel>();
-                    var menuItem = mainVm?.MenuItems.FirstOrDefault(m => m.ModelType == vmType);
-                    
-                    if (menuItem != null)
-                    {
-                        title = menuItem.Name;
-                        if (Enum.TryParse<Symbol>(menuItem.IconKey, out var sym)) icon = sym;
-                    }
-                    else
-                    {
-                        title = vmType.Name.Replace("ViewModel", "").Replace("List", "").Replace("Detay", " Detayı");
-                        if (vm is AVM.MusteriTakipDetayViewModel mtdVm && !string.IsNullOrWhiteSpace(mtdVm.CariUnvan))
-                        {
-                            title = $"{mtdVm.CariUnvan} - Müşteri Takip Klasörü";
-                            icon = Symbol.FolderPeople;
-                        }
-                        else if (title.Contains("MusteriTakip")) { title = "Müşteri Takip Klasörü"; icon = Symbol.FolderPeople; }
-                        else if (title.Contains("Fatura")) icon = Symbol.Document;
-                        else if (title.Contains("Stok")) icon = Symbol.Box;
-                        else if (title.Contains("Cari")) icon = Symbol.People;
-                    }
-
+                    var (title, icon) = ResolveModuleTitleAndIcon(vm);
                     moduleWindow.SetModuleInfo(title, icon);
                     
                     if (view != null) moduleWindow.SetContent(view);
@@ -543,6 +514,133 @@ public partial class App : Application, IRecipient<ShowCariDetailMessage>, IReci
                name == "SettingsViewModel" || name == "ToolsViewModel" || 
                name == "FinansViewModel" || name == "KanbanViewModel" || 
                name == "VadeTakipViewModel";
+    }
+
+    private (string Title, Symbol Icon) ResolveModuleTitleAndIcon(object vm)
+    {
+        if (vm == null) return ("VK Muhasebe", Symbol.Box);
+        var vmType = vm.GetType();
+        string title = "VK Muhasebe";
+        Symbol icon = Symbol.Box;
+
+        // Özel ViewModel Kontrolleri
+        if (vm is AVM.MusteriTakipDetayViewModel mtdVm)
+        {
+            title = !string.IsNullOrWhiteSpace(mtdVm.CariUnvan)
+                ? $"{mtdVm.CariUnvan} - Müşteri Takip"
+                : "Müşteri Takip";
+            icon = Symbol.FolderPeople;
+            return (title, icon);
+        }
+
+        if (vm is AVM.MusteriTakipViewModel)
+        {
+            return ("Müşteri Takip", Symbol.FolderPeople);
+        }
+
+        if (vm is AVM.FaturaDetayViewModel fdVm)
+        {
+            title = fdVm.FaturaTuru == "Alış" ? "Alış Faturası" : "Satış Faturası";
+            icon = Symbol.Document;
+            return (title, icon);
+        }
+
+        if (vm is ErmayMuhasebe.Shared.ViewModels.FaturaDetayViewModel sfdVm)
+        {
+            title = sfdVm.FaturaTuru == "Alış" ? "Alış Faturası" : "Satış Faturası";
+            icon = Symbol.Document;
+            return (title, icon);
+        }
+
+        if (vm is AVM.SiparisDetayViewModel || vmType.Name.StartsWith("SiparisDetay"))
+        {
+            return ("Sipariş", Symbol.DocumentBulletListMultiple);
+        }
+
+        if (vm is AVM.TeklifDetayViewModel || vmType.Name.StartsWith("TeklifDetay"))
+        {
+            return ("Teklif", Symbol.DocumentText);
+        }
+
+        if (vm is AVM.CariDetayViewModel)
+        {
+            return ("Cari Kart Detayı", Symbol.People);
+        }
+
+        if (vm is AVM.GenericToolViewModel gtvm && !string.IsNullOrWhiteSpace(gtvm.ToolName))
+        {
+            return (gtvm.ToolName, Symbol.Wrench);
+        }
+
+        var mainVm = Services?.GetRequiredService<AVM.MainViewModel>();
+        var menuItem = mainVm?.MenuItems.FirstOrDefault(m => m.ModelType == vmType);
+        if (menuItem != null)
+        {
+            title = menuItem.Name;
+            if (Enum.TryParse<Symbol>(menuItem.IconKey, out var sym)) icon = sym;
+            return (title, icon);
+        }
+
+        var rawName = vmType.Name;
+        if (rawName.EndsWith("ViewModel")) rawName = rawName.Substring(0, rawName.Length - 9);
+
+        title = rawName switch
+        {
+            "FaturaList" => "Faturalar",
+            "SiparisList" => "Siparişler",
+            "TeklifList" => "Teklifler",
+            "CariList" => "Cari Hesaplar",
+            "StokList" => "Stok Kartları",
+            "KasaList" => "Kasa & Nakit",
+            "BankaList" => "Banka Hesapları",
+            "FinansDashboard" or "Finans" => "Finans Yönetimi",
+            "CekSenetList" => "Çek & Senetler",
+            "RaporList" => "Raporlar",
+            "VadeTakip" => "Vade Takip",
+            "Kanban" => "Görev Panosu (Kanban)",
+            "Dashboard" => "Ana Sayfa",
+            "Settings" => "Ayarlar",
+            "Tools" => "Araçlar",
+            "BarkodTasarim" => "Barkod Tasarımı",
+            "BelgeArsiv" => "Belge Arşivi",
+            "BorcHatirlatici" => "Borç Hatırlatıcı",
+            "CariBirlestirme" => "Cari Kart Birleştirme",
+            "DbBakim" => "Veritabanı Bakımı",
+            "DovizDonusturucu" => "Döviz Dönüştürücü",
+            "EFTList" => "EFT & Havale Takibi",
+            "EvrakNoDuzenle" => "Evrak No Düzenleme",
+            "FiyatListesi" => "Fiyat Listesi",
+            "GecikmeFaizi" => "Gecikme Faizi Hesaplama",
+            "HaftalikHedefTakip" => "Haftalık Hedef Takip",
+            "HedefTakip" => "Hedef Takip",
+            "KarZararHaritasi" => "Kâr / Zarar Haritası",
+            "KasaDetay" => "Kasa Detayı",
+            "BankaDetay" => "Banka Detayı",
+            "KisayolTusu" => "Kısayol Tuşları",
+            "KrediKartiList" => "Kredi Kartı İşlemleri",
+            "MaliyetHesaplama" => "Maliyet Hesaplama",
+            "OptimalFiyat" => "Optimal Fiyat Analizi",
+            "RotaPlanlama" => "Rota Planlama",
+            "SiparisAciklama" => "Sipariş Açıklamaları",
+            "SistemSaglik" => "Sistem Sağlığı",
+            "StokGrupDuzenle" => "Stok Grup Düzenleme",
+            "StokSayim" => "Stok Sayım",
+            "TeklifSiparis" => "Teklif / Sipariş",
+            "TopluFiyat" => "Toplu Fiyat Güncelleme",
+            "UrunBirlestirme" => "Ürün Birleştirme",
+            "VeriTemizlik" => "Veri Temizliği",
+            "YearSelection" => "Mali Yıl Seçimi",
+            _ => rawName.Replace("List", "").Replace("Detay", " Detayı")
+        };
+
+        if (title.Contains("Fatura")) icon = Symbol.Document;
+        else if (title.Contains("Siparis") || title.Contains("Sipariş")) icon = Symbol.DocumentBulletListMultiple;
+        else if (title.Contains("Teklif")) icon = Symbol.DocumentText;
+        else if (title.Contains("Stok")) icon = Symbol.Box;
+        else if (title.Contains("Cari")) icon = Symbol.People;
+        else if (title.Contains("Banka") || title.Contains("Kasa")) icon = Symbol.BuildingBank;
+
+        return (title, icon);
     }
 
     private void DisableAvaloniaDataAnnotationValidation()

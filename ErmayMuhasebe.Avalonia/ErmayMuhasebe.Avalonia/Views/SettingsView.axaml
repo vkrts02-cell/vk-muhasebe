@@ -246,9 +246,270 @@
                                         <TextBlock Text="Sadece yönetici girişi ve bakım işlemleri." FontSize="11" Opacity="0.5"/>
                                     </StackPanel>
                                 </Grid>
-                                
                                 <TextBlock Text="{Binding BackupStatus}" FontSize="13" Foreground="#9CA3AF" FontWeight="Medium"
+                                           Margin="0,10,0,0"
                                            IsVisible="{Binding BackupStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Section: Mali Yıl ve Devir İşlemleri -->
+                        <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1.5" CornerRadius="20" Padding="30" 
+                                IsVisible="{Binding CurrentCategory.Id, Converter={StaticResource StringEqualsConverter}, ConverterParameter='rollover'}">
+                            <StackPanel Spacing="24" MaxWidth="1050" HorizontalAlignment="Left">
+                                
+                                <!-- Section Title -->
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <ic:SymbolIcon Symbol="CalendarClock" FontSize="24" Foreground="#10B981"/> 
+                                    <TextBlock Text="Mali Yıl ve Dönem İşlemleri" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+
+                                <!-- KART 1: Çalışma Yılı Yönetimi & Bakiye Yansıtma -->
+                                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="16" Padding="22">
+                                    <StackPanel Spacing="18">
+                                        <!-- Header & Active Year Badge -->
+                                        <Grid ColumnDefinitions="*, Auto" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                                <TextBlock Text="Çalışma Yılı Yönetimi" FontSize="15" FontWeight="Bold" Foreground="#60A5FA"/>
+                                                <TextBlock Text="Sistemde aktif olarak çalıştığınız mali yılı görüntüleyin, yıllar arası geçiş yapın veya bakiyeleri senkronize edin." FontSize="12" Foreground="#94A3B8"/>
+                                            </StackPanel>
+                                            
+                                            <Border Grid.Column="1" Background="rgba(56, 189, 248, 0.12)" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="10" Padding="14,7" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <ic:SymbolIcon Symbol="CalendarCheckmark" FontSize="18" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Aktif Mali Yıl:" FontSize="13" Foreground="#94A3B8" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding ActiveYear, StringFormat='{}{0}'}" FontWeight="Black" Foreground="#38BDF8" FontSize="15" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <Separator Background="{DynamicResource BorderColor}" Margin="0,2"/>
+
+                                        <!-- Action Buttons Toolbar -->
+                                        <Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
+                                            <!-- Sol Kısım: Yıl Değiştir ve Sil -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                <TextBlock Text="Mali Yıl Seç:" Foreground="#94A3B8" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                <ComboBox ItemsSource="{Binding AvailableYears}" SelectedItem="{Binding SelectedYearToSwitch}" Width="120" Height="36" VerticalAlignment="Center"/>
+                                                
+                                                <Button Command="{Binding SwitchYearCommand}" Classes="Primary" Height="36" Width="125" Padding="0" CornerRadius="8" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <ic:SymbolIcon Symbol="ArrowRight" FontSize="15" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Bu Yıla Geç" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+
+                                                <Button Command="{Binding DeleteYearCommand}" Classes="Danger" Height="36" Width="95" Padding="0" CornerRadius="8" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                                        ToolTip.Tip="Seçili mali yılı sil (Aktif yıl silinemez)">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <ic:SymbolIcon Symbol="Delete" FontSize="15" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Yılı Sil" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+
+                                            <!-- Sağ Kısım: Sonraki Yıla Bakiye Yansıt (Düzgün Hizalı, Asla Genişlemez) -->
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Button Command="{Binding ReflectBalancesForwardCommand}" Classes="Warning" Height="36" Width="210" Padding="0" CornerRadius="8" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                        ToolTip.Tip="Bu yılda yapılan cari, stok ve kasa düzeltmelerini sonraki yılın açılış bakiyelerine aktarır">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <ic:SymbolIcon Symbol="ArrowSync" FontSize="15" Foreground="#FF8C00" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Sonraki Yıla Bakiye Yansıt" FontWeight="Bold" FontSize="13" Foreground="#FF8C00" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KART 2: Yeni Yıla Devir İşlemi Sihirbazı -->
+                                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="16" Padding="22">
+                                    <StackPanel Spacing="18">
+                                        <!-- Header -->
+                                        <Grid ColumnDefinitions="*, Auto" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                                <TextBlock Text="Yeni Yıla Devir Sihirbazı" FontSize="15" FontWeight="Bold" Foreground="#10B981"/>
+                                                <TextBlock Text="Eski yılın kapanış bakiyelerini ve kart tanımlarını seçtiğiniz modüllerle yeni mali yıla aktarır." FontSize="12" Foreground="#94A3B8"/>
+                                            </StackPanel>
+                                            
+                                            <Border Grid.Column="1" Background="rgba(16, 185, 129, 0.12)" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8" Padding="12,5" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <ic:SymbolIcon Symbol="Sparkle" FontSize="14" Foreground="#10B981" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Yeni Mali Yıl Oluştur" FontSize="12" FontWeight="Bold" Foreground="#10B981" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Kaynak ve Hedef Yıl Seçim Kutuları -->
+                                        <Grid ColumnDefinitions="*, Auto, *" Margin="0,4,0,0" VerticalAlignment="Center">
+                                            <!-- Kaynak Yıl -->
+                                            <Border Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="16">
+                                                <StackPanel Spacing="8">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <ic:SymbolIcon Symbol="ArrowExit" FontSize="16" Foreground="#94A3B8"/>
+                                                        <TextBlock Text="Kaynak (Eski) Mali Yıl" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    </StackPanel>
+                                                    <ComboBox ItemsSource="{Binding AvailableYears}" SelectedItem="{Binding RolloverSourceYear}" HorizontalAlignment="Stretch" Height="38"/>
+                                                    <TextBlock Text="Kapanış bakiyelerinin okunacağı kaynak yıl" FontSize="11" Foreground="#64748B"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Merkez Geçiş Oku -->
+                                            <Border Grid.Column="1" Width="42" Height="42" CornerRadius="21" Background="#1E293B" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" Margin="16,0" VerticalAlignment="Center">
+                                                <ic:SymbolIcon Symbol="ArrowRight" FontSize="20" Foreground="#10B981" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+
+                                            <!-- Hedef Yıl -->
+                                            <Border Grid.Column="2" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="16">
+                                                <StackPanel Spacing="8">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <ic:SymbolIcon Symbol="AddCircle" FontSize="16" Foreground="#10B981"/>
+                                                        <TextBlock Text="Hedef (Yeni) Mali Yıl" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    </StackPanel>
+                                                    <NumericUpDown Value="{Binding RolloverTargetYear}" Minimum="2020" Maximum="2040" FormatString="0000" HorizontalAlignment="Stretch" Height="38"/>
+                                                    <TextBlock Text="Açılış bakiyelerinin aktarılacağı yeni çalışma yılı" FontSize="11" Foreground="#64748B"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Devredilecek Modüller -->
+                                        <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="18">
+                                            <StackPanel Spacing="14">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <ic:SymbolIcon Symbol="CheckmarkStarburst" FontSize="18" Foreground="#38BDF8"/>
+                                                    <TextBlock Text="Devredilecek Modüller ve Bakiyeler" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto, Auto" RowSpacing="14" ColumnSpacing="24">
+                                                    <CheckBox Grid.Row="0" Grid.Column="0" IsChecked="{Binding RolloverCariler}">
+                                                        <TextBlock Text="Cari Kartlar ve Kapanış Bakiyeleri (Devir Borç/Alacak)" FontSize="13" VerticalAlignment="Center"/>
+                                                    </CheckBox>
+                                                    <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding RolloverStoklar}">
+                                                        <TextBlock Text="Stok Kartları ve Kalan Envanter Miktarları" FontSize="13" VerticalAlignment="Center"/>
+                                                    </CheckBox>
+                                                    <CheckBox Grid.Row="1" Grid.Column="0" IsChecked="{Binding RolloverKasaBanka}">
+                                                        <TextBlock Text="Kasa ve Banka Açılış Bakiyeleri" FontSize="13" VerticalAlignment="Center"/>
+                                                    </CheckBox>
+                                                    <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding RolloverCekSenet}">
+                                                        <TextBlock Text="Açık ve Portföydeki Çek / Senetler" FontSize="13" VerticalAlignment="Center"/>
+                                                    </CheckBox>
+                                                    <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding RolloverTanimlar}">
+                                                        <TextBlock Text="Firma Profili, Personeller ve Sabit Tanımlar" FontSize="13" VerticalAlignment="Center"/>
+                                                    </CheckBox>
+                                                    <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding RolloverAutoBackup}">
+                                                        <TextBlock Text="Devir Öncesi Kaynak Yılı Otomatik Yedekle (.bak)" FontSize="13" VerticalAlignment="Center"/>
+                                                    </CheckBox>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Devir İlerleme Çubuğu ve Buton -->
+                                        <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="6" Margin="0,0,24,0">
+                                                <TextBlock Text="{Binding RolloverProgressMessage}" FontSize="13" Foreground="#38BDF8" FontWeight="SemiBold"
+                                                           IsVisible="{Binding RolloverProgressMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                <ProgressBar IsIndeterminate="True" Height="4" CornerRadius="2" IsVisible="{Binding IsRolloverExecuting}"/>
+                                            </StackPanel>
+
+                                            <Button Grid.Column="1" Command="{Binding ExecuteYearRolloverCommand}" 
+                                                    Classes="Success" Height="40" Width="210" Padding="0" CornerRadius="9"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                    IsEnabled="{Binding !IsRolloverExecuting}">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <ic:SymbolIcon Symbol="Play" FontSize="16" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Yeni Yıla Devri Başlat" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KART 3: Yıl Devir Ayarları & Senkronizasyon Kuralları -->
+                                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="16" Padding="22">
+                                    <StackPanel Spacing="16">
+                                        <TextBlock Text="Devir ve Senkronizasyon Tercihleri" FontSize="15" FontWeight="Bold" Foreground="#F59E0B"/>
+                                        
+                                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto" RowSpacing="16" ColumnSpacing="20">
+                                            <!-- Otomatik Bakiye Yansıtma -->
+                                            <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="Eski Yılda Düzenlemede Otomatik Yansıt" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <ToggleSwitch IsChecked="{Binding AutoReflectBalancesOnChange}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding AutoReflectBalancesOnChange, Converter={StaticResource BoolToRedGreenConverter}}" VerticalAlignment="Center" FontSize="13" Opacity="0.8"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Geçmiş yılda fatura veya tahsilat düzenlendiğinde devir bakiyelerini sonraki yıla otomatik aktarır." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Bakiyesiz Cariler -->
+                                            <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="Bakiyesiz Carileri Devretme" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <ToggleSwitch IsChecked="{Binding RolloverExcludeZeroBalances}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding RolloverExcludeZeroBalances, Converter={StaticResource BoolToRedGreenConverter}}" VerticalAlignment="Center" FontSize="13" Opacity="0.8"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Kapanış bakiyesi 0 TL olan cari hesap kartlarını yeni yıla devretmez." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Sıfır Stoklu Ürünler -->
+                                            <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="Tükenen (0 Adet) Stok Kartları" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <ToggleSwitch IsChecked="{Binding RolloverTransferZeroStock}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding RolloverTransferZeroStock, Converter={StaticResource BoolToRedGreenConverter}}" VerticalAlignment="Center" FontSize="13" Opacity="0.8"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Envanter miktarı sıfır olan ürünleri de yeni yıl stok listesine aktarır." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Devir Fişi Şablonu -->
+                                            <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="Devir Fişi Açıklama Şablonu" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    <TextBox Text="{Binding RolloverDevirFisiTemplate}" Height="36" VerticalContentAlignment="Center"/>
+                                                    <TextBlock Text="Yeni yılda oluşturulacak açılış fişlerinin standart açıklaması." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KART 4: Başlangıç Yılı ve Yıl Silme -->
+                                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="16" Padding="22">
+                                    <StackPanel Spacing="16">
+                                        <TextBlock Text="Başlangıç Yılı ve Yıl Yönetimi" FontSize="15" FontWeight="Bold" Foreground="#EF4444"/>
+                                        
+                                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto" RowSpacing="16" ColumnSpacing="20">
+                                            <!-- Başlangıç Yılı -->
+                                            <Border Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="Başlangıç Yılı" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <NumericUpDown Minimum="2000" Maximum="2100" Value="{Binding StartingYear}" Height="36" Width="120"/>
+                                                        <Button Content="Kaydet" Command="{Binding SaveStartingYearCommand}" Classes="Success" Height="36" CornerRadius="6"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Programın dropdown listesindeki ilk yıl. (Örn: 2028)" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Yıl Silme -->
+                                            <Border Grid.Column="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="Yıl Sil (Tehlikeli İşlem!)" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <ComboBox ItemsSource="{Binding AvailableYearsForDeletion}" SelectedItem="{Binding SelectedYearToDelete}" Height="36" Width="120" PlaceholderText="Yıl Seçin"/>
+                                                        <Button Content="Seçili Yılı Sil" Command="{Binding DeleteYearCommand}" Classes="Danger" Height="36" CornerRadius="6" Background="#EF4444" Foreground="White"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Seçilen yılı hem bilgisayardan hem de buluttan tamamen siler!" FontSize="11" Opacity="0.6" TextWrapping="Wrap" Foreground="#EF4444"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
                         </Border>
     

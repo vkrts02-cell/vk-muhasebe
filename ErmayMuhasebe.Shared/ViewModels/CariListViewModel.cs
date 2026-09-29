@@ -884,18 +884,17 @@ public abstract partial class CariListViewModel : ViewModelBase
              Date = GetParsedTransactionDate(),
              SelectedKasaOrBanka = SelectedKasaForTransaction,
              DirectedSupplier = directedSupplier,
-             YonlendirmeTarihi = DateTime.Now,
+             YonlendirmeTarihi = GetParsedTransactionDate(),
              BankaAdi = KkBanka,
              KartHesapNo = KkKartNo,
              OnayDekontNo = KkOnayKodu,
-             SlipDekontPath = KkSlipPath
+             SlipDekontPath = KkSlipPath,
+             ExistingHareketId = _editingHareket?.Id ?? 0,
+             ExistingEvrakNo = _editingHareket?.EvrakNo,
+             ExistingRefId = _editingHareket?.RefId
          };
 
-         if (_editingHareket != null)
-         {
-             await _finansService.DeleteTransactionAsync(_editingHareket);
-         }
-
+         int? editedId = _editingHareket?.Id;
          var result = await _finansService.SaveTransactionAsync(request);
 
          if (result)
@@ -904,7 +903,14 @@ public abstract partial class CariListViewModel : ViewModelBase
              _editingHareket = null;
              NotifyFinancialDataChanged();
              await LoadCarilerAsync(); 
-             if (SelectedCari != null) await LoadHareketlerAsync(SelectedCari.Id);
+             if (SelectedCari != null) 
+             {
+                 await LoadHareketlerAsync(SelectedCari.Id);
+                 if (editedId.HasValue)
+                 {
+                     SelectedHareket = CariHareketler.FirstOrDefault(h => h.Id == editedId.Value);
+                 }
+             }
          }
          else
          {

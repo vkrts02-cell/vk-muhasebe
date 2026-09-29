@@ -31,13 +31,19 @@ namespace ErmayMuhasebe.Cloud.Services
             }
         }
 
+        public event Action<int>? YearChanged;
+
         public int CurrentYear
         {
             get => _currentYear;
             set
             {
-                _currentYear = value;
-                _localStorage.SetItem("active_year", _currentYear);
+                if (_currentYear != value)
+                {
+                    _currentYear = value;
+                    _localStorage.SetItem("active_year", _currentYear);
+                    YearChanged?.Invoke(value);
+                }
             }
         }
     }

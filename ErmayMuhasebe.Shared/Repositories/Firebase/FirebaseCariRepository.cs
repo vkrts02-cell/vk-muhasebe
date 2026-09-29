@@ -268,8 +268,8 @@ public class FirebaseCariRepository : BaseFirebaseRepository<CariKart>, ICariRep
         
         return new CariSummary
         {
-            ToplamBorc = list.Sum(x => x.Borc),
-            ToplamAlacak = list.Sum(x => x.Alacak),
+            ToplamBorc = list.Sum(x => x.Borc + x.DevirBorc),
+            ToplamAlacak = list.Sum(x => x.Alacak + x.DevirAlacak),
             MusteriBakiye = list.Where(c => (c.Tur?.ToLower() ?? "") is "alici" or "alıcı" or "müşteri" || (c.Grup?.ToLower() ?? "") is "müşteri")
                                 .Sum(c => c.Bakiye),
             TedarikciBakiye = list.Where(c => (c.Tur?.ToLower() ?? "") is "satici" or "satıcı" or "tedarikçi" || (c.Grup?.ToLower() ?? "") is "tedarikçi")

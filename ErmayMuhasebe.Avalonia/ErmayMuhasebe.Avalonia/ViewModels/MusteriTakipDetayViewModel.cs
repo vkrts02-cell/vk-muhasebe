@@ -80,19 +80,24 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         // Not Ekleme Alanları
         [ObservableProperty] private string _newNotBaslik = string.Empty;
         [ObservableProperty] private string _newNotIcerik = string.Empty;
-        [ObservableProperty] private DateTimeOffset? _newNotTarih = DateTimeOffset.Now;
+        [ObservableProperty] private DateTime? _newNotTarih = DateTime.Now;
 
         // Görüşme Ekleme Alanları
         [ObservableProperty] private string _newGorusmeBaslik = string.Empty;
         [ObservableProperty] private string _newGorusmeIcerik = string.Empty;
-        [ObservableProperty] private DateTimeOffset? _newGorusmeTarih = DateTimeOffset.Now;
+        [ObservableProperty] private DateTime? _newGorusmeTarih = DateTime.Now;
 
         // Fiyat Ekleme Alanları
         [ObservableProperty] private string _newFiyatBaslik = string.Empty;
         [ObservableProperty] private decimal? _newFiyatTutar;
         [ObservableProperty] private string _newFiyatParaBirimi = "₺";
         [ObservableProperty] private string _newFiyatAciklama = string.Empty;
-        [ObservableProperty] private DateTimeOffset? _newFiyatTarih = DateTimeOffset.Now;
+        [ObservableProperty] private DateTime? _newFiyatTarih = DateTime.Now;
+
+        public bool HasGorusmeler => Gorusmeler != null && Gorusmeler.Count > 0;
+        public bool HasFiyatlar => Fiyatlar != null && Fiyatlar.Count > 0;
+        public bool HasGorseller => Gorseller != null && Gorseller.Count > 0;
+        public bool HasNotlar => Notlar != null && Notlar.Count > 0;
 
         // Görsel Ekleme
         [ObservableProperty] private string _newGorselBaslik = string.Empty;
@@ -138,6 +143,11 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
                 // Fiyatlar
                 var fiyatList = tumDetaylar.Where(x => x.Tip == "Fiyat");
                 Fiyatlar = new ObservableCollection<MusteriTakipDetay>(fiyatList);
+
+                OnPropertyChanged(nameof(HasGorusmeler));
+                OnPropertyChanged(nameof(HasFiyatlar));
+                OnPropertyChanged(nameof(HasGorseller));
+                OnPropertyChanged(nameof(HasNotlar));
             }
             catch (Exception ex)
             {
@@ -179,13 +189,13 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
                 Tip = "Gorusme",
                 Baslik = string.IsNullOrWhiteSpace(NewGorusmeBaslik) ? "Müşteri Görüşmesi" : NewGorusmeBaslik.Trim(),
                 Icerik = NewGorusmeIcerik?.Trim(),
-                Tarih = NewGorusmeTarih?.DateTime ?? DateTime.Now
+                Tarih = NewGorusmeTarih ?? DateTime.Now
             };
 
             await _uow.MusteriTakip.SaveDetayAsync(detay);
             NewGorusmeBaslik = string.Empty;
             NewGorusmeIcerik = string.Empty;
-            NewGorusmeTarih = DateTimeOffset.Now;
+            NewGorusmeTarih = DateTime.Now;
 
             await LoadDetaylarAsync();
         }
@@ -203,13 +213,13 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
                 Tip = "Not",
                 Baslik = string.IsNullOrWhiteSpace(NewNotBaslik) ? "Genel Not" : NewNotBaslik.Trim(),
                 Icerik = NewNotIcerik?.Trim(),
-                Tarih = NewNotTarih?.DateTime ?? DateTime.Now
+                Tarih = NewNotTarih ?? DateTime.Now
             };
 
             await _uow.MusteriTakip.SaveDetayAsync(detay);
             NewNotBaslik = string.Empty;
             NewNotIcerik = string.Empty;
-            NewNotTarih = DateTimeOffset.Now;
+            NewNotTarih = DateTime.Now;
 
             await LoadDetaylarAsync();
         }
@@ -229,14 +239,14 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
                 FiyatBilgisi = NewFiyatTutar,
                 ParaBirimi = NewFiyatParaBirimi ?? "₺",
                 Icerik = NewFiyatAciklama?.Trim(),
-                Tarih = NewFiyatTarih?.DateTime ?? DateTime.Now
+                Tarih = NewFiyatTarih ?? DateTime.Now
             };
 
             await _uow.MusteriTakip.SaveDetayAsync(detay);
             NewFiyatBaslik = string.Empty;
             NewFiyatTutar = null;
             NewFiyatAciklama = string.Empty;
-            NewFiyatTarih = DateTimeOffset.Now;
+            NewFiyatTarih = DateTime.Now;
 
             await LoadDetaylarAsync();
         }

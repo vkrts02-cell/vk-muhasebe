@@ -82,7 +82,7 @@ public abstract partial class StokListViewModel : ViewModelBase
     // Manual Transaction Fields
     [ObservableProperty] private string _islemTarihStr = DateTime.Now.ToString("dd.MM.yyyy");
     [ObservableProperty] private decimal? _islemMiktar;
-    [ObservableProperty] private decimal _islemFiyat;
+    [ObservableProperty] private decimal? _islemFiyat;
     [ObservableProperty] private string _islemAciklama = "";
     [ObservableProperty] private StokHareket? _selectedStokHareket;
 
@@ -528,7 +528,7 @@ public abstract partial class StokListViewModel : ViewModelBase
                 SelectedStokHareket.Tarih = parsedTarih;
                 SelectedStokHareket.IslemTuru = tur;
                 SelectedStokHareket.Miktar = miktar;
-                SelectedStokHareket.Fiyat = IslemFiyat;
+                SelectedStokHareket.Fiyat = IslemFiyat ?? 0;
                 SelectedStokHareket.Aciklama = IslemAciklama;
                 SelectedStokHareket.Giren = tur == "GİRİŞ" ? miktar : 0;
                 SelectedStokHareket.Cikan = tur == "ÇIKIŞ" ? miktar : 0;
@@ -548,7 +548,7 @@ public abstract partial class StokListViewModel : ViewModelBase
                     Tarih = parsedTarih,
                     IslemTuru = tur,
                     Miktar = miktar,
-                    Fiyat = IslemFiyat,
+                    Fiyat = IslemFiyat ?? 0,
                     Aciklama = string.IsNullOrEmpty(IslemAciklama) ? $"Manuel {tur}" : IslemAciklama,
                     Giren = tur == "GİRİŞ" ? miktar : 0,
                     Cikan = tur == "ÇIKIŞ" ? miktar : 0

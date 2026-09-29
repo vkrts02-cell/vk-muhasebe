@@ -96,6 +96,9 @@ namespace ErmayMuhasebe.Models
         public string? LogoUrl { get; set; }
         public string? LogoBase64 { get; set; } // Base64 formatında logo verisi
         
+        // Yıl Ayarları
+        public int StartingYear { get; set; } = 2026;
+
         // PDF bazlı logo ayarları
         public bool LogoFatura { get; set; } = true;
         public bool LogoSiparis { get; set; } = true;
@@ -132,7 +135,7 @@ namespace ErmayMuhasebe.Models
         public string AcilisBakiyeOrientation { get; set; } = "Dikey";
 
         public DateTime? LastBackupDate { get; set; }
-        public string FactoryResetPassword { get; set; } = "ERMAY2025";
+        public string FactoryResetPassword { get; set; } = "";
         
         public bool LowPerformanceMode { get; set; } = false;
         public bool CloudBackupIntegration { get; set; } = false;

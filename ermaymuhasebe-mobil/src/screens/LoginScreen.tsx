@@ -215,13 +215,10 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
         await AsyncStorage.setItem('ermay_saved_username', usernameOrEmail.trim());
         await AsyncStorage.setItem('ermay_saved_password', password);
 
-        console.log('[LOGIN] Başarılı, doğrudan uygulamaya geçiliyor...');
+        console.log('[LOGIN] Başarılı, çalışma yılı seçimine geçiliyor...');
         setLoggedInUser(res.user);
-        
-        // Bypass Year Selection
-        const currentYear = new Date().getFullYear().toString();
-        await saveActiveYear(currentYear);
-        onLoginSuccess();
+        setMode('year_selection');
+        await loadYearSelectionData();
       } else {
         console.log('[LOGIN] Login başarısız:', res.error);
         setError(res.error || 'Giriş yapılamadı.');

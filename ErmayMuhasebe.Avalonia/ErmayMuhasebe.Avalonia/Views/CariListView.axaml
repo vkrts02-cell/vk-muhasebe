@@ -365,15 +365,15 @@
               <StackPanel Grid.Row="1" Spacing="5" VerticalAlignment="Top">
                  <!-- 1. Satır: Yeni & Düzenle -->
                  <Grid ColumnDefinitions="*, *">
-                   <Button Grid.Column="0" Command="{Binding OpenAddCariDialogCommand}" Background="Transparent" BorderBrush="#00C2FF" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="0,0,2,0">
+                   <Button Grid.Column="0" Command="{Binding OpenAddCariDialogCommand}" Background="Transparent" BorderBrush="#00C2FF" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="0,0,2,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                        <ic:SymbolIcon Symbol="PersonAdd" Foreground="#00C2FF" FontSize="14" VerticalAlignment="Center"/> 
                        <TextBlock Text="Yeni" FontSize="11" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="White"/>
                      </StackPanel>
                    </Button>
-                   <Button Grid.Column="1" Command="{Binding OpenEditCariDialogCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="2,0,0,0">
+                   <Button Grid.Column="1" Command="{Binding OpenEditCariDialogCommand}" Background="Transparent" BorderBrush="#8B5CF6" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="2,0,0,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                       <ic:SymbolIcon Symbol="Edit" Foreground="#10B981" FontSize="14" VerticalAlignment="Center"/> 
+                       <ic:SymbolIcon Symbol="Edit" Foreground="#8B5CF6" FontSize="14" VerticalAlignment="Center"/> 
                        <TextBlock Text="Düzenle" FontSize="11" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="White"/>
                      </StackPanel>
                    </Button>
@@ -381,13 +381,13 @@
                  
                  <!-- 2. Satır: Satış & Alış -->
                  <Grid ColumnDefinitions="*, *">
-                   <Button Grid.Column="0" Command="{Binding OpenSatisFaturasiCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="0,0,2,0">
+                   <Button Grid.Column="0" Command="{Binding OpenSatisFaturasiCommand}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="0,0,2,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                        <ic:SymbolIcon Symbol="DocumentAdd" Foreground="#10B981" FontSize="14" VerticalAlignment="Center"/> 
                        <TextBlock Text="Satış" FontSize="11" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="White"/>
                      </StackPanel>
                    </Button>
-                   <Button Grid.Column="1" Command="{Binding OpenAlisFaturasiCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#F59E0B" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="2,0,0,0">
+                   <Button Grid.Column="1" Command="{Binding OpenAlisFaturasiCommand}" Background="Transparent" BorderBrush="#F59E0B" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="2,0,0,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                        <ic:SymbolIcon Symbol="DocumentArrowRight" Foreground="#F59E0B" FontSize="14" VerticalAlignment="Center"/> 
                        <TextBlock Text="Alış" FontSize="11" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="White"/>
@@ -397,15 +397,15 @@
  
                  <!-- 3. Satır: Tahsilat & Ödeme -->
                  <Grid ColumnDefinitions="*, *">
-                   <Button Grid.Column="0" Command="{Binding TahsilatYapCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="0,0,2,0">
+                   <Button Grid.Column="0" Command="{Binding TahsilatYapCommand}" Background="Transparent" BorderBrush="#00C2FF" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="0,0,2,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                         <ic:SymbolIcon Symbol="Money" Foreground="#10B981" FontSize="14" VerticalAlignment="Center"/>
+                         <ic:SymbolIcon Symbol="Money" Foreground="#00C2FF" FontSize="14" VerticalAlignment="Center"/>
                          <TextBlock Text="Tahsilat" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
                      </StackPanel>
                    </Button>
-                   <Button Grid.Column="1" Command="{Binding OdemeYapCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#F59E0B" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="2,0,0,0">
+                   <Button Grid.Column="1" Command="{Binding OdemeYapCommand}" Background="Transparent" BorderBrush="#F43F5E" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="2,0,0,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                         <ic:SymbolIcon Symbol="Payment" Foreground="#F59E0B" FontSize="14" VerticalAlignment="Center"/>
+                         <ic:SymbolIcon Symbol="Payment" Foreground="#F43F5E" FontSize="14" VerticalAlignment="Center"/>
                          <TextBlock Text="Ödeme" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
                      </StackPanel>
                    </Button>
@@ -413,13 +413,13 @@
  
                  <!-- 4. Satır: Alacak (F5) & Borç (F6) -->
                  <Grid ColumnDefinitions="*, *">
-                   <Button Grid.Column="0" Command="{Binding AlacaklandirCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#00C2FF" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="0,0,2,0">
+                   <Button Grid.Column="0" Command="{Binding AlacaklandirCommand}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="0,0,2,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <ic:SymbolIcon Symbol="Add" Foreground="#00C2FF" FontSize="14" VerticalAlignment="Center"/>
+                        <ic:SymbolIcon Symbol="Add" Foreground="#10B981" FontSize="14" VerticalAlignment="Center"/>
                         <TextBlock Text="Alacak (F5)" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
                      </StackPanel>
                    </Button>
-                   <Button Grid.Column="1" Command="{Binding BorclandirCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#F59E0B" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="2,0,0,0">
+                   <Button Grid.Column="1" Command="{Binding BorclandirCommand}" Background="Transparent" BorderBrush="#F59E0B" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="2,0,0,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <ic:SymbolIcon Symbol="Subtract" Foreground="#F59E0B" FontSize="14" VerticalAlignment="Center"/>
                         <TextBlock Text="Borç (F6)" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
@@ -429,15 +429,15 @@
  
                  <!-- 5. Satır: Ekstre (F1) & Detaylı Ekstre -->
                  <Grid ColumnDefinitions="*, *">
-                   <Button Grid.Column="0" Command="{Binding HesapEkstresiCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#A0A0A0" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="0,0,2,0">
+                   <Button Grid.Column="0" Command="{Binding HesapEkstresiCommand}" Background="Transparent" BorderBrush="#3B82F6" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="0,0,2,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                       <ic:SymbolIcon Symbol="Document" Foreground="#A0A0A0" FontSize="14" VerticalAlignment="Center"/>
+                       <ic:SymbolIcon Symbol="Document" Foreground="#3B82F6" FontSize="14" VerticalAlignment="Center"/>
                        <TextBlock Text="Ekstre (F1)" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
                      </StackPanel>
                    </Button>
-                   <Button Grid.Column="1" Command="{Binding DetayliHesapEkstresiCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#A0A0A0" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="2,0,0,0">
+                   <Button Grid.Column="1" Command="{Binding DetayliHesapEkstresiCommand}" Background="Transparent" BorderBrush="#8B5CF6" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="2,0,0,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                       <ic:SymbolIcon Symbol="DocumentBulletList" Foreground="#A0A0A0" FontSize="14" VerticalAlignment="Center"/>
+                       <ic:SymbolIcon Symbol="DocumentBulletList" Foreground="#8B5CF6" FontSize="14" VerticalAlignment="Center"/>
                        <TextBlock Text="Detaylı Ekstre" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
                      </StackPanel>
                    </Button>
@@ -445,13 +445,13 @@
  
                  <!-- 6. Satır: Excel & Kartı Sil -->
                  <Grid ColumnDefinitions="*, *">
-                   <Button Grid.Column="0" Command="{Binding ExportToExcelCommand}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="0,0,2,0">
+                   <Button Grid.Column="0" Command="{Binding ExportToExcelCommand}" Background="Transparent" BorderBrush="#10B981" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="0,0,2,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                        <ic:SymbolIcon Symbol="Table" Foreground="#10B981" FontSize="14" VerticalAlignment="Center"/>
                        <TextBlock Text="Excel" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>
                      </StackPanel>
                    </Button>
-                   <Button Grid.Column="1" Command="{Binding DeleteCariConfirmCommand}" IsEnabled="{Binding IsCariSelected}" Background="Transparent" BorderBrush="#EF4444" BorderThickness="1.2" CornerRadius="17" Height="34" Margin="2,0,0,0">
+                   <Button Grid.Column="1" Command="{Binding DeleteCariConfirmCommand}" Background="Transparent" BorderBrush="#EF4444" BorderThickness="1.5" CornerRadius="17" Height="34" Margin="2,0,0,0">
                      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                        <ic:SymbolIcon Symbol="Delete" Foreground="#EF4444" FontSize="14" VerticalAlignment="Center"/> 
                        <TextBlock Text="Kartı Sil" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="White"/>

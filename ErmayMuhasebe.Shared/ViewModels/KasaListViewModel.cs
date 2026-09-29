@@ -127,6 +127,9 @@ public abstract partial class KasaListViewModel : ViewModelBase
         IsLoading = true;
         try
         {
+            var existingMoves = EditId != 0 ? await _uow.Kasalar.GetHareketlerAsync(EditId) : new List<KasaHareket>();
+            decimal guncel = EditAcilisBakiyesi + existingMoves.Sum(h => h.Giren - h.Cikan);
+
             var kasa = new BankaKart
             {
                 Id = EditId,
@@ -134,7 +137,7 @@ public abstract partial class KasaListViewModel : ViewModelBase
                 DovizTuru = GetCleanDoviz(EditDovizTuru),
                 Yetkili = EditYetkili,
                 AcilisBakiyesi = EditAcilisBakiyesi,
-                GuncelBakiye = EditAcilisBakiyesi, 
+                GuncelBakiye = guncel, 
                 KartTuru = "Kasa"
             };
 

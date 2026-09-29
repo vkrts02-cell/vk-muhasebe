@@ -38,7 +38,7 @@ public partial class TopluFiyatViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<string> _kategoriler = new();
     [ObservableProperty] private string? _seciliKategori;
     
-    [ObservableProperty] private decimal _oran = 10;
+    [ObservableProperty] private decimal? _oran = 10;
     [ObservableProperty] private bool _isPercentage = true;
     [ObservableProperty] private string _islemTuru = "Zam"; // Zam / Indirim
     [ObservableProperty] private int _selectedCount;
@@ -65,7 +65,7 @@ public partial class TopluFiyatViewModel : ViewModelBase
     }
 
     partial void OnSeciliKategoriChanged(string? value) => FilterAndPreview();
-    partial void OnOranChanged(decimal value) => FilterAndPreview();
+    partial void OnOranChanged(decimal? value) => FilterAndPreview();
     partial void OnIsPercentageChanged(bool value) => FilterAndPreview();
     partial void OnIslemTuruChanged(string value) => FilterAndPreview();
     
@@ -93,7 +93,7 @@ public partial class TopluFiyatViewModel : ViewModelBase
 
         var newItems = filtered.Select(s => {
             var item = new TopluFiyatItem(s, UpdateSelectedCount);
-            decimal degisim = IsPercentage ? (s.SatisFiyati * Oran / 100) : Oran;
+            decimal degisim = IsPercentage ? (s.SatisFiyati * (Oran ?? 0) / 100) : (Oran ?? 0);
             if (IslemTuru == "Zam") item.YeniFiyat = s.SatisFiyati + degisim;
             else item.YeniFiyat = s.SatisFiyati - degisim;
             item.IsSelected = IsAllSelected;

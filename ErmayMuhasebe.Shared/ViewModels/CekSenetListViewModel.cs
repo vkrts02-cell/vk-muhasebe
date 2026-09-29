@@ -58,6 +58,18 @@ public abstract partial class CekSenetListViewModel : ViewModelBase
     partial void OnFilterTextChanged(string value) => _ = LoadDataAsync();
     partial void OnFilterDurumChanged(string value) => _ = LoadDataAsync();
 
+    partial void OnEditCekTuruChanged(string? value)
+    {
+        if (string.Equals(value, "Verilen", StringComparison.OrdinalIgnoreCase))
+        {
+            EditIslemTuru = "Ödeme";
+        }
+        else
+        {
+            EditIslemTuru = "Tahsilat";
+        }
+    }
+
     // --- Yönlendirilen Tedarikçi ---
     [ObservableProperty] private int? _editYonlendirilenCariId;
     [ObservableProperty] private string? _editYonlendirilenCariUnvan;

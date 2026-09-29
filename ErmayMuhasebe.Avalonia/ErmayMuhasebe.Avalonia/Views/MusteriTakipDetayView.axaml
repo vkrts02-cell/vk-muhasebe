@@ -13,21 +13,24 @@
   <UserControl.Resources>
     <conv:TabMatchConverter x:Key="TabMatchConverter"/>
     <conv:ActiveTabBrushConverter x:Key="ActiveTabBrushConverter"/>
+    <conv:ActiveTabBorderBrushConverter x:Key="ActiveTabBorderBrushConverter"/>
   </UserControl.Resources>
 
   <UserControl.Styles>
     <!-- Sekme Butonları (Modern Segmented Navigation) -->
     <Style Selector="Button.ModernTab">
       <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
       <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Height" Value="40"/>
+      <Setter Property="Height" Value="38"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="HorizontalContentAlignment" Value="Center"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
       <Setter Property="Transitions">
         <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.2"/>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
         </Transitions>
       </Setter>
     </Style>
@@ -35,28 +38,40 @@
       <Setter Property="Background" Value="#15FFFFFF"/>
     </Style>
 
-    <!-- Hızlı Eylem Butonları -->
-    <Style Selector="Button.ActionButton">
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Height" Value="38"/>
-      <Setter Property="Padding" Value="14,0"/>
-      <Setter Property="Cursor" Value="Hand"/>
+    <!-- Küçük Silme Butonu -->
+    <Style Selector="Button.CardDeleteBtn">
+      <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Width" Value="28"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Opacity" Value="0.5"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_DelBorder" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.CardDeleteBtn:pointerover">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Button.CardDeleteBtn:pointerover /template/ Border#PART_DelBorder">
+      <Setter Property="Background" Value="#33EF4444"/>
     </Style>
   </UserControl.Styles>
 
-  <Grid RowDefinitions="Auto, *" Margin="25">
+  <Grid RowDefinitions="Auto, *" Margin="20">
     <!-- 1. ÜST BAŞLIK, ETİKET DÜZENLEME & PDF ALMA -->
-    <Border Grid.Row="0" Background="#131B2E" CornerRadius="12" Padding="15,10" Margin="0,0,0,15" BorderBrush="#25FFFFFF" BorderThickness="1">
+    <Border Grid.Row="0" Background="{DynamicResource PanelBrush}" CornerRadius="12" Padding="16,12" Margin="0,0,0,15" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
       <Grid ColumnDefinitions="*, Auto">
         <!-- Sol Taraf: Müşteri Bilgileri -->
-        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+        <StackPanel Grid.Column="0" Spacing="5" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <TextBlock Text="{Binding CariUnvan}" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-            <Border Background="#263B82F6" BorderBrush="#603B82F6" BorderThickness="1" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+            <Border Background="#203B82F6" BorderBrush="#503B82F6" BorderThickness="1" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
               <TextBlock Text="{Binding KlasorEtiket}" FontSize="11" Foreground="#60A5FA" FontWeight="Bold"/>
             </Border>
           </StackPanel>
@@ -77,7 +92,7 @@
           </StackPanel>
         </StackPanel>
 
-        <!-- Sağ Taraf: PDF İndir & Etiket Değiştir & Kaydet -->
+        <!-- Sağ Taraf: PDF İndir & Etiket Değiştir & Kaydet (Orijinal Boyut ve Butonlar) -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <!-- PDF RAPORU AL BUTONU -->
           <Button Command="{Binding ExportToPdfCommand}" Width="130" Height="34" Padding="0" CornerRadius="8" Background="#1E293B" BorderBrush="#DC2626" BorderThickness="1" Cursor="Hand" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Görüşme, Fiyat, Evrak ve Notları PDF Olarak İndir">
@@ -87,6 +102,7 @@
             </StackPanel>
           </Button>
 
+          <!-- ETİKET SEÇİMİ -->
           <ComboBox ItemsSource="{Binding EtiketSecenekleri}" SelectedItem="{Binding KlasorEtiket}" Width="130" Height="34" CornerRadius="8" VerticalContentAlignment="Center" FontSize="12"/>
           
           <!-- KAYDET BUTONU -->
@@ -102,15 +118,16 @@
 
     <!-- 2. MODERN SEKME BAR VE İÇERİK ALANI -->
     <Grid Grid.Row="1" RowDefinitions="Auto, *">
-      <!-- Sekmeler Barı (Segmented Control) -->
-      <Border Grid.Row="0" Background="#0B132B" CornerRadius="10" Padding="4" Margin="0,0,0,15" BorderBrush="#1E293B" BorderThickness="1">
+      <!-- Sekmeler Barı (Segmented Control Track) -->
+      <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="3" Margin="0,0,0,15" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
         <UniformGrid Columns="4">
           
           <!-- 1. Görüşmeler -->
           <Button Command="{Binding SetTabCommand}" CommandParameter="Gorusmeler" Classes="ModernTab" Margin="2"
-                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Gorusmeler}">
+                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Gorusmeler}"
+                  BorderBrush="{Binding ActiveTab, Converter={StaticResource ActiveTabBorderBrushConverter}, ConverterParameter=Gorusmeler}">
             <Grid ColumnDefinitions="Auto, *, Auto" HorizontalAlignment="Center" VerticalAlignment="Center">
-              <ic:SymbolIcon Grid.Column="0" Symbol="Chat" FontSize="16" Foreground="#3B82F6" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <ic:SymbolIcon Grid.Column="0" Symbol="Chat" FontSize="16" Foreground="#60A5FA" VerticalAlignment="Center" Margin="0,0,8,0"/>
               <TextBlock Grid.Column="1" Text="GÖRÜŞMELER" FontWeight="Bold" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
               <Border Grid.Column="2" Background="#263B82F6" CornerRadius="6" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
                 <TextBlock Text="{Binding Gorusmeler.Count}" FontSize="11" Foreground="#60A5FA" FontWeight="Bold"/>
@@ -120,7 +137,8 @@
 
           <!-- 2. Verilen Fiyatlar -->
           <Button Command="{Binding SetTabCommand}" CommandParameter="Fiyatlar" Classes="ModernTab" Margin="2"
-                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Fiyatlar}">
+                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Fiyatlar}"
+                  BorderBrush="{Binding ActiveTab, Converter={StaticResource ActiveTabBorderBrushConverter}, ConverterParameter=Fiyatlar}">
             <Grid ColumnDefinitions="Auto, *, Auto" HorizontalAlignment="Center" VerticalAlignment="Center">
               <ic:SymbolIcon Grid.Column="0" Symbol="Tag" FontSize="16" Foreground="#10B981" VerticalAlignment="Center" Margin="0,0,8,0"/>
               <TextBlock Grid.Column="1" Text="VERİLEN FİYATLAR" FontWeight="Bold" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
@@ -132,7 +150,8 @@
 
           <!-- 3. Görseller & Evrak -->
           <Button Command="{Binding SetTabCommand}" CommandParameter="Gorseller" Classes="ModernTab" Margin="2"
-                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Gorseller}">
+                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Gorseller}"
+                  BorderBrush="{Binding ActiveTab, Converter={StaticResource ActiveTabBorderBrushConverter}, ConverterParameter=Gorseller}">
             <Grid ColumnDefinitions="Auto, *, Auto" HorizontalAlignment="Center" VerticalAlignment="Center">
               <ic:SymbolIcon Grid.Column="0" Symbol="Image" FontSize="16" Foreground="#8B5CF6" VerticalAlignment="Center" Margin="0,0,8,0"/>
               <TextBlock Grid.Column="1" Text="GÖRSELLER &amp; EVRAK" FontWeight="Bold" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
@@ -144,7 +163,8 @@
 
           <!-- 4. Notlar -->
           <Button Command="{Binding SetTabCommand}" CommandParameter="Notlar" Classes="ModernTab" Margin="2"
-                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Notlar}">
+                  Background="{Binding ActiveTab, Converter={StaticResource ActiveTabBrushConverter}, ConverterParameter=Notlar}"
+                  BorderBrush="{Binding ActiveTab, Converter={StaticResource ActiveTabBorderBrushConverter}, ConverterParameter=Notlar}">
             <Grid ColumnDefinitions="Auto, *, Auto" HorizontalAlignment="Center" VerticalAlignment="Center">
               <ic:SymbolIcon Grid.Column="0" Symbol="Note" FontSize="16" Foreground="#F59E0B" VerticalAlignment="Center" Margin="0,0,8,0"/>
               <TextBlock Grid.Column="1" Text="NOTLAR" FontWeight="Bold" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
@@ -158,21 +178,21 @@
       </Border>
 
       <!-- Sekme İçerikleri Panel -->
-      <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" CornerRadius="12" Padding="20" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+      <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" CornerRadius="12" Padding="18" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
         <Grid>
           
           <!-- 1. GÖRÜŞMELER PANELİ -->
           <Grid RowDefinitions="Auto, *" IsVisible="{Binding ActiveTab, Converter={StaticResource TabMatchConverter}, ConverterParameter=Gorusmeler}">
             <!-- Yeni Görüşme Ekle Kartı -->
-            <Border Grid.Row="0" Background="#111827" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="#25FFFFFF" BorderThickness="1">
+            <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
               <Grid RowDefinitions="Auto, Auto">
                 <Grid Grid.Row="0" ColumnDefinitions="*, 150, Auto" Margin="0,0,0,10">
                   <TextBox Grid.Column="0" Text="{Binding NewGorusmeBaslik}" Watermark="Görüşme Konusu (Örn: Telefon Görüşmesi, Fiyat Revizesi İstendi...)" Height="38" CornerRadius="8" Margin="0,0,8,0"/>
-                  <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding NewGorusmeTarih, Mode=TwoWay}" CustomDateFormatString="dd.MM.yyyy" Height="38" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                  <Button Grid.Column="2" Command="{Binding AddGorusmeCommand}" Classes="ActionButton" Background="#2563EB">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                  <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding NewGorusmeTarih, Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="dd.MM.yyyy" Height="38" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                  <Button Grid.Column="2" Command="{Binding AddGorusmeCommand}" Width="140" Height="38" Padding="0" CornerRadius="8" Background="#2563EB" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <ic:SymbolIcon Symbol="Add" FontSize="16" Foreground="White"/>
-                      <TextBlock Text="GÖRÜŞME EKLE" VerticalAlignment="Center"/>
+                      <TextBlock Text="GÖRÜŞME EKLE" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -180,17 +200,25 @@
               </Grid>
             </Border>
 
+            <!-- Görüşme Yoksa Boş Durum Görünümü -->
+            <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,30,0,0"
+                        IsVisible="{Binding !HasGorusmeler}">
+              <ic:SymbolIcon Symbol="Chat" FontSize="36" Foreground="#475569" HorizontalAlignment="Center"/>
+              <TextBlock Text="Henüz görüşme kaydı eklenmemiş." FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+              <TextBlock Text="Müşterinizle yaptığınız telefon veya yüz yüze görüşmeleri yukarıdaki formdan ekleyebilirsiniz." FontSize="12" Foreground="#64748B" HorizontalAlignment="Center"/>
+            </StackPanel>
+
             <!-- Görüşme Listesi -->
-            <ScrollViewer Grid.Row="1">
+            <ScrollViewer Grid.Row="1" IsVisible="{Binding HasGorusmeler}">
               <ItemsControl ItemsSource="{Binding Gorusmeler}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border Background="#161F2E" CornerRadius="10" Padding="15" Margin="0,0,0,10" BorderBrush="#20FFFFFF" BorderThickness="1">
+                    <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,10" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
                       <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                          <ic:SymbolIcon Symbol="Chat" FontSize="16" Foreground="#3B82F6" VerticalAlignment="Center"/>
+                          <ic:SymbolIcon Symbol="Chat" FontSize="16" Foreground="#60A5FA" VerticalAlignment="Center"/>
                           <TextBlock Text="{Binding Baslik}" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                          <Border Background="#1E293B" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+                          <Border Background="#15FFFFFF" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Tarih, StringFormat='{}{0:dd.MM.yyyy HH:mm}'}" FontSize="10.5" Foreground="#94A3B8"/>
                           </Border>
                         </StackPanel>
@@ -214,17 +242,17 @@
           <!-- 2. VERİLEN FİYATLAR PANELİ -->
           <Grid RowDefinitions="Auto, *" IsVisible="{Binding ActiveTab, Converter={StaticResource TabMatchConverter}, ConverterParameter=Fiyatlar}">
             <!-- Yeni Fiyat Teklifi Ekle Kartı -->
-            <Border Grid.Row="0" Background="#111827" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="#25FFFFFF" BorderThickness="1">
+            <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
               <Grid RowDefinitions="Auto, Auto">
                 <Grid Grid.Row="0" ColumnDefinitions="*, 130, 65, 140, Auto" Margin="0,0,0,10">
                   <TextBox Grid.Column="0" Text="{Binding NewFiyatBaslik}" Watermark="Teklif Başlığı / Ürün Adı..." Height="38" CornerRadius="8" Margin="0,0,8,0"/>
                   <NumericUpDown Grid.Column="1" Value="{Binding NewFiyatTutar}" Watermark="Tutar" Height="38" CornerRadius="8" Margin="0,0,8,0" Minimum="0" FormatString="N2"/>
                   <ComboBox Grid.Column="2" ItemsSource="{Binding ParaBirimleri}" SelectedItem="{Binding NewFiyatParaBirimi}" Height="38" CornerRadius="8" Margin="0,0,8,0"/>
-                  <CalendarDatePicker Grid.Column="3" SelectedDate="{Binding NewFiyatTarih, Mode=TwoWay}" CustomDateFormatString="dd.MM.yyyy" Height="38" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                  <Button Grid.Column="4" Command="{Binding AddFiyatCommand}" Classes="ActionButton" Background="#10B981">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                  <CalendarDatePicker Grid.Column="3" SelectedDate="{Binding NewFiyatTarih, Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="dd.MM.yyyy" Height="38" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                  <Button Grid.Column="4" Command="{Binding AddFiyatCommand}" Width="130" Height="38" Padding="0" CornerRadius="8" Background="#10B981" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <ic:SymbolIcon Symbol="Add" FontSize="16" Foreground="White"/>
-                      <TextBlock Text="FİYAT EKLE" VerticalAlignment="Center"/>
+                      <TextBlock Text="FİYAT EKLE" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -232,17 +260,25 @@
               </Grid>
             </Border>
 
+            <!-- Fiyat Yoksa Boş Durum Görünümü -->
+            <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,30,0,0"
+                        IsVisible="{Binding !HasFiyatlar}">
+              <ic:SymbolIcon Symbol="Tag" FontSize="36" Foreground="#475569" HorizontalAlignment="Center"/>
+              <TextBlock Text="Henüz verilen fiyat teklifi bulunmuyor." FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+              <TextBlock Text="Müşterinize verdiğiniz fiyat ve teklifleri yukarıdaki formdan kaydedebilirsiniz." FontSize="12" Foreground="#64748B" HorizontalAlignment="Center"/>
+            </StackPanel>
+
             <!-- Fiyat Listesi -->
-            <ScrollViewer Grid.Row="1">
+            <ScrollViewer Grid.Row="1" IsVisible="{Binding HasFiyatlar}">
               <ItemsControl ItemsSource="{Binding Fiyatlar}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border Background="#161F2E" CornerRadius="10" Padding="15" Margin="0,0,0,10" BorderBrush="#20FFFFFF" BorderThickness="1">
+                    <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,10" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
                       <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto, Auto">
                         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="10">
                           <ic:SymbolIcon Symbol="Tag" FontSize="16" Foreground="#10B981" VerticalAlignment="Center"/>
                           <TextBlock Text="{Binding Baslik}" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                          <Border Background="#1E293B" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+                          <Border Background="#15FFFFFF" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Tarih, StringFormat='{}{0:dd.MM.yyyy HH:mm}'}" FontSize="10.5" Foreground="#94A3B8"/>
                           </Border>
                         </StackPanel>
@@ -274,20 +310,28 @@
           <!-- 3. GÖRSELLER & EVRAKLAR PANELİ -->
           <Grid RowDefinitions="Auto, *" IsVisible="{Binding ActiveTab, Converter={StaticResource TabMatchConverter}, ConverterParameter=Gorseller}">
             <!-- Yeni Görsel Yükle Kartı -->
-            <Border Grid.Row="0" Background="#111827" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="#25FFFFFF" BorderThickness="1">
+            <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
               <Grid ColumnDefinitions="*, Auto">
                 <TextBox Grid.Column="0" Text="{Binding NewGorselBaslik}" Watermark="Görsel / Belge Açıklaması (Örn: Saha Keşif Fotoğrafı, Çizim, Sözleşme)..." Height="38" CornerRadius="8" Margin="0,0,10,0"/>
-                <Button Grid.Column="1" Command="{Binding AddGorselCommand}" Classes="ActionButton" Background="#8B5CF6">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Grid.Column="1" Command="{Binding AddGorselCommand}" Width="190" Height="38" Padding="0" CornerRadius="8" Background="#8B5CF6" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <ic:SymbolIcon Symbol="AddCircle" FontSize="18" Foreground="White"/>
-                    <TextBlock Text="GÖRSEL / EVRAK SEÇ" VerticalAlignment="Center"/>
+                    <TextBlock Text="GÖRSEL / EVRAK SEÇ" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
               </Grid>
             </Border>
 
+            <!-- Görsel Yoksa Boş Durum Görünümü -->
+            <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,30,0,0"
+                        IsVisible="{Binding !HasGorseller}">
+              <ic:SymbolIcon Symbol="Image" FontSize="36" Foreground="#475569" HorizontalAlignment="Center"/>
+              <TextBlock Text="Henüz görsel veya evrak eklenmemiş." FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+              <TextBlock Text="Keşif fotoğrafları, teknik çizimler veya sözleşme evraklarını yukarıdan yükleyebilirsiniz." FontSize="12" Foreground="#64748B" HorizontalAlignment="Center"/>
+            </StackPanel>
+
             <!-- Görseller Galerisi (WrapPanel) -->
-            <ScrollViewer Grid.Row="1">
+            <ScrollViewer Grid.Row="1" IsVisible="{Binding HasGorseller}">
               <ItemsControl ItemsSource="{Binding Gorseller}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
@@ -296,7 +340,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate DataType="vm:MusteriGorselItemViewModel">
-                    <Border Width="220" Height="220" Background="#161F2E" CornerRadius="12" Margin="8" BorderBrush="#20FFFFFF" BorderThickness="1" ClipToBounds="True">
+                    <Border Width="220" Height="220" Background="{DynamicResource BackgroundBrush}" CornerRadius="12" Margin="8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" ClipToBounds="True">
                       <Grid RowDefinitions="*, Auto">
                         <!-- Görsel Önizleme / Tıklayınca Aç -->
                         <Button Grid.Row="0" Command="{Binding $parent[UserControl].DataContext.OpenGorselCommand}" CommandParameter="{Binding}"
@@ -305,7 +349,7 @@
                         </Button>
 
                         <!-- Alt Bilgi & Sil Butonu -->
-                        <Border Grid.Row="1" Background="#CC0F172A" Padding="10,8">
+                        <Border Grid.Row="1" Background="#E60A0A0A" Padding="10,8">
                           <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                               <TextBlock Text="{Binding Baslik}" FontSize="12" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis"/>
@@ -330,15 +374,15 @@
           <!-- 4. NOTLAR PANELİ -->
           <Grid RowDefinitions="Auto, *" IsVisible="{Binding ActiveTab, Converter={StaticResource TabMatchConverter}, ConverterParameter=Notlar}">
             <!-- Yeni Not Ekle Kartı -->
-            <Border Grid.Row="0" Background="#111827" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="#25FFFFFF" BorderThickness="1">
+            <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
               <Grid RowDefinitions="Auto, Auto">
                 <Grid Grid.Row="0" ColumnDefinitions="*, 150, Auto" Margin="0,0,0,10">
                   <TextBox Grid.Column="0" Text="{Binding NewNotBaslik}" Watermark="Not Başlığı (Örn: Ödeme Hatırlatması, Sevkiyat Tercihi...)" Height="38" CornerRadius="8" Margin="0,0,8,0"/>
-                  <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding NewNotTarih, Mode=TwoWay}" CustomDateFormatString="dd.MM.yyyy" Height="38" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                  <Button Grid.Column="2" Command="{Binding AddNotCommand}" Classes="ActionButton" Background="#D97706">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                  <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding NewNotTarih, Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="dd.MM.yyyy" Height="38" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                  <Button Grid.Column="2" Command="{Binding AddNotCommand}" Width="130" Height="38" Padding="0" CornerRadius="8" Background="#D97706" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <ic:SymbolIcon Symbol="Add" FontSize="16" Foreground="White"/>
-                      <TextBlock Text="NOT EKLE" VerticalAlignment="Center"/>
+                      <TextBlock Text="NOT EKLE" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -346,17 +390,25 @@
               </Grid>
             </Border>
 
+            <!-- Not Yoksa Boş Durum Görünümü -->
+            <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,30,0,0"
+                        IsVisible="{Binding !HasNotlar}">
+              <ic:SymbolIcon Symbol="Note" FontSize="36" Foreground="#475569" HorizontalAlignment="Center"/>
+              <TextBlock Text="Henüz özel not bulunmuyor." FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+              <TextBlock Text="Müşteriyle ilgili çalışma notlarınızı ve hatırlatıcıları yukarıdan ekleyebilirsiniz." FontSize="12" Foreground="#64748B" HorizontalAlignment="Center"/>
+            </StackPanel>
+
             <!-- Not Listesi -->
-            <ScrollViewer Grid.Row="1">
+            <ScrollViewer Grid.Row="1" IsVisible="{Binding HasNotlar}">
               <ItemsControl ItemsSource="{Binding Notlar}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border Background="#161F2E" CornerRadius="10" Padding="15" Margin="0,0,0,10" BorderBrush="#20FFFFFF" BorderThickness="1">
+                    <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="10" Padding="15" Margin="0,0,0,10" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
                       <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="10">
                           <ic:SymbolIcon Symbol="Note" FontSize="16" Foreground="#F59E0B" VerticalAlignment="Center"/>
                           <TextBlock Text="{Binding Baslik}" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                          <Border Background="#1E293B" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+                          <Border Background="#15FFFFFF" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Tarih, StringFormat='{}{0:dd.MM.yyyy HH:mm}'}" FontSize="10.5" Foreground="#94A3B8"/>
                           </Border>
                         </StackPanel>

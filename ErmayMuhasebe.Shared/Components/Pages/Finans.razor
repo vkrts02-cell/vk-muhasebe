@@ -306,7 +306,7 @@
     private async Task OpenNewKasa()
     {
         var parameters = new DialogParameters { ["Model"] = new BankaKart { KartTuru = "Kasa", DovizTuru = "TL" } };
-        var dialog = await DialogService.ShowAsync<ErmayMuhasebe.Shared.Components.Dialogs.BankaDialog>("Yeni Kasa Tanımı", parameters);
+        var dialog = await DialogService.ShowAsync<ErmayMuhasebe.Shared.Components.Dialogs.BankaKartDialog>("Yeni Kasa Tanımı", parameters);
         var result = await dialog.Result;
         if (result != null && !result.Canceled && result.Data is BankaKart item)
         {
@@ -330,7 +330,7 @@
     private async Task EditKasa(BankaKart item)
     {
         var parameters = new DialogParameters { ["Model"] = item };
-        var dialog = await DialogService.ShowAsync<ErmayMuhasebe.Shared.Components.Dialogs.BankaDialog>("Kasa Düzenle", parameters);
+        var dialog = await DialogService.ShowAsync<ErmayMuhasebe.Shared.Components.Dialogs.BankaKartDialog>("Kasa Düzenle", parameters);
         var result = await dialog.Result;
         if (result != null && !result.Canceled && result.Data is BankaKart updated)
         {

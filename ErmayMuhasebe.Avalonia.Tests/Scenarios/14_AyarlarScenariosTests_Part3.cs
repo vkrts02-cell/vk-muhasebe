@@ -202,6 +202,127 @@ public partial class AyarlarScenariosTests
         Assert.Contains("DEVIR: 2025 -> 2026", audit);
     }
 
+    [Fact]
+    public async Task Scenario_130b_NewKasa_TransfersToTargetYearOnRollover()
+    {
+        var yearContext = new YearContext { CurrentYear = 2026 };
+        var rolloverService = new YearRolloverService(_dbService, yearContext);
+
+        // 1. 2026 yılı için yeni kasa oluştur (Finans kısmında)
+        var newKasa = new BankaKart
+        {
+            BankaAdi = "2026 Merkez Kasa",
+            KartTuru = "Kasa",
+            DovizTuru = "TL",
+            Yetkili = "Ahmet Yılmaz",
+            AcilisBakiyesi = 5000,
+            GuncelBakiye = 5000
+        };
+        await _uow.Bankalar.SaveAsync(newKasa);
+
+        // Kasa hareketi ekle (+2000 TL)
+        await _dbService.SaveKasaHareketAsync(new KasaHareket
+        {
+            KasaId = newKasa.Id,
+            Tarih = new DateTime(2026, 6, 1),
+            IslemTuru = "Tahsilat (Nakit)",
+            Aciklama = "Nakit Satış",
+            Giren = 2000,
+            Cikan = 0,
+            Tutar = 2000
+        });
+
+        // 2. 2026 -> 2027 Devir yap
+        var options = new RolloverOptions
+        {
+            TransferCariler = false,
+            TransferStoklar = false,
+            TransferKasaBanka = true,
+            TransferCekSenet = false,
+            TransferTanimlar = false
+        };
+
+        var result = await rolloverService.RolloverYearAsync(2026, 2027, options);
+
+        Assert.True(result.Success);
+        Assert.True(result.KasalarCount >= 1);
+
+        // 3. 2027 veritabanını kontrol et
+        string targetDbPath = rolloverService.GetDbPathForYear(2027);
+        try
+        {
+            Assert.True(File.Exists(targetDbPath));
+            var targetConn = await rolloverService.OpenConnectionAsync(targetDbPath);
+            var targetKasa = await targetConn.Table<BankaKart>().FirstOrDefaultAsync(k => k.Id == newKasa.Id || k.BankaAdi == "2026 Merkez Kasa");
+
+            Assert.NotNull(targetKasa);
+            Assert.Equal("Kasa", targetKasa.KartTuru);
+            Assert.Equal(7000, targetKasa.AcilisBakiyesi);
+            Assert.Equal(7000, targetKasa.GuncelBakiye);
+
+            // Devir fişini kontrol et
+            var devirMove = await targetConn.Table<KasaHareket>().FirstOrDefaultAsync(h => h.KasaId == targetKasa.Id && h.EvrakNo == "DEVIR-KASA-2026");
+            Assert.NotNull(devirMove);
+            Assert.Equal(7000, devirMove.Giren);
+
+            await targetConn.CloseAsync();
+        }
+        finally
+        {
+            try { if (File.Exists(targetDbPath)) File.Delete(targetDbPath); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task Scenario_130c_ReflectSingleKasaForward_PropagatesKasaToExistingNextYear()
+    {
+        var yearContext = new YearContext { CurrentYear = 2026 };
+        var rolloverService = new YearRolloverService(_dbService, yearContext);
+
+        // 1. Önce 2027 veritabanını hazırla
+        string targetDbPath = rolloverService.GetDbPathForYear(2027);
+        var targetConn = await rolloverService.OpenConnectionAsync(targetDbPath);
+        await rolloverService.InitializeTargetDatabaseSchemaAsync(targetConn);
+        await targetConn.CloseAsync();
+
+        try
+        {
+            // 2. 2026'da sonradan yeni bir kasa tanımla
+            var kasaSonradan = new BankaKart
+            {
+                BankaAdi = "2026 Sonradan Açılan Kasa",
+                KartTuru = "Kasa",
+                DovizTuru = "TL",
+                AcilisBakiyesi = 3500,
+                GuncelBakiye = 3500
+            };
+            await _uow.Bankalar.SaveAsync(kasaSonradan);
+
+            // 3. Tekil kasayı 2027'ye yansıt
+            bool reflected = await rolloverService.ReflectSingleKasaForwardAsync(2026, kasaSonradan.Id);
+            Assert.True(reflected);
+
+            // 4. 2027 veritabanında kasa ve devir fişinin oluştuğunu doğrula
+            var checkConn = await rolloverService.OpenConnectionAsync(targetDbPath);
+            var nextKasa = await checkConn.Table<BankaKart>().FirstOrDefaultAsync(k => k.Id == kasaSonradan.Id);
+
+            Assert.NotNull(nextKasa);
+            Assert.Equal("Kasa", nextKasa.KartTuru);
+            Assert.Equal(3500, nextKasa.AcilisBakiyesi);
+            Assert.Equal(3500, nextKasa.GuncelBakiye);
+
+            var nextMove = await checkConn.Table<KasaHareket>().FirstOrDefaultAsync(h => h.KasaId == nextKasa.Id && h.EvrakNo == "DEVIR-KASA-2026");
+            Assert.NotNull(nextMove);
+            Assert.Equal(3500, nextMove.Giren);
+
+            await checkConn.CloseAsync();
+        }
+        finally
+        {
+            try { if (File.Exists(targetDbPath)) File.Delete(targetDbPath); } catch { }
+        }
+    }
+
     // =============================================================
     // 12. Güvenlik, Roller & Yetkilendirme Matrisi (131 - 145)
     // =============================================================

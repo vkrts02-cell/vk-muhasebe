@@ -82,85 +82,104 @@
                                 <ic:SymbolIcon Symbol="Navigation" FontSize="20" Foreground="{DynamicResource TextBrush}"/> 
                               </Button>
                               <Image Grid.Column="1" Source="avares://ErmayMuhasebe.Avalonia/Assets/vk_logo.png" Width="26" Height="26" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                              <TextBlock Grid.Column="2" Text="VK" VerticalAlignment="Center" FontWeight="ExtraBold" FontSize="18" LetterSpacing="2" Foreground="{DynamicResource TextBrush}"/>
+                              <TextBlock Grid.Column="2" Text="VK" HorizontalAlignment="Left" VerticalAlignment="Center" FontWeight="ExtraBold" FontSize="18" LetterSpacing="2" Foreground="{DynamicResource TextBrush}"/>
                               
-                              <!-- BİLDİRİM BUTONU -->
-                              <Button Grid.Column="2" Classes="IconButton" Width="40" Height="50" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-                                  <Panel>
-                                      <ic:SymbolIcon Symbol="Alert" FontSize="20" Foreground="{DynamicResource TextBrush}"/>
-                                      <Border IsVisible="{Binding HasUnreadNotifications}" Background="#EF4444" Width="8" Height="8" CornerRadius="4" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"/>
-                                  </Panel>
-                                  <Button.Flyout>
-                                      <Flyout Placement="BottomEdgeAlignedRight">
-                                          <Border Width="320" Padding="15" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1.5" CornerRadius="12">
-                                              <StackPanel Spacing="10">
-                                                  <!-- Header -->
-                                                  <Grid ColumnDefinitions="*, Auto">
-                                                      <TextBlock Text="Bildirimler" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                                          <Button Command="{Binding MarkAllAsReadCommand}" Classes="IconButton" ToolTip.Tip="Tümünü Okundu İşaretle">
-                                                              <ic:SymbolIcon Symbol="MailRead" FontSize="16" Foreground="#6366F1"/>
-                                                          </Button>
-                                                          <Button Command="{Binding ClearNotificationsCommand}" Classes="IconButton" ToolTip.Tip="Tümünü Temizle">
-                                                              <ic:SymbolIcon Symbol="Delete" FontSize="16" Foreground="#EF4444"/>
-                                                          </Button>
-                                                      </StackPanel>
-                                                  </Grid>
-                                                  
-                                                  <Separator Background="{DynamicResource BorderColor}" Height="1.5" Margin="0,5"/>
-                                                  
-                                                  <!-- Notifications List -->
-                                                  <ScrollViewer MaxHeight="250">
-                                                      <Panel>
-                                                          <!-- Empty State -->
-                                                          <TextBlock Text="Yeni bildirim bulunmuyor." FontSize="12" Opacity="0.5" HorizontalAlignment="Center" Margin="0,20" IsVisible="{Binding !Notifications.Count}"/>
-                                                          
-                                                          <!-- List -->
-                                                          <ItemsControl ItemsSource="{Binding Notifications}">
-                                                              <ItemsControl.ItemTemplate>
-                                                                  <DataTemplate DataType="vm:NotificationItem">
-                                                                      <Button Command="{Binding $parent[ItemsControl].DataContext.NotificationClickCommand}"
-                                                                              CommandParameter="{Binding}"
-                                                                              Background="Transparent"
-                                                                              BorderThickness="0"
-                                                                              Padding="0"
-                                                                              HorizontalAlignment="Stretch"
-                                                                              HorizontalContentAlignment="Stretch">
-                                                                          <Border Background="Transparent" Padding="5,8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
-                                                                              <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
-                                                                                  <!-- Dot for unread / Icon for read -->
-                                                                                  <Border Grid.Column="0" Width="8" Height="8" CornerRadius="4" Background="#F59E0B" VerticalAlignment="Center" IsVisible="{Binding !IsRead}"/>
-                                                                                  <ic:SymbolIcon Grid.Column="0" Symbol="{Binding Icon, Converter={StaticResource SymbolIconConverter}}" FontSize="18" Foreground="#F59E0B" VerticalAlignment="Center" IsVisible="{Binding IsRead}"/>
-                                                                                  
-                                                                                  <!-- Title & Message -->
-                                                                                  <StackPanel Grid.Column="1" Spacing="2">
-                                                                                      <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="12" Foreground="White"/>
-                                                                                      <TextBlock Text="{Binding Message}" FontSize="11" Foreground="#94a3b8" TextWrapping="Wrap"/>
-                                                                                      <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" FontSize="9" Opacity="0.5"/>
-                                                                                  </StackPanel>
-                                                                                  
-                                                                                  <!-- Actions -->
-                                                                                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                                                      <Button Command="{Binding $parent[ItemsControl].DataContext.MarkAsReadCommand}" CommandParameter="{Binding}" IsVisible="{Binding !IsRead}" Classes="IconButton" ToolTip.Tip="Okundu İşaretle">
-                                                                                          <ic:SymbolIcon Symbol="Checkmark" FontSize="14" Foreground="#10B981"/>
-                                                                                      </Button>
-                                                                                      <Button Command="{Binding $parent[ItemsControl].DataContext.DeleteNotificationCommand}" CommandParameter="{Binding}" Classes="IconButton" ToolTip.Tip="Sil">
-                                                                                          <ic:SymbolIcon Symbol="Dismiss" FontSize="14" Foreground="#EF4444"/>
-                                                                                      </Button>
-                                                                                  </StackPanel>
-                                                                              </Grid>
-                                                                          </Border>
-                                                                      </Button>
-                                                                  </DataTemplate>
-                                                              </ItemsControl.ItemTemplate>
-                                                          </ItemsControl>
-                                                      </Panel>
-                                                  </ScrollViewer>
-                                              </StackPanel>
-                                          </Border>
-                                      </Flyout>
-                                  </Button.Flyout>
-                              </Button>
+                              <!-- ÜST SAĞ KONTROLLER: MALİ YIL SEÇİMİ VE BİLDİRİMLER -->
+                              <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8" Margin="0,0,10,0">
+                                  <!-- MALİ YIL BUTONU -->
+                                  <Button Command="{Binding SwitchFiscalYearCommand}" 
+                                          Background="{DynamicResource PanelBrush}" 
+                                          BorderBrush="{DynamicResource BorderColor}" 
+                                          BorderThickness="1" 
+                                          Height="34" 
+                                          Padding="12,0" 
+                                          CornerRadius="10" 
+                                          ToolTip.Tip="Mali Yılı Değiştir / Yıl Seçimi">
+                                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                          <ic:SymbolIcon Symbol="Calendar" FontSize="16" Foreground="#38BDF8"/>
+                                          <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                          <ic:SymbolIcon Symbol="ChevronDown" FontSize="12" Foreground="#94A3B8"/>
+                                      </StackPanel>
+                                  </Button>
+
+                                  <!-- BİLDİRİM BUTONU -->
+                                  <Button Classes="IconButton" Width="40" Height="40" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                                      <Panel>
+                                          <ic:SymbolIcon Symbol="Alert" FontSize="20" Foreground="{DynamicResource TextBrush}"/>
+                                          <Border IsVisible="{Binding HasUnreadNotifications}" Background="#EF4444" Width="8" Height="8" CornerRadius="4" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"/>
+                                      </Panel>
+                                      <Button.Flyout>
+                                          <Flyout Placement="BottomEdgeAlignedRight">
+                                              <Border Width="320" Padding="15" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1.5" CornerRadius="12">
+                                                  <StackPanel Spacing="10">
+                                                      <!-- Header -->
+                                                      <Grid ColumnDefinitions="*, Auto">
+                                                          <TextBlock Text="Bildirimler" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                              <Button Command="{Binding MarkAllAsReadCommand}" Classes="IconButton" ToolTip.Tip="Tümünü Okundu İşaretle">
+                                                                  <ic:SymbolIcon Symbol="MailRead" FontSize="16" Foreground="#6366F1"/>
+                                                              </Button>
+                                                              <Button Command="{Binding ClearNotificationsCommand}" Classes="IconButton" ToolTip.Tip="Tümünü Temizle">
+                                                                  <ic:SymbolIcon Symbol="Delete" FontSize="16" Foreground="#EF4444"/>
+                                                              </Button>
+                                                          </StackPanel>
+                                                      </Grid>
+                                                      
+                                                      <Separator Background="{DynamicResource BorderColor}" Height="1.5" Margin="0,5"/>
+                                                      
+                                                      <!-- Notifications List -->
+                                                      <ScrollViewer MaxHeight="250">
+                                                          <Panel>
+                                                              <!-- Empty State -->
+                                                              <TextBlock Text="Yeni bildirim bulunmuyor." FontSize="12" Opacity="0.5" HorizontalAlignment="Center" Margin="0,20" IsVisible="{Binding !Notifications.Count}"/>
+                                                              
+                                                              <!-- List -->
+                                                              <ItemsControl ItemsSource="{Binding Notifications}">
+                                                                  <ItemsControl.ItemTemplate>
+                                                                      <DataTemplate DataType="vm:NotificationItem">
+                                                                          <Button Command="{Binding $parent[ItemsControl].DataContext.NotificationClickCommand}"
+                                                                                  CommandParameter="{Binding}"
+                                                                                  Background="Transparent"
+                                                                                  BorderThickness="0"
+                                                                                  Padding="0"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  HorizontalContentAlignment="Stretch">
+                                                                              <Border Background="Transparent" Padding="5,8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                                                                                  <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
+                                                                                      <!-- Dot for unread / Icon for read -->
+                                                                                      <Border Grid.Column="0" Width="8" Height="8" CornerRadius="4" Background="#F59E0B" VerticalAlignment="Center" IsVisible="{Binding !IsRead}"/>
+                                                                                      <ic:SymbolIcon Grid.Column="0" Symbol="{Binding Icon, Converter={StaticResource SymbolIconConverter}}" FontSize="18" Foreground="#F59E0B" VerticalAlignment="Center" IsVisible="{Binding IsRead}"/>
+                                                                                      
+                                                                                      <!-- Title & Message -->
+                                                                                      <StackPanel Grid.Column="1" Spacing="2">
+                                                                                          <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="12" Foreground="White"/>
+                                                                                          <TextBlock Text="{Binding Message}" FontSize="11" Foreground="#94a3b8" TextWrapping="Wrap"/>
+                                                                                          <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" FontSize="9" Opacity="0.5"/>
+                                                                                      </StackPanel>
+                                                                                      
+                                                                                      <!-- Actions -->
+                                                                                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                                          <Button Command="{Binding $parent[ItemsControl].DataContext.MarkAsReadCommand}" CommandParameter="{Binding}" IsVisible="{Binding !IsRead}" Classes="IconButton" ToolTip.Tip="Okundu İşaretle">
+                                                                                              <ic:SymbolIcon Symbol="Checkmark" FontSize="14" Foreground="#10B981"/>
+                                                                                          </Button>
+                                                                                          <Button Command="{Binding $parent[ItemsControl].DataContext.DeleteNotificationCommand}" CommandParameter="{Binding}" Classes="IconButton" ToolTip.Tip="Sil">
+                                                                                              <ic:SymbolIcon Symbol="Dismiss" FontSize="14" Foreground="#EF4444"/>
+                                                                                          </Button>
+                                                                                      </StackPanel>
+                                                                                  </Grid>
+                                                                              </Border>
+                                                                          </Button>
+                                                                      </DataTemplate>
+                                                                  </ItemsControl.ItemTemplate>
+                                                              </ItemsControl>
+                                                          </Panel>
+                                                      </ScrollViewer>
+                                                  </StackPanel>
+                                              </Border>
+                                          </Flyout>
+                                      </Button.Flyout>
+                                  </Button>
+                              </StackPanel>
 
                               <!-- Empty space for window controls when scaled -->
                               <StackPanel Grid.Column="3" Width="140"/>

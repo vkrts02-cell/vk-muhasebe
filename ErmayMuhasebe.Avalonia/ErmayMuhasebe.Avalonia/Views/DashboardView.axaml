@@ -163,15 +163,15 @@
                            </Grid>
                       </Border>
 
-                      <!-- Maliyet (Warm Green Glow) -->
-                      <Border Background="{DynamicResource BackgroundBrush}" BorderBrush="#64748B" BorderThickness="2" CornerRadius="20" Padding="15,12" Margin="0,0,10,0" Height="80" BoxShadow="0 4 15 0 #2064748B">
+                      <!-- Net Bakiye Durumu (Yeşil: +Alacak Fazlası, Kırmızı: -Borç Fazlası) -->
+                      <Border Background="{DynamicResource BackgroundBrush}" BorderBrush="{Binding NetColorBrush}" BorderThickness="2" CornerRadius="20" Padding="15,12" Margin="0,0,10,0" Height="80" BoxShadow="{Binding NetBoxShadow}">
                            <Grid ColumnDefinitions="Auto, *">
-                               <Border Grid.Column="0" Width="46" Height="46" CornerRadius="14" Background="#2A64748B">
-                                   <ic:SymbolIcon Symbol="Box" Foreground="#64748B" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                               <Border Grid.Column="0" Width="46" Height="46" CornerRadius="14" Background="{Binding NetBgBrush}">
+                                   <ic:SymbolIcon Symbol="Money" Foreground="{Binding NetColorBrush}" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
-                                    <TextBlock Text="{Binding ToplamMaliyet, StringFormat='{}{0:N2} ₺'}" FontSize="22" FontWeight="Black" Foreground="White"/>
-                                    <TextBlock Text="Maliyet" FontSize="12" Foreground="#64748B" FontWeight="Black"/>
+                                    <TextBlock Text="{Binding NetBakiyeText}" FontSize="22" FontWeight="Black" Foreground="{Binding NetColorBrush}"/>
+                                    <TextBlock Text="Net" FontSize="12" Foreground="{Binding NetColorBrush}" FontWeight="Black"/>
                                 </StackPanel>
                            </Grid>
                       </Border>

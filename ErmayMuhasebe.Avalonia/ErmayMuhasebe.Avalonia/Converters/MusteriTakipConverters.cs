@@ -35,12 +35,36 @@ namespace ErmayMuhasebe.Avalonia.Converters
                 bool isMatch = string.Equals(activeTab, targetTab, StringComparison.OrdinalIgnoreCase);
                 if (isMatch)
                 {
-                    // Aktif sekme: Seçili koyu panel rengi
-                    return new SolidColorBrush(Color.Parse("#1E293B"));
+                    // Aktif sekme: Elevated panel tonu
+                    return new SolidColorBrush(Color.Parse("#22242A"));
                 }
             }
-            // Pasif sekme: Standart koyu buton rengi (Görüşmeler dahil tüm butonlar aynı)
-            return new SolidColorBrush(Color.Parse("#111827"));
+            // Pasif sekme: Şeffaf (segment çubuğunun zeminini temiz gösterir)
+            return new SolidColorBrush(Colors.Transparent);
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class ActiveTabBorderBrushConverter : IValueConverter
+    {
+        public static readonly ActiveTabBorderBrushConverter Instance = new();
+
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is string activeTab && parameter is string targetTab)
+            {
+                bool isMatch = string.Equals(activeTab, targetTab, StringComparison.OrdinalIgnoreCase);
+                if (isMatch)
+                {
+                    // Aktif sekme: İnce parlak mavi/kenarlık vurgusu
+                    return new SolidColorBrush(Color.Parse("#4060A5FA"));
+                }
+            }
+            return new SolidColorBrush(Colors.Transparent);
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

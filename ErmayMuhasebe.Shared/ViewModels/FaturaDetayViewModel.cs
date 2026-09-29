@@ -14,9 +14,10 @@ namespace ErmayMuhasebe.Shared.ViewModels;
 
 public partial class FaturaItemViewModel : ObservableObject
 {
-    private decimal _miktar = 1;
-    private decimal _birimFiyat;
-    private decimal _kdvOrani = 10;
+    private decimal? _miktar = 1;
+    private decimal? _birimFiyat;
+    private decimal? _kdvOrani = 10;
+    private decimal? _iskontoOrani;
 
     private string _birim = "Adet";
 
@@ -41,35 +42,34 @@ public partial class FaturaItemViewModel : ObservableObject
         set => SetProperty(ref _birim, value);
     }
 
-    public decimal Miktar
+    public decimal? Miktar
     {
         get => _miktar;
         set { if (SetProperty(ref _miktar, value)) OnAmountChanged(); }
     }
 
-    public decimal BirimFiyat
+    public decimal? BirimFiyat
     {
         get => _birimFiyat;
         set { if (SetProperty(ref _birimFiyat, value)) OnAmountChanged(); }
     }
 
-    private decimal _iskontoOrani;
-    public decimal IskontoOrani
+    public decimal? IskontoOrani
     {
         get => _iskontoOrani;
         set { if (SetProperty(ref _iskontoOrani, value)) OnAmountChanged(); }
     }
 
-    public decimal IskontoTutari => (Miktar * BirimFiyat) * (IskontoOrani / 100m);
+    public decimal IskontoTutari => ((Miktar ?? 0) * (BirimFiyat ?? 0)) * ((IskontoOrani ?? 0) / 100m);
 
-    public decimal KdvOrani
+    public decimal? KdvOrani
     {
         get => _kdvOrani;
         set { if (SetProperty(ref _kdvOrani, value)) OnAmountChanged(); }
     }
 
-    public decimal Tutar => (Miktar * BirimFiyat) - IskontoTutari;
-    public decimal KdvTutari => Math.Max(0, Tutar) * (KdvOrani / 100m);
+    public decimal Tutar => ((Miktar ?? 0) * (BirimFiyat ?? 0)) - IskontoTutari;
+    public decimal KdvTutari => Math.Max(0, Tutar) * ((KdvOrani ?? 0) / 100m);
     public decimal GenelToplam => Tutar + KdvTutari;
     
     public string? Aciklama { get; set; }
@@ -407,10 +407,10 @@ public abstract partial class FaturaDetayViewModel : ViewModelBase
                 StokId = i.Stok.Id,
                 StokKodu = i.Kod,
                 StokAdi = i.Ad,
-                Miktar = (double)i.Miktar,
+                Miktar = (double)(i.Miktar ?? 0),
                 Birim = i.Birim,
-                BirimFiyat = i.BirimFiyat,
-                KDVOrani = (int)i.KdvOrani,
+                BirimFiyat = i.BirimFiyat ?? 0,
+                KDVOrani = (int)(i.KdvOrani ?? 0),
                 ToplamTutar = i.Tutar,
                 KDVTutari = i.KdvTutari,
                 Aciklama = i.Aciklama ?? ""

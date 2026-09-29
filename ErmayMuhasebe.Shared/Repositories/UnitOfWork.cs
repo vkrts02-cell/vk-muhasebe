@@ -198,5 +198,24 @@ public class UnitOfWork : IUnitOfWork
     public Task<FirmaProfili> GetFirmaProfiliAsync() => _dbService.GetFirmaProfiliAsync();
     public Task SaveFirmaProfiliAsync(FirmaProfili f) => _dbService.SaveFirmaProfiliAsync(f);
     public Task ClearAllTablesAsync() => _dbService.ClearAllTablesAsync();
+
+    // Mali Yıl Devir & Yansıtma
+    public async Task<ErmayMuhasebe.Services.RolloverResult> RolloverYearAsync(int sourceYear, int targetYear, ErmayMuhasebe.Services.RolloverOptions? options = null, System.IProgress<string>? progress = null)
+    {
+        var service = new ErmayMuhasebe.Services.YearRolloverService(_dbService, _dbService.YearContext);
+        return await service.RolloverYearAsync(sourceYear, targetYear, options, progress);
+    }
+
+    public async Task<ErmayMuhasebe.Services.RolloverResult> ReflectBalancesForwardAsync(int sourceYear, System.IProgress<string>? progress = null)
+    {
+        var service = new ErmayMuhasebe.Services.YearRolloverService(_dbService, _dbService.YearContext);
+        return await service.ReflectBalancesForwardAsync(sourceYear, progress);
+    }
+
+    public List<int> GetAvailableYears()
+    {
+        var service = new ErmayMuhasebe.Services.YearRolloverService(_dbService, _dbService.YearContext);
+        return service.GetAvailableYears();
+    }
 }
 

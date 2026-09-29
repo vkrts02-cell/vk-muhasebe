@@ -13,14 +13,14 @@
   <UserControl.Styles>
     <!-- Klasör Buton Kartı -->
     <Style Selector="Button.FolderButtonCard">
-      <Setter Property="Background" Value="#161F2E"/>
-      <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+      <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="14"/>
       <Setter Property="Padding" Value="16"/>
       <Setter Property="Margin" Value="10"/>
-      <Setter Property="Width" Value="280"/>
-      <Setter Property="Height" Value="190"/>
+      <Setter Property="Width" Value="285"/>
+      <Setter Property="Height" Value="178"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="VerticalContentAlignment" Value="Stretch"/>
       <Setter Property="Cursor" Value="Hand"/>
@@ -32,7 +32,7 @@
                   BorderThickness="{TemplateBinding BorderThickness}" 
                   CornerRadius="{TemplateBinding CornerRadius}" 
                   Padding="{TemplateBinding Padding}"
-                  BoxShadow="0 4 12 0 #33000000">
+                  BoxShadow="0 4 14 0 #33000000">
             <Border.Transitions>
               <Transitions>
                 <BrushTransition Property="Background" Duration="0:0:0.2"/>
@@ -47,9 +47,10 @@
     </Style>
 
     <Style Selector="Button.FolderButtonCard:pointerover /template/ Border#PART_CardBorder">
-      <Setter Property="Background" Value="#1E293B"/>
-      <Setter Property="BorderBrush" Value="#603B82F6"/>
-      <Setter Property="RenderTransform" Value="translateY(-3px) scale(1.01)"/>
+      <Setter Property="Background" Value="#1A1D24"/>
+      <Setter Property="BorderBrush" Value="#4060A5FA"/>
+      <Setter Property="RenderTransform" Value="translateY(-3px)"/>
+      <Setter Property="BoxShadow" Value="0 8 20 0 #55000000"/>
     </Style>
 
     <!-- Küçük Silme Butonu -->
@@ -60,6 +61,12 @@
       <Setter Property="Height" Value="28"/>
       <Setter Property="Padding" Value="0"/>
       <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Opacity" Value="0.4"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
       <Setter Property="Template">
         <ControlTemplate>
           <Border Name="PART_DelBorder" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
@@ -67,6 +74,15 @@
           </Border>
         </ControlTemplate>
       </Setter>
+    </Style>
+    <Style Selector="Button.CardDeleteBtn ic|SymbolIcon">
+      <Setter Property="Foreground" Value="#6B7280"/>
+    </Style>
+    <Style Selector="Button.CardDeleteBtn:pointerover">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Button.CardDeleteBtn:pointerover ic|SymbolIcon">
+      <Setter Property="Foreground" Value="#EF4444"/>
     </Style>
     <Style Selector="Button.CardDeleteBtn:pointerover /template/ Border#PART_DelBorder">
       <Setter Property="Background" Value="#33EF4444"/>
@@ -76,25 +92,32 @@
   <Grid RowDefinitions="Auto, Auto, *" Margin="30">
     
     <!-- 1. ÜST SAYFA BAŞLIĞI -->
-    <StackPanel Grid.Row="0" Spacing="10" Margin="0,0,0,20">
+    <StackPanel Grid.Row="0" Margin="0,0,0,20">
       <StackPanel Orientation="Horizontal" Spacing="15">
-        <Border Width="50" Height="50" CornerRadius="15" Background="#263B82F6">
-          <ic:SymbolIcon Symbol="FolderPeople" Foreground="#60A5FA" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/> 
+        <Border Width="48" Height="48" CornerRadius="12" Background="{DynamicResource FluidBlueGradient}">
+          <ic:SymbolIcon Symbol="FolderPeople" Foreground="White" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/> 
         </Border>
-        <TextBlock Text="Müşteri Takip &amp; Klasörleme" FontSize="26" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+        <StackPanel VerticalAlignment="Center" Spacing="3">
+          <TextBlock Text="Müşteri Takip &amp; Klasörleme" FontSize="22" FontWeight="Bold" Foreground="White"/>
+          <TextBlock Text="Müşterilerinize ait klasörleri listeleyin; görüşme, fiyat ve evrakları takip edin." FontSize="13" Foreground="#9CA3AF"/>
+        </StackPanel>
       </StackPanel>
-      <TextBlock Text="Müşterilerinize ait klasörleri listeleyin; görüşme, fiyat ve evrakları takip edin." FontSize="14" Foreground="#9CA3AF" Margin="65,0,0,0"/>
     </StackPanel>
 
     <!-- 2. ARAÇ ÇUBUĞU (TOOLBAR) -->
-    <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" CornerRadius="15" Padding="15" Margin="0,0,0,20" BorderBrush="#22FFFFFF" BorderThickness="1">
+    <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" CornerRadius="14" Padding="15" Margin="0,0,0,20" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
       <Grid ColumnDefinitions="*, Auto, Auto">
         <!-- Arama ve Filtre Grubu -->
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <!-- Arama Kutusu -->
           <TextBox Text="{Binding SearchString, UpdateSourceTrigger=PropertyChanged}" 
                    Watermark="Müşteri adı, yetkili veya telefon ara..." 
-                   Classes="SearchBox" Width="340" Height="38"/>
+                   Classes="SearchBox" Width="340" Height="38" CornerRadius="8"
+                   VerticalContentAlignment="Center">
+            <TextBox.InnerLeftContent>
+              <ic:SymbolIcon Symbol="Search" Margin="10,0,0,0" FontSize="16" Foreground="#88FFFFFF"/>
+            </TextBox.InnerLeftContent>
+          </TextBox>
 
           <!-- Etiket Filtresi -->
           <ComboBox ItemsSource="{Binding EtiketListesi}" 
@@ -105,7 +128,7 @@
 
         <!-- Sağ Taraf: Yeni Müşteri Aktar Butonu -->
         <Button Grid.Column="2" Command="{Binding OpenCariSelectionCommand}" 
-                Classes="SaveButton" Background="#10B981" Height="38" Padding="18,0" VerticalAlignment="Center">
+                Classes="SaveButton" Height="38" Padding="18,0" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ic:SymbolIcon Symbol="Add" FontSize="18" Foreground="White"/>
             <TextBlock Text="YENİ MÜŞTERİ AKTAR" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
@@ -115,17 +138,17 @@
     </Border>
 
     <!-- 3. KLASÖRLER KART IZGARASI (GRID ALANI) -->
-    <Border Grid.Row="2" Background="{DynamicResource PanelBrush}" CornerRadius="20" Padding="20" BorderBrush="#22FFFFFF" BorderThickness="1">
+    <Border Grid.Row="2" Background="{DynamicResource PanelBrush}" CornerRadius="16" Padding="20" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
       <Grid>
         <!-- Klasör Yoksa Boş Durum Görünümü -->
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="15" 
                     IsVisible="{Binding !HasKlasorler}">
           <Border Width="80" Height="80" CornerRadius="40" Background="#15FFFFFF" HorizontalAlignment="Center">
-            <ic:SymbolIcon Symbol="FolderZip" FontSize="40" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <ic:SymbolIcon Symbol="FolderZip" FontSize="40" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <TextBlock Text="Henüz müşteri klasörü eklenmemiş." FontSize="16" FontWeight="SemiBold" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
           <TextBlock Text="Cari hesaplarınızdan müşteri seçerek yeni takip klasörü oluşturabilirsiniz." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center"/>
-          <Button Command="{Binding OpenCariSelectionCommand}" Classes="SaveButton" Background="#3B82F6" HorizontalAlignment="Center" Padding="18,10" CornerRadius="8">
+          <Button Command="{Binding OpenCariSelectionCommand}" Classes="SaveButton" HorizontalAlignment="Center" Padding="18,10" CornerRadius="8">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <ic:SymbolIcon Symbol="PeopleAdd" FontSize="16" Foreground="White"/>
               <TextBlock Text="Cari Hesaplardan Müşteri Seç" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
@@ -151,25 +174,34 @@
                     
                     <!-- Üst Bar: Klasör İkonu, Müşteri Adı ve Sil Butonu -->
                     <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto">
-                      <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" Background="{Binding Renk}" VerticalAlignment="Center">
-                        <ic:SymbolIcon Symbol="Folder" Foreground="White" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" Background="{DynamicResource FluidBlueGradient}" VerticalAlignment="Center">
+                        <ic:SymbolIcon Symbol="Folder" Foreground="White" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Border>
 
                       <!-- Müşteri Adı (Klasör simgesinin hemen yanında) -->
                       <TextBlock Grid.Column="1" Text="{Binding CariUnvan}" FontSize="15" FontWeight="Bold" Foreground="White" 
                                  TextTrimming="CharacterEllipsis" MaxLines="2" VerticalAlignment="Center" Margin="10,0,8,0"/>
 
-                      <!-- Silme Butonu -->
+                      <!-- Silme Butonu (Sessiz varsayılan, üzerine gelince kırmızı) -->
                       <Button Grid.Column="2" Classes="CardDeleteBtn" VerticalAlignment="Center"
                               Click="OnDeleteCardClick"
                               Tag="{Binding}"
                               ToolTip.Tip="Klasörü Sil">
-                        <ic:SymbolIcon Symbol="Delete" FontSize="16" Foreground="#EF4444"/>
+                        <ic:SymbolIcon Symbol="Delete" FontSize="16"/>
                       </Button>
                     </Grid>
 
-                    <!-- Gövde: Varsa Yetkili ve Telefon Bilgileri -->
-                    <StackPanel Grid.Row="1" Margin="0,10,0,5" Spacing="4" VerticalAlignment="Center">
+                    <!-- Gövde: Etiket, Varsa Yetkili ve Telefon Bilgileri -->
+                    <StackPanel Grid.Row="1" Margin="0,10,0,8" Spacing="6" VerticalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Background="#1A60A5FA" BorderBrush="#3560A5FA" BorderThickness="1" CornerRadius="6" Padding="7,2" 
+                                IsVisible="{Binding Etiket, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                          <TextBlock Text="{Binding Etiket}" FontSize="11" Foreground="#93C5FD" FontWeight="SemiBold"/>
+                        </Border>
+                        <TextBlock Text="{Binding CariKod, StringFormat='# {0}'}" FontSize="11" Foreground="#6B7280" VerticalAlignment="Center"
+                                   IsVisible="{Binding CariKod, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                      </StackPanel>
+
                       <!-- Farklı Yetkili Kişi Varsa Göster -->
                       <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Yetkili, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <ic:SymbolIcon Symbol="Person" FontSize="13" Foreground="#9CA3AF" VerticalAlignment="Center"/>
@@ -184,12 +216,12 @@
                     </StackPanel>
 
                     <!-- Alt Bar: Sayaç Rozetleri & Tarih -->
-                    <Border Grid.Row="2" BorderBrush="#15FFFFFF" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+                    <Border Grid.Row="2" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
                       <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                           <!-- Görüşme Sayısı -->
                           <StackPanel Orientation="Horizontal" Spacing="3" ToolTip.Tip="Görüşme Kayıtları">
-                            <ic:SymbolIcon Symbol="Chat" FontSize="14" Foreground="#3B82F6"/>
+                            <ic:SymbolIcon Symbol="Chat" FontSize="14" Foreground="#60A5FA"/>
                             <TextBlock Text="{Binding GorusmeSayisi}" FontSize="11" Foreground="#DDD" FontWeight="Bold"/>
                           </StackPanel>
 
@@ -226,15 +258,15 @@
     </Border>
 
     <!-- 4. CARİ HESAP SEÇİM MODALI -->
-    <Grid Grid.RowSpan="3" Background="#CC000000" IsVisible="{Binding IsCariSelectionOpen}">
-      <Border Width="680" MaxHeight="560" Background="#0F172A" BorderBrush="#33FFFFFF" BorderThickness="1.5" CornerRadius="16" Padding="20"
-              HorizontalAlignment="Center" VerticalAlignment="Center" BoxShadow="0 10 40 0 #EE000000">
+    <Grid Grid.RowSpan="3" Background="#AA000000" IsVisible="{Binding IsCariSelectionOpen}">
+      <Border Width="680" MaxHeight="560" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1.5" CornerRadius="16" Padding="20"
+              HorizontalAlignment="Center" VerticalAlignment="Center" BoxShadow="0 20 60 0 #EE000000">
         <Grid RowDefinitions="Auto, Auto, *, Auto">
           <!-- Başlık ve Kapat Butonu -->
           <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,15">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-              <Border Width="36" Height="36" CornerRadius="8" Background="#263B82F6">
-                <ic:SymbolIcon Symbol="PeopleSearch" FontSize="20" Foreground="#60A5FA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource FluidBlueGradient}">
+                <ic:SymbolIcon Symbol="PeopleSearch" FontSize="20" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
               <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="Cari Hesaplardan Müşteri Seç" FontSize="17" FontWeight="Bold" Foreground="White"/>
@@ -258,16 +290,16 @@
 
           <!-- Cari Listesi -->
           <DataGrid Grid.Row="2" ItemsSource="{Binding FilteredCariler}" AutoGenerateColumns="False" IsReadOnly="True"
-                    GridLinesVisibility="Horizontal" Height="300" Background="#0A0F1D" RowBackground="Transparent">
+                    GridLinesVisibility="Horizontal" Height="300" Background="{DynamicResource BackgroundBrush}" RowBackground="Transparent">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Kod" Binding="{Binding CariKod}" Width="100"/>
               <DataGridTextColumn Header="Ünvan" Binding="{Binding Unvan}" Width="*"/>
               <DataGridTextColumn Header="Telefon" Binding="{Binding Telefon}" Width="130"/>
-              <DataGridTemplateColumn Width="110">
+              <DataGridTemplateColumn Width="120">
                 <DataTemplate>
                   <Button Command="{Binding $parent[UserControl].DataContext.SelectCariAndCreateKlasorCommand}"
                           CommandParameter="{Binding}"
-                          Classes="SaveButton" Background="#10B981" Height="28" Padding="10,0" Margin="4,2">
+                          Classes="SaveButton" Height="28" Padding="12,0" Margin="4,2">
                     <TextBlock Text="SEÇ &amp; AKTAR" FontSize="10.5" FontWeight="Bold" Foreground="White"/>
                   </Button>
                 </DataTemplate>
@@ -276,7 +308,7 @@
           </DataGrid>
 
           <!-- Alt Kapat Butonu -->
-          <Button Grid.Row="3" Command="{Binding CloseCariSelectionCommand}" Classes="SaveButton" Background="#374151" HorizontalAlignment="Right" Margin="0,15,0,0" Height="34" Padding="16,0">
+          <Button Grid.Row="3" Command="{Binding CloseCariSelectionCommand}" Background="#15FFFFFF" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Right" Margin="0,15,0,0" Height="34" Padding="18,0">
             <TextBlock Text="Kapat" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
           </Button>
         </Grid>

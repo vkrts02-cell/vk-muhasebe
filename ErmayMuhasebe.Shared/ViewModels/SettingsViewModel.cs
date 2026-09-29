@@ -296,9 +296,31 @@ public abstract partial class SettingsViewModel : ViewModelBase
                 return;
             }
             var profil = await _uow.GetFirmaProfiliAsync();
-            profil.FactoryResetPassword = AdminFactoryResetPassword;
+            profil.FactoryResetPassword = AdminFactoryResetPassword.Trim();
             await _uow.SaveFirmaProfiliAsync(profil);
-            SuccessMessage = "Fabrika ayarları sıfırlama şifresi başarıyla güncellendi.";
+
+            try
+            {
+                var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                var setupPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                var permPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                foreach (var path in new[] { setupPath, permPath })
+                {
+                    if (System.IO.File.Exists(path))
+                    {
+                        var json = await System.IO.File.ReadAllTextAsync(path);
+                        var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+                        if (node != null)
+                        {
+                            node["FactoryResetPassword"] = profil.FactoryResetPassword;
+                            await System.IO.File.WriteAllTextAsync(path, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            SuccessMessage = "Fabrika ayarları sıfırlama onay şifresi başarıyla güncellendi.";
             ErrorMessage = "";
         }
         catch(Exception ex)

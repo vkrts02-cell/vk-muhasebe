@@ -50,6 +50,8 @@ public class BankaRepository : BaseRepository<BankaKart>, IBankaRepository
         // Bulut senkronizasyonu
         await _syncService.SyncBankaAsync(entity);
         
+        _dbService.AutoReflectKasa(entity.Id);
+
         return entity.Id;
     }
 
@@ -179,6 +181,8 @@ public class BankaRepository : BaseRepository<BankaKart>, IBankaRepository
         if(impactedCariHareket != null) await _syncService.SyncCariHareketAsync(impactedCariHareket);
         if(impactedCari != null) await _syncService.SyncCariAsync(impactedCari);
 
+        if (hareket.BankaId > 0) _dbService.AutoReflectKasa(hareket.BankaId);
+
         return hareket.Id;
     }
 
@@ -216,6 +220,7 @@ public class BankaRepository : BaseRepository<BankaKart>, IBankaRepository
             {
                 await _syncService.SyncBankaAsync(updatedBanka);
             }
+            _dbService.AutoReflectKasa(hareket.BankaId);
         }
 
         return result;

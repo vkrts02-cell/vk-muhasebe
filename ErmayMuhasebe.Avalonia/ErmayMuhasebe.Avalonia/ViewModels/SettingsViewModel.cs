@@ -81,6 +81,29 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
     [ObservableProperty]
     private int? _selectedYearToSwitch;
 
+    // ==========================================
+    // MALİ YIL & DEVİR İŞLEMLERİ (SETTINGS)
+    // ==========================================
+    [ObservableProperty] private int _rolloverSourceYear;
+    [ObservableProperty] private int _rolloverTargetYear;
+    [ObservableProperty] private bool _rolloverCariler = true;
+    [ObservableProperty] private bool _rolloverStoklar = true;
+    [ObservableProperty] private bool _rolloverKasaBanka = true;
+    [ObservableProperty] private bool _rolloverCekSenet = true;
+    [ObservableProperty] private bool _rolloverTanimlar = true;
+    [ObservableProperty] private bool _rolloverExcludeZeroBalances = false;
+    [ObservableProperty] private bool _rolloverAutoBackup = true;
+    [ObservableProperty] private bool _autoReflectBalancesOnChange = true;
+    [ObservableProperty] private bool _rolloverTransferZeroStock = false;
+    [ObservableProperty] private string _rolloverDevirFisiTemplate = "{0} Yılı Devir Bakiyesi";
+    [ObservableProperty] private string _rolloverProgressMessage = "";
+    [ObservableProperty] private bool _isRolloverExecuting = false;
+
+    partial void OnRolloverSourceYearChanged(int value)
+    {
+        RolloverTargetYear = value + 1;
+    }
+
     [ObservableProperty]
     private string _backupStatus = "Yedekleme durumu bekleniyor...";
 
@@ -120,6 +143,9 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
     [ObservableProperty] private string _cloudPdfApiUrl = "https://ermay-pdf-api-390930978984.europe-west1.run.app";
     [ObservableProperty] private string _cloudPdfApiKey = "";
 
+    [ObservableProperty] private int _startingYear = 2026;
+    [ObservableProperty] private ObservableCollection<int> _availableYearsForDeletion = new();
+    [ObservableProperty] private int? _selectedYearToDelete;
 
 
     private void UpdateManagerSelectionVisibility()
@@ -212,6 +238,10 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
                     LogoTahsilat = profil.LogoTahsilat;
                     LogoOdeme = profil.LogoOdeme;
                     LogoAcilisBakiye = profil.LogoAcilisBakiye;
+                    if (profil.StartingYear > 2000)
+                    {
+                        StartingYear = profil.StartingYear;
+                    }
                 }
             });
         });
@@ -220,6 +250,7 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
     private void InitializeCategories()
     {
         Categories.Add(new SettingCategory("system", "Sistem ve Yedekleme", "Veritabanı konumunu yönetin ve yedek alın.", "Database", "#60A5FA"));
+        Categories.Add(new SettingCategory("rollover", "Mali Yıl ve Devir İşlemleri", "Yeni yıla devir, bakiye senkronizasyonu ve devir parametrelerini yönetin.", "CalendarMonth", "#10B981"));
         Categories.Add(new SettingCategory("appearance", "Logo ve Belgeler", "Logo, yazıcı ve sayfa boyutlarını ayarlayın.", "Image", "#EC4899"));
         Categories.Add(new SettingCategory("security", "Kullanıcılar ve Güvenlik", "Şifre değiştirin ve kullanıcıları yönetin.", "ShieldLock", "#F43F5E"));
         Categories.Add(new SettingCategory("cloud", "Bulut ve API", "Firebase ve dış servis bağlantılarını yönetin.", "Cloud", "#F59E0B"));
@@ -1969,6 +2000,12 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
         try
         {
              IsBusy = true;
+
+             int baseYear = DateTime.Now.Year;
+             _yearContext.CurrentYear = baseYear;
+             ActiveYear = baseYear;
+
+             await _dataProvider.InitializeAsync($"ermay_{baseYear}.db");
              await _uow.ClearAllTablesAsync();
 
              // Yeniden profil ve başlangıç verilerini yükle
@@ -1978,10 +2015,43 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                  await LoadInitialDataAsync();
              }
 
+             // SQLCipher ve SQLite handle'larını serbest bırakması için GC
+             GC.Collect();
+             GC.WaitForPendingFinalizers();
+
+             // Oluşturulmuş tüm ek mali yılları (örn. 2027, 2028 vb.) diskten kalıcı olarak sil
+             string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+             if (System.IO.Directory.Exists(appDir))
+             {
+                 var yearFiles = System.IO.Directory.GetFiles(appDir, "ermay_*.db*");
+                 foreach (var file in yearFiles)
+                 {
+                     var fileName = System.IO.Path.GetFileName(file);
+                     // Temel yıl dışındaki tüm oluşturulmuş ekstra yıl veritabanlarını (.db, .db-wal, .db-shm) sil
+                     if (!fileName.StartsWith($"ermay_{baseYear}."))
+                     {
+                         try
+                         {
+                             System.IO.File.Delete(file);
+                         }
+                         catch (Exception fEx)
+                         {
+                             System.Diagnostics.Debug.WriteLine($"[FactoryReset] Yıl dosyası silinemedi ({file}): {fEx.Message}");
+                         }
+                     }
+                 }
+             }
+
+             // Kullanılabilir yıllar listesini yenile (böylece 2027 vb. anında silinir)
+             LoadAvailableYears();
+             SelectedYearToSwitch = baseYear;
+             RolloverSourceYear = baseYear;
+             RolloverTargetYear = baseYear + 1;
+
              LogoBytes = null;
              WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
 
-             SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü ve tüm veritabanları silindi. Lütfen programı yeniden başlatın.";
+             SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü ve tüm ekstra oluşturulmuş mali yıllar silindi. Lütfen programı yeniden başlatın.";
              ErrorMessage = "";
              ResetPassword = "";
         }
@@ -2210,7 +2280,11 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
             // UI'ı tazelemek veya Dashboard'a dönmek için MainViewModel'i kullan
             var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetRequiredService<MainViewModel>();
-            mainVm?.NavigateTo(typeof(DashboardViewModel), true);
+            if (mainVm != null)
+            {
+                mainVm.RefreshFiscalYearInfo();
+                mainVm.NavigateTo(typeof(DashboardViewModel), true);
+            }
         }
         catch (Exception ex)
         {
@@ -2224,11 +2298,38 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
     }
 
     [RelayCommand]
+    public async Task SaveStartingYearCommandAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            var db = _dataProvider.DatabaseService.GetConnection();
+            var profil = await db.Table<FirmaProfili>().FirstOrDefaultAsync();
+            if (profil != null)
+            {
+                profil.StartingYear = StartingYear;
+                await db.UpdateAsync(profil);
+                SuccessMessage = "Başlangıç yılı başarıyla kaydedildi.";
+                // Tetikle ki açılıştaki viewmodellar (YearSelection vs) güncellensin
+                WeakReferenceMessenger.Default.Send(new FirmaProfiliChangedMessage(profil));
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Başlangıç yılı kaydedilemedi: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     public async Task DeleteYearAsync()
     {
-        if (SelectedYearToSwitch == null) return;
+        if (SelectedYearToDelete == null) return;
         
-        int yearToDelete = SelectedYearToSwitch.Value;
+        int yearToDelete = SelectedYearToDelete.Value;
 
         if (yearToDelete == ActiveYear)
         {
@@ -2236,10 +2337,9 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             return;
         }
 
-        // Onay adımı ekleniyor
         bool confirm = await _fileService.ShowConfirmationAsync(
             "Yılı Sil", 
-            $"{yearToDelete} yılına ait tüm veriler ve veritabanı kalıcı olarak silinecektir. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?"
+            $"{yearToDelete} yılına ait tüm veriler hem BİLGİSAYARINIZDAN hem de BULUTTAN (Firebase) kalıcı olarak silinecektir.\n\nBu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?"
         );
         if (!confirm)
         {
@@ -2252,24 +2352,27 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
         try
         {
+            // 1. Yerel veritabanı dosyasını sil
             string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
             string dbFile = System.IO.Path.Combine(dir, $"ermay_{yearToDelete}.db");
-
             if (System.IO.File.Exists(dbFile))
             {
-                // SQLCipher handle'larını temizlemek için GC zorlayalım
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-
                 await Task.Run(() => System.IO.File.Delete(dbFile));
-                
-                SuccessMessage = $"{yearToDelete} yılı veritabanı dosyası başarıyla silindi.";
-                LoadAvailableYears();
             }
-            else
+            
+            // 2. Firebase/Buluttan sil
+            var firebaseService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<IFirebaseService>();
+            if (firebaseService != null && firebaseService.IsConfigured)
             {
-                ErrorMessage = "Veritabanı dosyası bulunamadı.";
+                BackupStatus = $"{yearToDelete} yılı buluttan siliniyor...";
+                await firebaseService.DeleteYearAsync(yearToDelete);
             }
+
+            SuccessMessage = $"{yearToDelete} yılı bilgisayardan ve buluttan başarıyla silindi.";
+            SelectedYearToDelete = null;
+            LoadAvailableYears();
         }
         catch (Exception ex)
         {
@@ -2280,6 +2383,50 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    public async Task ReflectBalancesForwardAsync()
+    {
+        IsBusy = true;
+        ErrorMessage = "";
+        SuccessMessage = "";
+        BackupStatus = $"{ActiveYear} yılı güncel bakiyeleri sonraki yıla yansıtılıyor...";
+
+        try
+        {
+            var rolloverService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetRequiredService<YearRolloverService>();
+            if (rolloverService != null)
+            {
+                var result = await rolloverService.ReflectBalancesForwardAsync(ActiveYear);
+                if (result.Success)
+                {
+                    SuccessMessage = result.Message;
+                    BackupStatus = result.Message;
+                }
+                else
+                {
+                    ErrorMessage = result.Message;
+                    BackupStatus = result.Message;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Bakiye aktarım hatası: {ex.Message}";
+            BackupStatus = "HATA: Yansıtma başarısız.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public void OpenYearSelection()
+    {
+        var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetRequiredService<MainViewModel>();
+        mainVm?.ShowYearSelection();
     }
 
     private void LoadAvailableYears()
@@ -2302,9 +2449,100 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
         if (!tempYears.Any()) tempYears.Add(DateTime.Now.Year);
 
-        var sorted = tempYears.OrderByDescending(y => y).ToList();
+        var sorted = tempYears.Distinct().OrderByDescending(y => y).ToList();
         AvailableYears = new ObservableCollection<int>(sorted);
+        AvailableYearsForDeletion = new ObservableCollection<int>(sorted);
         SelectedYearToSwitch = ActiveYear;
+        RolloverSourceYear = ActiveYear > 0 ? ActiveYear : DateTime.Now.Year;
+        RolloverTargetYear = RolloverSourceYear + 1;
+    }
+
+    [RelayCommand]
+    public async Task ExecuteYearRolloverAsync()
+    {
+        if (RolloverSourceYear == RolloverTargetYear)
+        {
+            ErrorMessage = "Kaynak yıl ile hedef yıl aynı olamaz.";
+            return;
+        }
+
+        IsBusy = true;
+        IsRolloverExecuting = true;
+        ErrorMessage = "";
+        SuccessMessage = "";
+        RolloverProgressMessage = $"{RolloverSourceYear} yılından {RolloverTargetYear} yılına devir hazırlanıyor...";
+
+        try
+        {
+            var rolloverService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetRequiredService<YearRolloverService>();
+            if (rolloverService == null)
+            {
+                ErrorMessage = "Devir servisine erişilemedi.";
+                return;
+            }
+
+            if (RolloverAutoBackup)
+            {
+                RolloverProgressMessage = $"{RolloverSourceYear} yılı kaynak veritabanı yedekleniyor...";
+                try
+                {
+                    await CreateBackupAsync();
+                }
+                catch { }
+            }
+
+            var options = new RolloverOptions
+            {
+                TransferCariler = RolloverCariler,
+                TransferStoklar = RolloverStoklar,
+                TransferKasaBanka = RolloverKasaBanka,
+                TransferCekSenet = RolloverCekSenet,
+                TransferTanimlar = RolloverTanimlar,
+                ExcludeZeroBalances = RolloverExcludeZeroBalances
+            };
+
+            var progress = new Progress<string>(msg =>
+            {
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    RolloverProgressMessage = msg;
+                });
+            });
+
+            var result = await rolloverService.RolloverYearAsync(RolloverSourceYear, RolloverTargetYear, options, progress);
+
+            if (result.Success)
+            {
+                SuccessMessage = result.Message;
+                RolloverProgressMessage = "Devir işlemi başarıyla tamamlandı.";
+                LoadAvailableYears();
+                SelectedYearToSwitch = RolloverTargetYear;
+
+                var wantsToSwitch = await _fileService.ShowConfirmationAsync(
+                    "Yeni Yıla Geçiş Yapılsın Mı?",
+                    $"{RolloverTargetYear} yılına devir başarıyla tamamlandı.\nŞimdi {RolloverTargetYear} çalışma yılına geçiş yapmak ister misiniz?");
+
+                if (wantsToSwitch)
+                {
+                    await SwitchYearAsync();
+                }
+            }
+            else
+            {
+                ErrorMessage = result.Message;
+                RolloverProgressMessage = "Hata: " + result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Devir Hatası: " + ex.Message;
+            RolloverProgressMessage = "HATA: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+            IsRolloverExecuting = false;
+        }
     }
     [ObservableProperty] private bool _showVersion;
     [ObservableProperty] private bool _showUser;

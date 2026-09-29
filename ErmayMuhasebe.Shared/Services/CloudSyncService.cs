@@ -12,16 +12,16 @@ namespace ErmayMuhasebe.Services
 {
     public class CloudConfig
     {
-        public const string DefaultSupabaseUrl = "https://fqgbdymffknglqeqoogt.supabase.co";
-        public const string DefaultSupabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxZ2JkeW1mZmtuZ2xxZXFvb2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODUzMDEsImV4cCI6MjEwNTE2MTMwMX0.pBeE2ivWpbkAd8KSN1y2pXNZPIr_1mGMLXXHYPzjTDg";
+        public const string DefaultSupabaseUrl = "";
+        public const string DefaultSupabaseKey = "";
 
         public string BaseUrl { get; set; } = DefaultSupabaseUrl;
         public string AuthSecret { get; set; } = DefaultSupabaseKey;
         public string GoogleApiKey { get; set; } = "";
         public string GoogleClientId { get; set; } = "";
         public string GoogleClientSecret { get; set; } = "";
-        public bool IsActive { get; set; } = true;
-        public bool IsAutoSyncEnabled { get; set; } = true;
+        public bool IsActive { get; set; } = false;
+        public bool IsAutoSyncEnabled { get; set; } = false;
     }
 
     public class CloudSyncService
@@ -115,37 +115,49 @@ namespace ErmayMuhasebe.Services
                 {
                     var json = File.ReadAllText(_configPath);
                     var loaded = JsonSerializer.Deserialize<CloudConfig>(json);
-                    if (loaded != null && !string.IsNullOrEmpty(loaded.BaseUrl) && !string.IsNullOrEmpty(loaded.AuthSecret))
+                    if (loaded != null)
                     {
-                        if (loaded.AuthSecret.StartsWith("ENC::AES::"))
-                            loaded.AuthSecret = AuthService.Decrypt(loaded.AuthSecret);
-                        if (!string.IsNullOrEmpty(loaded.GoogleApiKey) && loaded.GoogleApiKey.StartsWith("ENC::AES::"))
-                            loaded.GoogleApiKey = AuthService.Decrypt(loaded.GoogleApiKey);
-                        if (!string.IsNullOrEmpty(loaded.GoogleClientSecret) && loaded.GoogleClientSecret.StartsWith("ENC::AES::"))
-                            loaded.GoogleClientSecret = AuthService.Decrypt(loaded.GoogleClientSecret);
-
-                        // Check if legacy Firebase URL is stored
-                        if (loaded.BaseUrl.Contains("firebaseio.com") || !loaded.BaseUrl.Contains("supabase.co"))
+                        if (!string.IsNullOrEmpty(loaded.BaseUrl) && !string.IsNullOrEmpty(loaded.AuthSecret))
                         {
-                            _config = new CloudConfig();
+                            if (loaded.AuthSecret.StartsWith("ENC::AES::"))
+                                loaded.AuthSecret = AuthService.Decrypt(loaded.AuthSecret);
+                            if (!string.IsNullOrEmpty(loaded.GoogleApiKey) && loaded.GoogleApiKey.StartsWith("ENC::AES::"))
+                                loaded.GoogleApiKey = AuthService.Decrypt(loaded.GoogleApiKey);
+                            if (!string.IsNullOrEmpty(loaded.GoogleClientSecret) && loaded.GoogleClientSecret.StartsWith("ENC::AES::"))
+                                loaded.GoogleClientSecret = AuthService.Decrypt(loaded.GoogleClientSecret);
+
+                            // Check if legacy Firebase URL is stored or if it's the old shared test database
+                            if (loaded.BaseUrl.Contains("firebaseio.com") || !loaded.BaseUrl.Contains("supabase.co") || loaded.BaseUrl.Contains("fqgbdymffknglqeqoogt.supabase.co"))
+                            {
+                                _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
+                            }
+                            else
+                            {
+                                loaded.BaseUrl = CleanSupabaseUrl(loaded.BaseUrl);
+                                _config = loaded;
+                                _config.IsActive = true;
+                            }
                         }
                         else
                         {
-                            loaded.BaseUrl = CleanSupabaseUrl(loaded.BaseUrl);
                             _config = loaded;
-                            _config.IsActive = true;
+                            _config.IsActive = false;
                         }
+                    }
+                    else
+                    {
+                        _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
                     }
                 }
                 else
                 {
-                    _config = new CloudConfig();
+                    _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Cloud Config Load Error: {ex.Message}");
-                _config = new CloudConfig();
+                _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
             }
         }
 

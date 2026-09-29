@@ -322,7 +322,7 @@
              source.Durum = "Yönlendirildi";
              source.YonlendirilenCariId = supplier.Id;
              source.YonlendirilenCariUnvan = supplier.Unvan;
-             source.YonlendirmeTarihi = DateTime.Now;
+             source.YonlendirmeTarihi = source.Tarih;
              
              // Save Outgoing (which updates balance and Cari)
              await SaveTransaction(outgoing, supplier.Id);

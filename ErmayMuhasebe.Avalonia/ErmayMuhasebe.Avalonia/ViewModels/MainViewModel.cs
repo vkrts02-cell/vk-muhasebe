@@ -90,7 +90,7 @@ public partial class MainViewModel : ViewModelBase
         catch { }
     }
 
-    public string ActiveFiscalYear => $"Çalışma Yılı: {_yearContext?.CurrentYear}";
+    public string ActiveFiscalYear => $"Çalışma Yılı: {(_yearContext?.CurrentYear > 0 ? _yearContext.CurrentYear : DateTime.Now.Year)}";
     public string DatabaseModeText => $"Yerel Mod: {System.IO.Path.GetFileName(_dbService?.DbPath ?? "")}";
 
     [ObservableProperty]
@@ -371,6 +371,15 @@ public partial class MainViewModel : ViewModelBase
         _securitySyncService = securitySyncService;
         _dbService = _serviceProvider.GetRequiredService<ErmayMuhasebe.Services.DatabaseService>();
         _yearContext = _serviceProvider.GetRequiredService<ErmayMuhasebe.Services.IYearContext>();
+        _yearContext.YearChanged += (newYear) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnPropertyChanged(nameof(ActiveFiscalYear));
+                OnPropertyChanged(nameof(DatabaseModeText));
+                RefreshStatusBarItems();
+            });
+        };
         
         themeService.ThemeChanged += (t) => CurrentTheme = t.ToString();
         CurrentTheme = themeService.CurrentTheme.ToString();
@@ -442,42 +451,15 @@ public partial class MainViewModel : ViewModelBase
                 // Set CurrentUserName from LoginViewModel parameter
                 CurrentUserName = username;
 
-                // Bypass Year Selection and jump to authenticated directly
-                int selectedYear = DateTime.Now.Year;
-                yearCtx.CurrentYear = selectedYear;
-
-                IsAuthenticated = true;
-                ActiveAuthView = this;
-                SelectedMenuItem = MenuItems.First();
-                OnPropertyChanged(nameof(ActiveFiscalYear));
-                // Kullanıcının kayıtlı ve okunmuş/silinmiş bildirim durumunu diskten yükle
-                LoadSavedNotifications();
-                AddNotification("Giriş Yapıldı", $"{CurrentUserName} kullanıcısı {selectedYear} yılına başarıyla giriş yaptı.", "Person", typeof(DashboardViewModel));
-                
-                // Start Services after login & year selection
-                _dbService.StartRealtimeSync();
-                _ = StartAutoSync();
-                _ = RunAutoBackupWithNotificationAsync();
-                
-                _ = RunAlertChecksAsync();
-                
-                // Start Cron Timer
-                StartCronTimer();
-                
-                // Start Session Monitor (30 min)
-                session.Start(30);
-
-                // Start Session Status Listener
-                _securitySyncService.StopListeners();
-                _securitySyncService.OnSessionRevoked += () =>
+                if (db.IsTestMode)
                 {
-                    global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        Logout();
-                        AddNotification("Güvenlik Bildirimi", "Şifreniz başka bir cihazdan değiştirildiği için bu cihazdaki oturumunuz güvenlik nedeniyle sonlandırıldı.", "ShieldLock", typeof(DashboardViewModel));
-                    });
-                };
-                _securitySyncService.ListenToSessionStatus(CurrentUserName, DateTime.UtcNow);
+                    int selectedYear = DateTime.Now.Year;
+                    CompleteLoginWithYear(selectedYear, session);
+                    return;
+                }
+
+                // Transition to Year Selection view
+                ShowYearSelection(session);
             }
         });
 
@@ -821,6 +803,106 @@ public partial class MainViewModel : ViewModelBase
                 LoginViewModel.Password = "";
             }
         }
+    }
+
+    public void ShowYearSelection(ErmayMuhasebe.Services.SessionService? session = null)
+    {
+        var sess = session ?? _serviceProvider.GetRequiredService<ErmayMuhasebe.Services.SessionService>();
+        var yearCtx = _serviceProvider.GetRequiredService<ErmayMuhasebe.Services.IYearContext>();
+        var dataProvider = _serviceProvider.GetRequiredService<ErmayMuhasebe.Repositories.DataProviders.IDataProvider>();
+        var db = _serviceProvider.GetRequiredService<ErmayMuhasebe.Services.DatabaseService>();
+
+        YearSelectionViewModel = new YearSelectionViewModel(
+            yearCtx,
+            dataProvider,
+            db,
+            onYearSelected: (selectedYear) =>
+            {
+                CompleteLoginWithYear(selectedYear, sess);
+            },
+            onBackToLogin: () =>
+            {
+                if (IsAuthenticated)
+                {
+                    ActiveAuthView = this;
+                }
+                else
+                {
+                    ActiveAuthView = LoginViewModel;
+                }
+            },
+            isAlreadyAuthenticated: IsAuthenticated);
+
+        ActiveAuthView = YearSelectionViewModel;
+    }
+
+    public void RefreshFiscalYearInfo()
+    {
+        OnPropertyChanged(nameof(ActiveFiscalYear));
+        OnPropertyChanged(nameof(DatabaseModeText));
+        RefreshStatusBarItems();
+    }
+
+    [RelayCommand]
+    public void SwitchFiscalYear()
+    {
+        ShowYearSelection();
+    }
+
+    private void CompleteLoginWithYear(int selectedYear, ErmayMuhasebe.Services.SessionService session)
+    {
+        _yearContext.CurrentYear = selectedYear;
+
+        IsAuthenticated = true;
+        ActiveAuthView = this;
+        SelectedMenuItem = MenuItems.First();
+        OnPropertyChanged(nameof(ActiveFiscalYear));
+        OnPropertyChanged(nameof(DatabaseModeText));
+        RefreshStatusBarItems();
+
+        if (CurrentPage is ErmayMuhasebe.Avalonia.ViewModels.DashboardViewModel dbVm)
+        {
+            _ = dbVm.LoadStatsAsync();
+        }
+        else
+        {
+            try
+            {
+                var newDbVm = _serviceProvider.GetRequiredService<DashboardViewModel>();
+                CurrentPage = newDbVm;
+                _ = newDbVm.LoadStatsAsync();
+            }
+            catch { }
+        }
+
+        // Kullanıcının kayıtlı ve okunmuş/silinmiş bildirim durumunu diskten yükle
+        LoadSavedNotifications();
+        AddNotification("Giriş Yapıldı", $"{CurrentUserName} kullanıcısı {selectedYear} yılına başarıyla giriş yaptı.", "Person", typeof(DashboardViewModel));
+        
+        // Start Services after login & year selection
+        _dbService.StartRealtimeSync();
+        _ = StartAutoSync();
+        _ = RunAutoBackupWithNotificationAsync();
+        
+        _ = RunAlertChecksAsync();
+        
+        // Start Cron Timer
+        StartCronTimer();
+        
+        // Start Session Monitor (30 min)
+        session.Start(30);
+
+        // Start Session Status Listener
+        _securitySyncService.StopListeners();
+        _securitySyncService.OnSessionRevoked += () =>
+        {
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                Logout();
+                AddNotification("Güvenlik Bildirimi", "Şifreniz başka bir cihazdan değiştirildiği için bu cihazdaki oturumunuz güvenlik nedeniyle sonlandırıldı.", "ShieldLock", typeof(DashboardViewModel));
+            });
+        };
+        _securitySyncService.ListenToSessionStatus(CurrentUserName, DateTime.UtcNow);
     }
 
     private bool IsMainModule(object vm)

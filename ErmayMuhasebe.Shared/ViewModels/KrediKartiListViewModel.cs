@@ -180,7 +180,7 @@ public abstract partial class KrediKartiListViewModel : ViewModelBase
 
             if (EditYonlendirilenCariId.HasValue)
             {
-                islem.YonlendirmeTarihi = DateTime.Now;
+                islem.YonlendirmeTarihi = islem.Tarih;
             }
 
             // Sync with Cari

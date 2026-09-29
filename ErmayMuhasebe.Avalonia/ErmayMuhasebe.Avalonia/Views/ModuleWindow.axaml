@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="ErmayMuhasebe.Avalonia.Views.ModuleWindow"
         Icon="avares://ErmayMuhasebe.Avalonia/Assets/avalonia-logo.ico"
-        Title="Modül"
+        Title="VK Muhasebe"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundBrush}"
         TransparencyLevelHint="AcrylicBlur, Mica, Blur"

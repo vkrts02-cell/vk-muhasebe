@@ -24,8 +24,12 @@ namespace ErmayMuhasebe.Services
             if (request.Cari == null || request.Amount <= 0) return false;
 
             var db = await _dbService.GetConnectionAsync();
-            var refId = Guid.NewGuid().ToString("N");
-            var evrakNo = GetEvrakNoPrefix(request.Method) + DateTime.Now.ToString("yyMMddHHmmss");
+            var refId = !string.IsNullOrEmpty(request.ExistingRefId) 
+                ? request.ExistingRefId 
+                : Guid.NewGuid().ToString("N");
+            var evrakNo = !string.IsNullOrEmpty(request.ExistingEvrakNo) 
+                ? request.ExistingEvrakNo 
+                : (GetEvrakNoPrefix(request.Method) + DateTime.Now.ToString("yyMMddHHmmss"));
 
             CariHareket? mainCH = null;
             CariHareket? supplierCH = null;
@@ -41,23 +45,110 @@ namespace ErmayMuhasebe.Services
             bool success = false;
             await db.RunInTransactionAsync(tran =>
             {
-                // 1. Müşteri/Cari Hareketi Ekleme
                 bool isOdeme = request.TransactionType == "Ödeme" || request.TransactionType == "Borç Dekontu";
-                mainCH = new CariHareket
+
+                // Eğer mevcut bir işlem düzenleniyorsa, ID'yi koruyarak yerinde (in-place) güncelleme yapıyoruz
+                if (request.ExistingHareketId > 0)
                 {
-                    CariId = request.Cari.Id,
-                    CariUnvan = request.Cari.Unvan ?? "",
-                    Tarih = request.Date,
-                    EvrakNo = evrakNo,
-                    RefId = refId,
-                    IslemTuru = $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})",
-                    Aciklama = $"[{request.Method}] {request.Description}".Trim(),
-                    Borc = isOdeme ? request.Amount : 0,
-                    Alacak = !isOdeme ? request.Amount : 0,
-                    YonlendirilenCariId = request.DirectedSupplier?.Id,
-                    YonlendirilenCariUnvan = request.DirectedSupplier?.Unvan
-                };
-                tran.Insert(mainCH);
+                    var oldCH = tran.Find<CariHareket>(request.ExistingHareketId);
+                    if (oldCH != null)
+                    {
+                        // 1. Eski cari bakiyesini geri al
+                        var oldCust = tran.Find<CariKart>(oldCH.CariId);
+                        if (oldCust != null)
+                        {
+                            oldCust.Borc -= oldCH.Borc;
+                            oldCust.Alacak -= oldCH.Alacak;
+                            tran.Update(oldCust);
+                        }
+
+                        // 2. Eski tedarikçi/ciro hareketini temizle ve bakiyesini geri al
+                        string baseRef = !string.IsNullOrEmpty(oldCH.RefId) ? (oldCH.RefId.EndsWith("-SUP") ? oldCH.RefId.Substring(0, oldCH.RefId.Length - 4) : oldCH.RefId) : "";
+                        string supRef = !string.IsNullOrEmpty(baseRef) ? baseRef + "-SUP" : "";
+                        string oldEvrak = oldCH.EvrakNo ?? "";
+                        string supEvrak = !string.IsNullOrEmpty(oldEvrak) ? oldEvrak + "-SUP" : "";
+
+                        var oldSupHarekets = tran.Query<CariHareket>("SELECT * FROM CariHareket WHERE (RefId = ? OR EvrakNo = ?) AND Id != ?", supRef, supEvrak, oldCH.Id);
+                        foreach (var sh in oldSupHarekets)
+                        {
+                            var supCari = tran.Find<CariKart>(sh.CariId);
+                            if (supCari != null)
+                            {
+                                supCari.Borc -= sh.Borc;
+                                supCari.Alacak -= sh.Alacak;
+                                tran.Update(supCari);
+                            }
+                            tran.Delete(sh);
+                        }
+
+                        // 3. Eski Kasa / Banka hareketlerini bul, bakiyelerini düzelt ve sil
+                        var oldKasas = tran.Query<KasaHareket>("SELECT * FROM KasaHareket WHERE (RefId = ? OR RefId = ? OR EvrakNo = ? OR EvrakNo = ?)", baseRef, supRef, oldEvrak, supEvrak);
+                        foreach (var kh in oldKasas)
+                        {
+                            var fa = tran.Find<BankaKart>(kh.KasaId);
+                            if (fa != null)
+                            {
+                                fa.GuncelBakiye -= (kh.Giren - kh.Cikan);
+                                tran.Update(fa);
+                            }
+                            tran.Delete(kh);
+                        }
+
+                        var oldBankas = tran.Query<BankaHareket>("SELECT * FROM BankaHareket WHERE (RefId = ? OR RefId = ? OR EvrakNo = ? OR EvrakNo = ?)", baseRef, supRef, oldEvrak, supEvrak);
+                        foreach (var bh in oldBankas)
+                        {
+                            var fa = tran.Find<BankaKart>(bh.BankaId);
+                            if (fa != null)
+                            {
+                                fa.GuncelBakiye -= (bh.Giren - bh.Cikan);
+                                tran.Update(fa);
+                            }
+                            tran.Delete(bh);
+                        }
+
+                        // 4. Eski KK / EFT detay kayıtlarını sil
+                        if (!string.IsNullOrEmpty(baseRef))
+                        {
+                            tran.Execute("DELETE FROM KrediKartiIslem WHERE OnayKodu = ?", baseRef);
+                            tran.Execute("DELETE FROM EftIslem WHERE DekontNo = ?", baseRef);
+                        }
+
+                        // 5. Ana cari hareketini ID'sini değiştirmeden yerinde güncelle
+                        mainCH = oldCH;
+                        mainCH.CariId = request.Cari.Id;
+                        mainCH.CariUnvan = request.Cari.Unvan ?? "";
+                        mainCH.Tarih = request.Date;
+                        mainCH.EvrakNo = evrakNo;
+                        mainCH.RefId = refId;
+                        mainCH.IslemTuru = $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})";
+                        mainCH.Aciklama = $"[{request.Method}] {request.Description}".Trim();
+                        mainCH.Borc = isOdeme ? request.Amount : 0;
+                        mainCH.Alacak = !isOdeme ? request.Amount : 0;
+                        mainCH.YonlendirilenCariId = request.DirectedSupplier?.Id;
+                        mainCH.YonlendirilenCariUnvan = request.DirectedSupplier?.Unvan;
+                        tran.Update(mainCH);
+                    }
+                }
+
+                // Eğer yeni bir işlemse normal ekleme yapıyoruz
+                if (mainCH == null)
+                {
+                    mainCH = new CariHareket
+                    {
+                        CariId = request.Cari.Id,
+                        CariUnvan = request.Cari.Unvan ?? "",
+                        Tarih = request.Date,
+                        EvrakNo = evrakNo,
+                        RefId = refId,
+                        IslemTuru = $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})",
+                        Aciklama = $"[{request.Method}] {request.Description}".Trim(),
+                        Borc = isOdeme ? request.Amount : 0,
+                        Alacak = !isOdeme ? request.Amount : 0,
+                        YonlendirilenCariId = request.DirectedSupplier?.Id,
+                        YonlendirilenCariUnvan = request.DirectedSupplier?.Unvan
+                    };
+                    tran.Insert(mainCH);
+                }
 
                 // Müşteri cari bakiyesini güncelle
                 var customer = tran.Find<CariKart>(request.Cari.Id);
@@ -325,6 +416,7 @@ namespace ErmayMuhasebe.Services
             List<BankaHareket> bhToDelete = new();
             List<KrediKartiIslem> kkToDelete = new();
             List<EftIslem> eftToDelete = new();
+            List<Cek> cekToDelete = new();
             List<int> affectedCariIds = new();
             List<int> affectedKasaBankaIds = new();
 
@@ -467,6 +559,15 @@ namespace ErmayMuhasebe.Services
                 }
                 foreach (var eftItem in eftToDelete) tran.Delete(eftItem);
 
+                // 5. İlişkili Çek Kaydını Sil (Eğer evrak bir çek ise)
+                cekToDelete = new List<Cek>();
+                if (!string.IsNullOrEmpty(evrakNo))
+                {
+                    var cMatches = tran.Query<Cek>("SELECT * FROM Cek WHERE PortfoyNo = ? OR CekNo = ?", evrakNo, evrakNo);
+                    foreach (var c in cMatches) if (!cekToDelete.Any(x => x.Id == c.Id)) cekToDelete.Add(c);
+                }
+                foreach (var cItem in cekToDelete) tran.Delete(cItem);
+
                 success = true;
             });
 
@@ -526,6 +627,11 @@ namespace ErmayMuhasebe.Services
                     foreach (var eftItem in eftToDelete)
                     {
                         await _syncService.DeleteEftIslemAsync(eftItem.Id);
+                    }
+
+                    foreach (var cItem in cekToDelete)
+                    {
+                        await _syncService.DeleteCekAsync(cItem.Id);
                     }
                 }
                 catch (Exception ex)

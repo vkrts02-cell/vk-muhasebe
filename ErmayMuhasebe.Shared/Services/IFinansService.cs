@@ -36,5 +36,10 @@ namespace ErmayMuhasebe.Services
         public string? KartHesapNo { get; set; } // Kart No veya Hesap No
         public string? OnayDekontNo { get; set; } // Onay Kodu veya Dekont No
         public string? SlipDekontPath { get; set; } // Slip veya Dekont Dosya Yolu
+
+        // Düzenleme (In-place Update) Alanları
+        public int ExistingHareketId { get; set; }
+        public string? ExistingEvrakNo { get; set; }
+        public string? ExistingRefId { get; set; }
     }
 }
