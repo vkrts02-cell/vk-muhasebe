@@ -698,6 +698,7 @@ export default function AyarlarScreen() {
             }
           }
         }
+      ]
     );
   };
 
