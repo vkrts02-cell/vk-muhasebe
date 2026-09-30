@@ -474,7 +474,6 @@
                                             </Border>
                                         </Grid>
                                     </StackPanel>
-                                    </StackPanel>
                                 </Border>
 
                                 <!-- KART 4: Başlangıç Yılı ve Yıl Silme -->
@@ -487,9 +486,9 @@
                                             <Border Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
                                                 <StackPanel Spacing="8">
                                                     <TextBlock Text="Başlangıç Yılı" FontSize="13" FontWeight="Bold" Foreground="White"/>
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
                                                         <NumericUpDown Minimum="2000" Maximum="2100" Value="{Binding StartingYear}" Height="36" Width="120"/>
-                                                        <Button Content="Kaydet" Command="{Binding SaveStartingYearCommand}" Classes="Success" Height="36" CornerRadius="6"/>
+                                                        <Button Content="Kaydet" Command="{Binding SaveStartingYearCommand}" Classes="Success" Height="36" Width="100" CornerRadius="6"/>
                                                     </StackPanel>
                                                     <TextBlock Text="Programın dropdown listesindeki ilk yıl. (Örn: 2028)" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
                                                 </StackPanel>
@@ -499,9 +498,9 @@
                                             <Border Grid.Column="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Padding="14">
                                                 <StackPanel Spacing="8">
                                                     <TextBlock Text="Yıl Sil (Tehlikeli İşlem!)" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
                                                         <ComboBox ItemsSource="{Binding AvailableYearsForDeletion}" SelectedItem="{Binding SelectedYearToDelete}" Height="36" Width="120" PlaceholderText="Yıl Seçin"/>
-                                                        <Button Content="Seçili Yılı Sil" Command="{Binding DeleteYearCommand}" Classes="Danger" Height="36" CornerRadius="6" Background="#EF4444" Foreground="White"/>
+                                                        <Button Content="Seçili Yılı Sil" Command="{Binding DeleteYearCommand}" Classes="Danger" Height="36" Width="130" CornerRadius="6" Background="#EF4444" Foreground="White"/>
                                                     </StackPanel>
                                                     <TextBlock Text="Seçilen yılı hem bilgisayardan hem de buluttan tamamen siler!" FontSize="11" Opacity="0.6" TextWrapping="Wrap" Foreground="#EF4444"/>
                                                 </StackPanel>

@@ -71,6 +71,21 @@ namespace ErmayMuhasebe.Services
                 var files = Directory.GetFiles(dir, "ermay_*.db");
                 foreach (var file in files)
                 {
+                    try
+                    {
+                        var fileInfo = new FileInfo(file);
+                        // 0 bayt veya bozuk/oluşamamış dosyaları temizle ve listeye ekleme
+                        if (fileInfo.Length <= 0)
+                        {
+                            try { File.Delete(file); } catch { }
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
                     var fileName = Path.GetFileNameWithoutExtension(file);
 
                     // Filter by tenant
@@ -89,11 +104,6 @@ namespace ErmayMuhasebe.Services
                         years.Add(y);
                     }
                 }
-            }
-
-            if (!years.Any())
-            {
-                years.Add(DateTime.Now.Year);
             }
 
             return years.OrderByDescending(y => y).ToList();

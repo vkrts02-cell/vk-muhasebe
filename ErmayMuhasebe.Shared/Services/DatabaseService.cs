@@ -21,6 +21,40 @@ namespace ErmayMuhasebe.Services
         private static readonly object _sqlitePclLock = new();
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private static readonly System.Text.RegularExpressions.Regex FtrNoCompiledRegex = new(@"(FTR-[\w\d]+|FAT-[\w\d]+|SF-[\w\d\-]+|AF-[\w\d\-]+)", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        
+        public bool IsClosed { get; set; } = false;
+        
+        public async Task CloseConnectionAsync()
+        {
+            IsClosed = true;
+            _isInitialized = false;
+
+            try
+            {
+                if (_db != null)
+                {
+                    await _db.CloseAsync();
+                    _db = null!;
+                }
+                if (_globalDb != null)
+                {
+                    await _globalDb.CloseAsync();
+                    _globalDb = null;
+                }
+            }
+            catch { }
+
+            // Force the connection pool to release all cached connections
+            try { SQLite.SQLiteAsyncConnection.ResetPool(); } catch { }
+
+            _dbPath = "";
+
+            // Force garbage collection to release any lingering native file handles
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+
         private readonly CloudSyncService _sync;
         private readonly List<IDisposable> _realtimeSubscriptions = new();
         public event Action? OnDatabaseChanged;
@@ -59,7 +93,14 @@ namespace ErmayMuhasebe.Services
             {
                 string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                _dbPath = Path.Combine(dir, "ermay_2025.db");
+                if (_yearContext.CurrentYear > 0)
+                {
+                    _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+                }
+                else
+                {
+                    _dbPath = "";
+                }
             }
         }
 
@@ -134,6 +175,7 @@ namespace ErmayMuhasebe.Services
             await _semaphore.WaitAsync();
             try 
             {
+                IsClosed = false;
                 _isInitialized = false; // Prevents race condition where _db is null but _isInitialized is still true
                 if (_db != null)
                 {
@@ -150,7 +192,8 @@ namespace ErmayMuhasebe.Services
                 }
                 else
                 {
-                    string dir = Path.GetDirectoryName(_dbPath) ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
                     _dbPath = Path.Combine(dir, dbNameOrPath);
                 }
             }
@@ -165,11 +208,20 @@ namespace ErmayMuhasebe.Services
         public virtual async Task InitializeAsync()
         {
             if (_isInitialized) return;
+            if (_yearContext.CurrentYear <= 0) return;
+
+            if (string.IsNullOrWhiteSpace(_dbPath))
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+            }
             
             await _semaphore.WaitAsync();
             try
             {
                 if (_isInitialized) return;
+                IsClosed = false;
 
                 // 1. Initialize Native Library (SQLCipher) once
                 if (!OperatingSystem.IsBrowser() && !_sqlitePclInitialized)
@@ -533,6 +585,10 @@ namespace ErmayMuhasebe.Services
         public async Task<FirmaProfili> GetFirmaProfiliAsync()
         {
             await EnsureInitializedAsync();
+            if (_db == null)
+            {
+                return new FirmaProfili { Id = 1, FirmaAdi = "Ermay Muhasebe" };
+            }
             var item = await _db.Table<FirmaProfili>().FirstOrDefaultAsync(x => x.Id == 1);
             if (item == null)
             {
@@ -742,6 +798,7 @@ namespace ErmayMuhasebe.Services
         public async Task EnsureInitializedAsync()
         {
             if (_isInitialized) return;
+            if (_yearContext.CurrentYear <= 0) return;
             await InitializeAsync();
         }
 

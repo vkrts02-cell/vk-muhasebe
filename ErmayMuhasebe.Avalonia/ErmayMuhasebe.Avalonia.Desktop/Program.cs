@@ -27,7 +27,7 @@ sealed class Program
 
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
-            HandleCrash(e.Exception, "TaskScheduler Unobserved Task Exception");
+            HandleCrash(e.Exception, "TaskScheduler Unobserved Task Exception", showDialog: false);
             e.SetObserved();
         };
 
@@ -53,7 +53,7 @@ sealed class Program
         }
     }
 
-    private static void HandleCrash(Exception ex, string type)
+    private static void HandleCrash(Exception ex, string type, bool showDialog = true)
     {
         var logContent = $"=== ERMAY MUHASEBE CRASH REPORT ===\n" +
                          $"Time: {DateTime.Now}\n" +
@@ -88,8 +88,8 @@ sealed class Program
         }
         catch { }
 
-        // Show Native MessageBox on Windows
-        if (OperatingSystem.IsWindows())
+        // Show Native MessageBox on Windows only for fatal crashes
+        if (showDialog && OperatingSystem.IsWindows())
         {
             string message = $"Program beklenmedik bir hata nedeniyle durduruldu.\n\n" +
                              $"Hata Türü: {type}\n" +

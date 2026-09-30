@@ -1683,7 +1683,7 @@ namespace ErmayMuhasebe.Services
                 {
                     try
                     {
-                        await DeleteFilteredAsync(table, "id=gte.0");
+                        await DeleteFilteredAsync(table, "id=not.is.null");
                     }
                     catch (Exception ex)
                     {

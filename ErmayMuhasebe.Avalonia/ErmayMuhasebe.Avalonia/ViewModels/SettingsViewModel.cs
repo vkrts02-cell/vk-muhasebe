@@ -2303,12 +2303,11 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
         IsBusy = true;
         try
         {
-            var db = _dataProvider.DatabaseService.GetConnection();
-            var profil = await db.Table<FirmaProfili>().FirstOrDefaultAsync();
+            var profil = await _uow.GetFirmaProfiliAsync();
             if (profil != null)
             {
                 profil.StartingYear = StartingYear;
-                await db.UpdateAsync(profil);
+                await _uow.SaveFirmaProfiliAsync(profil);
                 SuccessMessage = "Başlangıç yılı başarıyla kaydedildi.";
                 // Tetikle ki açılıştaki viewmodellar (YearSelection vs) güncellensin
                 WeakReferenceMessenger.Default.Send(new FirmaProfiliChangedMessage(profil));
@@ -2327,57 +2326,128 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
     [RelayCommand]
     public async Task DeleteYearAsync()
     {
-        if (SelectedYearToDelete == null) return;
-        
-        int yearToDelete = SelectedYearToDelete.Value;
-
-        if (yearToDelete == ActiveYear)
+        int? targetYear = SelectedYearToDelete ?? SelectedYearToSwitch ?? (ActiveYear > 0 ? ActiveYear : null);
+        if (targetYear == null)
         {
-            ErrorMessage = "Mevcut çalışma yılını silemezsiniz! Lütfen önce başka bir yıla geçiş yapın.";
+            ErrorMessage = "Lütfen silinecek bir mali yıl seçin.";
             return;
         }
+        
+        int yearToDelete = targetYear.Value;
 
         bool confirm = await _fileService.ShowConfirmationAsync(
-            "Yılı Sil", 
-            $"{yearToDelete} yılına ait tüm veriler hem BİLGİSAYARINIZDAN hem de BULUTTAN (Firebase) kalıcı olarak silinecektir.\n\nBu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?"
+            "Yılı Sil / Sıfırla", 
+            $"DİKKAT: {yearToDelete} yılını silmek üzeresiniz!\n\nBu işlem, seçilen yıla ait TÜM verileri (stok, cari, kasa vb.) hem BİLGİSAYARINIZDAN hem de BULUTTAN kalıcı olarak SİLECEKTİR!\n\nBu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?"
         );
-        if (!confirm)
-        {
-            BackupStatus = "Silme işlemi iptal edildi.";
-            return;
-        }
+        if (!confirm) return;
 
         IsBusy = true;
-        BackupStatus = $"{yearToDelete} yılı siliniyor...";
+        BackupStatus = $"{yearToDelete} yılı verileri tamamen siliniyor...";
 
         try
         {
-            // 1. Yerel veritabanı dosyasını sil
-            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-            string dbFile = System.IO.Path.Combine(dir, $"ermay_{yearToDelete}.db");
-            if (System.IO.File.Exists(dbFile))
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                await Task.Run(() => System.IO.File.Delete(dbFile));
-            }
-            
-            // 2. Firebase/Buluttan sil
+            var dbService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
             var firebaseService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<IFirebaseService>();
-            if (firebaseService != null && firebaseService.IsConfigured)
+
+            // 1. Arka plan dinleyicilerini durdur
+            try { _securitySyncService?.StopListeners(); } catch { }
+            if (dbService != null)
             {
-                BackupStatus = $"{yearToDelete} yılı buluttan siliniyor...";
-                await firebaseService.DeleteYearAsync(yearToDelete);
+                try { dbService.StopRealtimeSync(); } catch { }
             }
 
-            SuccessMessage = $"{yearToDelete} yılı bilgisayardan ve buluttan başarıyla silindi.";
-            SelectedYearToDelete = null;
-            LoadAvailableYears();
+            // 2. Buluttan (Supabase veya Firebase) sil (Bağlantılar kapanmadan önce)
+            if (dbService != null && dbService.IsCloudConnected)
+            {
+                BackupStatus = "Bulut verileri (Supabase) tamamen temizleniyor...";
+                try { await dbService.SyncService.ClearCloudTablesAsync(); } catch { }
+            }
+            
+            if (firebaseService != null && firebaseService.IsConfigured)
+            {
+                try { await firebaseService.DeleteYearAsync(yearToDelete); } catch { }
+            }
+
+            // 3. Veritabanı bağlantılarını tamamen kapat
+            if (dbService != null)
+            {
+                await dbService.CloseConnectionAsync();
+            }
+            try { SQLite.SQLiteAsyncConnection.ResetPool(); } catch { }
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            // 4. Eğer aktif yıl siliniyorsa hemen logout yap ki tüm view ve timer bağları kopsun
+            bool isCurrentYear = (yearToDelete == ActiveYear);
+            if (isCurrentYear)
+            {
+                _yearContext.CurrentYear = 0;
+                ActiveYear = 0;
+                SelectedYearToDelete = null;
+                SelectedYearToSwitch = null;
+                WeakReferenceMessenger.Default.Send(new LogoutMessage());
+                await Task.Delay(500); // UI ve background taskların oturumu kapatması için bekle
+            }
+
+            // 5. Yerel veritabanı dosyasını ve tenant dosyalarını kesin olarak sil
+            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            string mainDbFile = System.IO.Path.Combine(dir, $"ermay_{yearToDelete}.db");
+            
+            if (System.IO.Directory.Exists(dir))
+            {
+                for (int attempt = 1; attempt <= 12; attempt++)
+                {
+                    try { SQLite.SQLiteAsyncConnection.ResetPool(); } catch { }
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+
+                    try
+                    {
+                        var matchingFiles = System.IO.Directory.GetFiles(dir, $"ermay_{yearToDelete}*.db*");
+                        foreach (var f in matchingFiles)
+                        {
+                            try { System.IO.File.Delete(f); } catch { }
+                        }
+                    }
+                    catch { }
+
+                    if (!System.IO.File.Exists(mainDbFile))
+                    {
+                        break; // Başarıyla silindi
+                    }
+
+                    await Task.Delay(attempt * 250);
+                }
+            }
+
+            // 6. Yıl listelerinden kaldır
+            AvailableYears.Remove(yearToDelete);
+            AvailableYearsForDeletion.Remove(yearToDelete);
+
+            if (!isCurrentYear)
+            {
+                if (!AvailableYears.Any())
+                {
+                    _yearContext.CurrentYear = 0;
+                    ActiveYear = 0;
+                    SelectedYearToDelete = null;
+                    SelectedYearToSwitch = null;
+                    WeakReferenceMessenger.Default.Send(new LogoutMessage());
+                }
+                else
+                {
+                    SelectedYearToDelete = null;
+                    SelectedYearToSwitch = AvailableYears.FirstOrDefault();
+                    LoadAvailableYears();
+                    SuccessMessage = $"{yearToDelete} yılı bilgisayardan ve buluttan başarıyla silindi.";
+                }
+            }
         }
         catch (Exception ex)
         {
-            ErrorMessage = "Silme Hatası: " + ex.Message;
-            BackupStatus = "HATA: Silme başarısız.";
+            ErrorMessage = "Yıl silinemedi: " + ex.Message;
         }
         finally
         {
@@ -2438,6 +2508,17 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             var files = System.IO.Directory.GetFiles(dir, "ermay_*.db");
             foreach (var file in files)
             {
+                try
+                {
+                    var fi = new System.IO.FileInfo(file);
+                    if (fi.Length <= 0)
+                    {
+                        try { System.IO.File.Delete(file); } catch { }
+                        continue;
+                    }
+                }
+                catch { continue; }
+
                 var fileName = System.IO.Path.GetFileNameWithoutExtension(file);
                 var parts = fileName.Split('_');
                 if (parts.Length >= 2 && int.TryParse(parts[1], out int year))
@@ -2447,13 +2528,14 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             }
         }
 
-        if (!tempYears.Any()) tempYears.Add(DateTime.Now.Year);
-
         var sorted = tempYears.Distinct().OrderByDescending(y => y).ToList();
         AvailableYears = new ObservableCollection<int>(sorted);
         AvailableYearsForDeletion = new ObservableCollection<int>(sorted);
-        SelectedYearToSwitch = ActiveYear;
-        RolloverSourceYear = ActiveYear > 0 ? ActiveYear : DateTime.Now.Year;
+        
+        ActiveYear = _yearContext.CurrentYear > 0 ? _yearContext.CurrentYear : (sorted.FirstOrDefault());
+        SelectedYearToSwitch = sorted.Contains(ActiveYear) ? ActiveYear : (sorted.FirstOrDefault());
+        SelectedYearToDelete = sorted.Contains(ActiveYear) ? ActiveYear : (sorted.FirstOrDefault() > 0 ? sorted.FirstOrDefault() : null);
+        RolloverSourceYear = ActiveYear > 0 ? ActiveYear : (sorted.FirstOrDefault() > 0 ? sorted.FirstOrDefault() : DateTime.Now.Year);
         RolloverTargetYear = RolloverSourceYear + 1;
     }
 

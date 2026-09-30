@@ -42,6 +42,15 @@ public partial class YearSelectionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isFeedbackSuccess = true;
 
+    [ObservableProperty]
+    private int _newYearToCreate = DateTime.Now.Year;
+
+    [ObservableProperty]
+    private string _newYearToCreateText = DateTime.Now.Year.ToString();
+
+    [ObservableProperty]
+    private bool _hasNoYears;
+
     // Rollover Dialog State
     [ObservableProperty]
     private bool _showRolloverDialog;
@@ -106,14 +115,11 @@ public partial class YearSelectionViewModel : ViewModelBase
             Years.Add(y);
         }
 
-        if (!Years.Any())
-        {
-            Years.Add(DateTime.Now.Year);
-        }
+        HasNoYears = !Years.Any();
 
         SelectedYear = _yearContext.CurrentYear > 0 && Years.Contains(_yearContext.CurrentYear) 
             ? _yearContext.CurrentYear 
-            : Years.FirstOrDefault();
+            : (Years.Any() ? Years.FirstOrDefault() : null);
 
         RolloverSourceYear = SelectedYear ?? DateTime.Now.Year;
         RolloverTargetYear = RolloverSourceYear + 1;
@@ -140,6 +146,49 @@ public partial class YearSelectionViewModel : ViewModelBase
         {
             StatusMessage = "Hata: " + ex.Message;
             FeedbackMessage = "Veritabanı açılamadı: " + ex.Message;
+            IsFeedbackSuccess = false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CreateNewYearAsync()
+    {
+        if (!int.TryParse(NewYearToCreateText?.Trim(), out int yearToCreate) || yearToCreate < 2000 || yearToCreate > 2100)
+        {
+            FeedbackMessage = "Lütfen geçerli bir mali yıl giriniz (Örn: 2026).";
+            IsFeedbackSuccess = false;
+            return;
+        }
+        
+        if (Years.Contains(yearToCreate))
+        {
+            FeedbackMessage = $"{yearToCreate} yılı zaten mevcut!";
+            IsFeedbackSuccess = false;
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"{yearToCreate} yılı oluşturuluyor...";
+        FeedbackMessage = "";
+        
+        try
+        {
+            NewYearToCreate = yearToCreate;
+            _yearContext.CurrentYear = yearToCreate;
+            var dbName = $"ermay_{yearToCreate}.db";
+            await _dataProvider.InitializeAsync(dbName);
+
+            // Automatically switch to the newly created year and pass back to login/main
+            _onYearSelected?.Invoke(yearToCreate);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Hata: " + ex.Message;
+            FeedbackMessage = "Yıl oluşturulamadı: " + ex.Message;
             IsFeedbackSuccess = false;
         }
         finally

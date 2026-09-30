@@ -70,20 +70,29 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(ConnectionStatusIcon));
         RefreshStatusBarItems();
 
+        if (!IsAuthenticated || _yearContext == null || _yearContext.CurrentYear <= 0) return;
+
         try
         {
             _ = Task.Run(async () =>
             {
-                var profil = await _uow.GetFirmaProfiliAsync();
-                if (profil != null && profil.EnableCloudSyncAlert)
+                try
                 {
-                    await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    var profil = await _uow.GetFirmaProfiliAsync();
+                    if (profil != null && profil.EnableCloudSyncAlert)
                     {
-                        if (value)
-                            AddNotification("Ağ Bağlantısı Sağlandı", "Sistem çevrimiçi moduna geçti. Veriler bulut ile otomatik olarak eşitlenecektir.", "Wifi", typeof(DashboardViewModel));
-                        else
-                            AddNotification("Ağ Bağlantısı Koptu", "İnternet bağlantısı kesildi. Sistem çevrimdışı (offline) modunda çalışıyor.", "WifiWarning", typeof(DashboardViewModel));
-                    });
+                        await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            if (value)
+                                AddNotification("Ağ Bağlantısı Sağlandı", "Sistem çevrimiçi moduna geçti. Veriler bulut ile otomatik olarak eşitlenecektir.", "Wifi", typeof(DashboardViewModel));
+                            else
+                                AddNotification("Ağ Bağlantısı Koptu", "İnternet bağlantısı kesildi. Sistem çevrimdışı (offline) modunda çalışıyor.", "WifiWarning", typeof(DashboardViewModel));
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainViewModel] OnIsOnlineChanged error: {ex.Message}");
                 }
             });
         }
@@ -425,6 +434,11 @@ public partial class MainViewModel : ViewModelBase
             NavigateTo(m.Value, true);
         });
 
+        WeakReferenceMessenger.Default.Register<LogoutMessage>(this, (r, m) => 
+        {
+            Logout();
+        });
+
         WeakReferenceMessenger.Default.Register<NavigateViewModelMessage>(this, (r, m) => 
         { 
             session.ResetActivity();
@@ -478,11 +492,11 @@ public partial class MainViewModel : ViewModelBase
     {
         while(true)
         {
-            if (_dbService == null || !_dbService.IsCloudConnected)
+            if (!IsAuthenticated || _dbService == null || _dbService.IsClosed || !_dbService.IsCloudConnected)
             {
-                SyncStatusText = "Bulut Devre Dışı";
+                SyncStatusText = !IsAuthenticated ? "" : "Bulut Devre Dışı";
                 IsOffline = false;
-                await System.Threading.Tasks.Task.Delay(10000);
+                await System.Threading.Tasks.Task.Delay(2000);
                 continue;
             }
 
@@ -779,6 +793,8 @@ public partial class MainViewModel : ViewModelBase
     {
         _securitySyncService.StopListeners();
         _dbService?.StopRealtimeSync();
+        _ = _dbService?.CloseConnectionAsync();
+        _yearContext.CurrentYear = 0;
         IsAuthenticated = false;
         ActiveAuthView = LoginViewModel;
         
