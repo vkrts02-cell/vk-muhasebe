@@ -67,6 +67,16 @@ namespace ErmayMuhasebe.Services
                 };
                 var json = JsonSerializer.Serialize(persistentConfig);
                 File.WriteAllText(_configPath, json);
+
+                // Yedek konum: ErmayMuhasebe alt klasörü
+                try
+                {
+                    var backupDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                    if (!Directory.Exists(backupDir)) Directory.CreateDirectory(backupDir);
+                    var backupPath = Path.Combine(backupDir, "ermay_cloud_config.json");
+                    File.WriteAllText(backupPath, json);
+                }
+                catch { }
             }
             catch (Exception ex)
             {
@@ -111,42 +121,112 @@ namespace ErmayMuhasebe.Services
         {
             try
             {
-                if (File.Exists(_configPath))
+                var candidatePaths = new List<string>
                 {
-                    var json = File.ReadAllText(_configPath);
-                    var loaded = JsonSerializer.Deserialize<CloudConfig>(json);
-                    if (loaded != null)
-                    {
-                        if (!string.IsNullOrEmpty(loaded.BaseUrl) && !string.IsNullOrEmpty(loaded.AuthSecret))
-                        {
-                            if (loaded.AuthSecret.StartsWith("ENC::AES::"))
-                                loaded.AuthSecret = AuthService.Decrypt(loaded.AuthSecret);
-                            if (!string.IsNullOrEmpty(loaded.GoogleApiKey) && loaded.GoogleApiKey.StartsWith("ENC::AES::"))
-                                loaded.GoogleApiKey = AuthService.Decrypt(loaded.GoogleApiKey);
-                            if (!string.IsNullOrEmpty(loaded.GoogleClientSecret) && loaded.GoogleClientSecret.StartsWith("ENC::AES::"))
-                                loaded.GoogleClientSecret = AuthService.Decrypt(loaded.GoogleClientSecret);
+                    _configPath,
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe", "ermay_cloud_config.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ermay_cloud_config.json")
+                };
 
-                            // Check if legacy Firebase URL is stored
-                            if (loaded.BaseUrl.Contains("firebaseio.com") || !loaded.BaseUrl.Contains("supabase.co"))
+                CloudConfig? loaded = null;
+
+                foreach (var path in candidatePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        try
+                        {
+                            var json = File.ReadAllText(path);
+                            var parsed = JsonSerializer.Deserialize<CloudConfig>(json);
+                            if (parsed != null && !string.IsNullOrWhiteSpace(parsed.BaseUrl))
                             {
-                                _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
+                                loaded = parsed;
+                                break;
                             }
-                            else
+                        }
+                        catch { }
+                    }
+                }
+
+                // Eğer hala boşsa setup_initial_user.json veya setup_config.json dosyalarını kontrol et
+                if (loaded == null || string.IsNullOrWhiteSpace(loaded.BaseUrl) || string.IsNullOrWhiteSpace(loaded.AuthSecret))
+                {
+                    var ermayDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                    var setupJsonCandidates = new[]
+                    {
+                        Path.Combine(ermayDir, "setup_initial_user.json"),
+                        Path.Combine(ermayDir, "setup_config.json")
+                    };
+
+                    foreach (var sPath in setupJsonCandidates)
+                    {
+                        if (File.Exists(sPath))
+                        {
+                            try
                             {
-                                loaded.BaseUrl = CleanSupabaseUrl(loaded.BaseUrl);
-                                _config = loaded;
-                                _config.IsActive = true;
+                                var sText = File.ReadAllText(sPath);
+                                using var doc = JsonDocument.Parse(sText);
+                                var root = doc.RootElement;
+                                string sUrl = root.TryGetProperty("SupabaseUrl", out var pUrl) ? (pUrl.GetString() ?? "") : "";
+                                string sKey = root.TryGetProperty("SupabaseKey", out var pKey) ? (pKey.GetString() ?? "") : "";
+
+                                if (!string.IsNullOrWhiteSpace(sUrl) && !string.IsNullOrWhiteSpace(sKey))
+                                {
+                                    loaded = new CloudConfig
+                                    {
+                                        BaseUrl = sUrl,
+                                        AuthSecret = sKey,
+                                        IsActive = true,
+                                        IsAutoSyncEnabled = true
+                                    };
+                                    break;
+                                }
                             }
+                            catch { }
+                        }
+                    }
+                }
+
+                if (loaded != null)
+                {
+                    if (!string.IsNullOrEmpty(loaded.BaseUrl) && !string.IsNullOrEmpty(loaded.AuthSecret))
+                    {
+                        if (loaded.AuthSecret.StartsWith("ENC::AES::"))
+                        {
+                            var decrypted = AuthService.Decrypt(loaded.AuthSecret);
+                            if (!string.IsNullOrEmpty(decrypted))
+                                loaded.AuthSecret = decrypted;
+                        }
+                        if (!string.IsNullOrEmpty(loaded.GoogleApiKey) && loaded.GoogleApiKey.StartsWith("ENC::AES::"))
+                        {
+                            var decKey = AuthService.Decrypt(loaded.GoogleApiKey);
+                            if (!string.IsNullOrEmpty(decKey))
+                                loaded.GoogleApiKey = decKey;
+                        }
+                        if (!string.IsNullOrEmpty(loaded.GoogleClientSecret) && loaded.GoogleClientSecret.StartsWith("ENC::AES::"))
+                        {
+                            var decSec = AuthService.Decrypt(loaded.GoogleClientSecret);
+                            if (!string.IsNullOrEmpty(decSec))
+                                loaded.GoogleClientSecret = decSec;
+                        }
+
+                        // Check if legacy Firebase URL is stored
+                        if (loaded.BaseUrl.Contains("firebaseio.com"))
+                        {
+                            _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
                         }
                         else
                         {
+                            loaded.BaseUrl = CleanSupabaseUrl(loaded.BaseUrl);
                             _config = loaded;
-                            _config.IsActive = false;
+                            _config.IsActive = true;
+                            _config.IsAutoSyncEnabled = true;
                         }
                     }
                     else
                     {
-                        _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
+                        _config = loaded;
+                        _config.IsActive = false;
                     }
                 }
                 else

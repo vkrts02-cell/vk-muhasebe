@@ -139,6 +139,38 @@ public abstract partial class CariListViewModel : ViewModelBase
     [ObservableProperty] private decimal _müşteriBakiye;
     [ObservableProperty] private decimal _tedarikçiBakiye;
 
+    // Sorting Properties
+    [ObservableProperty] private bool _isBakiyeSortActive;
+    [ObservableProperty] private bool _isBakiyeDescending = true;
+    [ObservableProperty] private string _bakiyeSortIcon = "ArrowSort";
+
+    [RelayCommand]
+    public async Task SortByBakiyeAsync()
+    {
+        if (!IsBakiyeSortActive)
+        {
+            IsBakiyeSortActive = true;
+            IsBakiyeDescending = true; // İlk tıklandığında KESİNLİKLE en yüksek bakiyeden (+ dan - ye)
+        }
+        else
+        {
+            IsBakiyeDescending = !IsBakiyeDescending;
+        }
+
+        BakiyeSortIcon = IsBakiyeDescending ? "ArrowDown" : "ArrowUp";
+
+        // Mevcut cariler varsa anında hafızada sırala
+        if (Cariler != null && Cariler.Count > 0)
+        {
+            var inMemorySorted = IsBakiyeDescending 
+                ? Cariler.OrderByDescending(c => c.Bakiye).ThenBy(c => c.Unvan).ToList()
+                : Cariler.OrderBy(c => c.Bakiye).ThenBy(c => c.Unvan).ToList();
+            Cariler = new ObservableCollection<CariKart>(inMemorySorted);
+        }
+
+        await LoadCarilerAsync(isSilent: true);
+    }
+
     public CariListViewModel(IUnitOfWork uow, IPdfService pdfService, IExcelService excelService, CekSenetListViewModel checkHelper, ExternalApiService externalApi, IFinansService finansService)
     {
         _uow = uow;
@@ -259,8 +291,21 @@ public abstract partial class CariListViewModel : ViewModelBase
                     filter = c => !c.IsDeleted;
             }
 
-            TotalCount = await _uow.Cariler.GetCountAsync(filter);
-            var pagedList = await _uow.Cariler.GetPagedAsync(CurrentPageIndex * PageSize, PageSize, filter, c => c.Unvan!);
+            List<CariKart> pagedList;
+            if (IsBakiyeSortActive)
+            {
+                var allList = await _uow.Cariler.GetPagedAsync(0, 100000, filter);
+                TotalCount = allList.Count;
+                var sorted = IsBakiyeDescending 
+                    ? allList.OrderByDescending(c => c.Bakiye).ThenBy(c => c.Unvan) 
+                    : allList.OrderBy(c => c.Bakiye).ThenBy(c => c.Unvan);
+                pagedList = sorted.Skip(CurrentPageIndex * PageSize).Take(PageSize).ToList();
+            }
+            else
+            {
+                TotalCount = await _uow.Cariler.GetCountAsync(filter);
+                pagedList = await _uow.Cariler.GetPagedAsync(CurrentPageIndex * PageSize, PageSize, filter, c => c.Unvan!);
+            }
             
             // Global Summary
             var summary = await _uow.Cariler.GetGlobalSummaryAsync(SearchString);

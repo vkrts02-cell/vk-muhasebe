@@ -251,16 +251,18 @@ begin
       DeleteFile(ScriptFile);
     end;
     
-    // 1. Supabase Bulut Yapılandırma Dosyasını Kaydet
+    // 1. Supabase Bulut Yapılandırma Dosyasını Kaydet (Hem AppData köküne hem ErmayMuhasebe alt klasörüne hem app dizinine)
+    ForceDirectories(AppDataDir + '\ErmayMuhasebe');
     ConfigPath := AppDataDir + '\ermay_cloud_config.json';
     if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') then
       JsonContent := '{"BaseUrl":"' + SupabaseUrlVal + '","AuthSecret":"' + SupabaseKeyVal + '","GoogleApiKey":"","GoogleClientId":"","GoogleClientSecret":"","IsActive":true,"IsAutoSyncEnabled":true}'
     else
       JsonContent := '{"BaseUrl":"","AuthSecret":"","GoogleApiKey":"","GoogleClientId":"","GoogleClientSecret":"","IsActive":false,"IsAutoSyncEnabled":false}';
     SaveStringToFile(ConfigPath, JsonContent, False);
+    SaveStringToFile(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json', JsonContent, False);
+    SaveStringToFile(ExpandConstant('{app}') + '\ermay_cloud_config.json', JsonContent, False);
 
-    // 2. Kullanıcı/Şifre, SMTP ve Fabrika Sıfırlama Şifresi Dosyası Kaydet
-    ForceDirectories(AppDataDir + '\ErmayMuhasebe');
+    // 2. Kullanıcı/Şifre, SMTP, Supabase Bulut Bilgileri ve Fabrika Sıfırlama Şifresi Dosyası Kaydet
     UserConfigPath := AppDataDir + '\ErmayMuhasebe\setup_initial_user.json';
     
     if User1Name <> '' then
@@ -281,11 +283,14 @@ begin
     end;
     
     UserJsonContent := UserJsonContent +
+      '"SupabaseUrl":"' + SupabaseUrlVal + '",' +
+      '"SupabaseKey":"' + SupabaseKeyVal + '",' +
       '"FactoryResetPassword":"' + FactoryResetPass + '",' +
       '"GoogleClientId":"",' +
       '"GoogleClientSecret":""}';
       
     SaveStringToFile(UserConfigPath, UserJsonContent, False);
+    SaveStringToFile(AppDataDir + '\ErmayMuhasebe\setup_config.json', UserJsonContent, False);
 
     // 3. Kullanıcı Bilgilerini Doğrudan Supabase Bulutuna Kaydet
     if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') and (User1Name <> '') then

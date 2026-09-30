@@ -1,5 +1,5 @@
 # VK Muhasebe - GitHub Actions Takip ve Otomatik Indirme Scripti
-$repo = "vkrts2/vk-muhasebe"
+$repo = "vkrts02-cell/vk-muhasebe"
 $desktopPath = [Environment]::GetFolderPath('Desktop')
 $targetFile = Join-Path $desktopPath "VK.ipa"
 

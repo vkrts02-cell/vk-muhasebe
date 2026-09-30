@@ -1103,14 +1103,15 @@ namespace ErmayMuhasebe.Services
         {
             await EnsureInitializedAsync();
 
-            // 1. Transactionally delete all accounting data from local year database
+            // 1. Delete all accounting data from local year database
             var tablesToClear = new[]
             {
-                "CariHareket", "CariKart", "CariDosya",
-                "StokHareket", "StokKart", "StokGrupDef", "StokSayimFisi", "StokSayimDetay", "StockBarcode",
-                "FaturaDetay", "Fatura", "FaturaKalemSablon",
+                // Detail / dependent tables first
+                "FaturaDetay", "FaturaKalemSablon", "Fatura",
                 "SiparisDetay", "Siparis",
                 "TeklifDetay", "Teklif",
+                "StokSayimDetay", "StokSayimFisi", "StockBarcode", "StokHareket", "StokGrupDef", "StokKart",
+                "CariHareket", "CariDosya", "MusteriTakipDetay", "MusteriTakipKlasor", "CariKart",
                 "BankaHareket", "BankaKart",
                 "KasaHareket", "KasaSayimFisi",
                 "Cek", "Senet",
@@ -1122,27 +1123,51 @@ namespace ErmayMuhasebe.Services
                 "SmsGecmisi", "SilinenKayit",
                 "BelgeArsiv", "Belge", "Note",
                 "SyncQueueItem", "RecycleBinRecord", "CronJobRecord",
-                "MusteriTakipDetay", "MusteriTakipKlasor",
                 "AuditLog", "Bildirim", "Gider", "GiderKategori"
             };
+
+            // Disable foreign keys so deletions are never blocked by constraints
+            try { await _db.ExecuteAsync("PRAGMA foreign_keys = OFF;"); } catch { }
 
             try
             {
                 await _db.RunInTransactionAsync(conn =>
                 {
+                    conn.Execute("PRAGMA foreign_keys = OFF;");
+
                     foreach (var table in tablesToClear)
                     {
-                        try { conn.Execute($"DELETE FROM [{table}];"); } catch { }
+                        try { conn.Execute($"DELETE FROM [{table}];"); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ClearAllTables] Error deleting {table}: {ex.Message}"); }
                     }
+
+                    // Dynamically delete ANY other custom or missed tables except User and FirmaProfili
+                    try
+                    {
+                        var allTables = conn.QueryScalars<string>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'User' AND name != 'FirmaProfili';");
+                        foreach (var t in allTables)
+                        {
+                            try { conn.Execute($"DELETE FROM [{t}];"); } catch { }
+                        }
+                    }
+                    catch { }
+
                     try { conn.Execute("DELETE FROM sqlite_sequence WHERE name != 'User';"); } catch { }
                 });
-
-                try { await _db.ExecuteAsync("VACUUM;"); } catch { }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[DatabaseService] ClearAllTables local error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[DatabaseService] ClearAllTables local transaction error: {ex.Message}. Falling back to direct execution...");
+                // Fallback: Delete table-by-table without wrapping transaction if transaction fails
+                foreach (var table in tablesToClear)
+                {
+                    try { await _db.ExecuteAsync($"DELETE FROM [{table}];"); } catch { }
+                }
+                try { await _db.ExecuteAsync("DELETE FROM sqlite_sequence WHERE name != 'User';"); } catch { }
             }
+
+            try { await _db.ExecuteAsync("PRAGMA foreign_keys = ON;"); } catch { }
+            try { await _db.ExecuteAsync("PRAGMA wal_checkpoint(TRUNCATE);"); } catch { }
+            try { await _db.ExecuteAsync("VACUUM;"); } catch { }
 
             // 2. Clear any legacy accounting tables from global DB (ErmayV4_Stable.db3), but PRESERVE User accounts!
             try
@@ -1150,23 +1175,47 @@ namespace ErmayMuhasebe.Services
                 var globalConn = GetGlobalConnection();
                 if (globalConn != null)
                 {
-                    var legacyTables = new[] {
-                        "CariHareket", "CariKart", "StokHareket", "StokKart",
-                        "FaturaDetay", "Fatura", "SiparisDetay", "Siparis",
-                        "TeklifDetay", "Teklif", "BankaHareket", "BankaKart",
-                        "KasaHareket", "Cek", "Senet"
-                    };
+                    try { await globalConn.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                    try { await globalConn.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
+                    try { await globalConn.ExecuteAsync("PRAGMA foreign_keys = OFF;"); } catch { }
+
                     await globalConn.RunInTransactionAsync(conn =>
                     {
+                        conn.Execute("PRAGMA foreign_keys = OFF;");
+                        var legacyTables = new[] {
+                            "FaturaDetay", "Fatura", "SiparisDetay", "Siparis",
+                            "TeklifDetay", "Teklif", "StokHareket", "StokKart",
+                            "CariHareket", "CariKart", "BankaHareket", "BankaKart",
+                            "KasaHareket", "Cek", "Senet"
+                        };
                         foreach (var t in legacyTables)
                         {
                             try { conn.Execute($"DELETE FROM [{t}];"); } catch { }
                         }
+
+                        // Also delete any other legacy tables except User and FirmaProfili
+                        try
+                        {
+                            var allGlobalTables = conn.QueryScalars<string>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'User' AND name != 'FirmaProfili';");
+                            foreach (var gt in allGlobalTables)
+                            {
+                                try { conn.Execute($"DELETE FROM [{gt}];"); } catch { }
+                            }
+                        }
+                        catch { }
+
+                        try { conn.Execute("DELETE FROM sqlite_sequence WHERE name != 'User';"); } catch { }
                     });
+
+                    try { await globalConn.ExecuteAsync("PRAGMA foreign_keys = ON;"); } catch { }
+                    try { await globalConn.ExecuteAsync("PRAGMA wal_checkpoint(TRUNCATE);"); } catch { }
                     try { await globalConn.ExecuteAsync("VACUUM;"); } catch { }
                 }
             }
-            catch { }
+            catch (Exception gEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DatabaseService] Clear legacy global tables error: {gEx.Message}");
+            }
 
             // 3. Ensure User table has at least 1 user (preserving existing users, fallback to admin only if 0)
             try

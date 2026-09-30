@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Share, Image, Switch } from 'react-native';
-import { Settings, Globe, Key, Calendar, Wifi, Save, Database, User, MapPin, Phone, Building, Lock, MonitorSmartphone, ArrowLeft, Trash2, Image as ImageIcon, UploadCloud, CheckSquare, Square, ArrowRight, Sparkles, RefreshCw } from 'lucide-react-native';
+import { Settings, Globe, Key, Calendar, Wifi, Save, Database, User, MapPin, Phone, Building, Lock, MonitorSmartphone, ArrowLeft, Trash2, Image as ImageIcon, UploadCloud, CheckSquare, Square, ArrowRight, Sparkles, RefreshCw, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil } from '../services/firebase';
+import { saveFirebaseConfig, saveSupabaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil } from '../services/firebase';
 import { getLockSettings, savePin, setLockEnabled, clearLock, setLockTimeout, DEFAULT_LOCK_MINUTES } from '../services/lockService';
 import { resetPdfServiceCache, cleanBase64Logo } from '../services/pdfService';
 
@@ -14,6 +14,29 @@ export default function AyarlarScreen() {
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [pdfServerUrl, setPdfServerUrl] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const reloadCloudSettings = async () => {
+    try {
+      await loadConfigFromStorage();
+      const savedUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
+      const savedSecret = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
+      const config = getFirebaseConfig();
+      if (savedUrl) setDbUrl(savedUrl);
+      else if (config?.url) setDbUrl(config.url);
+
+      if (savedSecret) setSecret(savedSecret);
+      else if (config?.secret) setSecret(config.secret);
+
+      const savedPdfUrl = await AsyncStorage.getItem('pdf_server_url');
+      if (savedPdfUrl && !savedPdfUrl.includes('916435485627')) {
+        setPdfServerUrl(savedPdfUrl);
+      } else {
+        setPdfServerUrl('https://ermay-pdf-api-390930978984.europe-west1.run.app');
+      }
+    } catch (e) {
+      console.warn('reloadCloudSettings error:', e);
+    }
+  };
 
   // Firma Profili State
   const [firmaUnvan, setFirmaUnvan] = useState('');
@@ -194,17 +217,30 @@ export default function AyarlarScreen() {
     ]);
   };
 
+  const handleSelectCategory = async (catId: string) => {
+    setCurrentCategory(catId);
+    if (catId === 'cloud') {
+      await reloadCloudSettings();
+    }
+  };
+
   const handleSave = async () => {
-    if (!dbUrl) {
-      Alert.alert('Hata', 'Firebase URL alanı zorunludur.');
+    if (!dbUrl.trim()) {
+      Alert.alert('Hata', 'Bulut Veritabanı URL alanı zorunludur.');
       return;
     }
 
     setLoading(true);
     try {
-      await saveFirebaseConfig(dbUrl, secret);
+      await saveSupabaseConfig(dbUrl.trim(), secret.trim());
+      await AsyncStorage.setItem('ermay_supabase_url', dbUrl.trim());
+      await AsyncStorage.setItem('ermay_supabase_key', secret.trim());
+      await AsyncStorage.setItem('ermay_firebase_url', dbUrl.trim());
+      await AsyncStorage.setItem('ermay_firebase_secret', secret.trim());
       await saveActiveYear(activeYear);
-      await AsyncStorage.setItem('pdf_server_url', pdfServerUrl);
+      if (pdfServerUrl.trim()) {
+        await AsyncStorage.setItem('pdf_server_url', pdfServerUrl.trim());
+      }
 
       // Firma Profilini Firebase'e Kaydet (Logo ve Belge Ayarları Dahil)
       const profilePayload = {
@@ -884,7 +920,7 @@ export default function AyarlarScreen() {
                 <TouchableOpacity
                   key={cat.id}
                   style={styles.categoryCard}
-                  onPress={() => setCurrentCategory(cat.id)}
+                  onPress={() => handleSelectCategory(cat.id)}
                 >
                   <View style={[styles.categoryIconBox, { backgroundColor: `${cat.color}15` }]}>
                     <Icon color={cat.color} size={24} />
@@ -912,17 +948,22 @@ export default function AyarlarScreen() {
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Database color="#0061FF" size={22} />
-                  <Text style={styles.cardTitle}>Firebase Sunucu Ayarları</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>Supabase Bulut Veritabanı (PostgreSQL)</Text>
+                    <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
+                      PostgreSQL tabanlı güvenli bulut veritabanı bağlantı ayarları.
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.inputGroup}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Globe color="#94A3B8" size={16} style={{ marginRight: 6 }} />
-                    <Text style={styles.inputLabel}>Firebase Realtime Database URL</Text>
+                    <Text style={styles.inputLabel}>Bulut Veritabanı URL</Text>
                   </View>
                   <TextInput 
                     style={styles.input}
-                    placeholder="https://your-app-default-rtdb.firebaseio.com"
+                    placeholder="https://your-project.supabase.co"
                     placeholderTextColor="#64748B"
                     value={dbUrl}
                     onChangeText={setDbUrl}
@@ -934,11 +975,11 @@ export default function AyarlarScreen() {
                 <View style={styles.inputGroup}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Key color="#94A3B8" size={16} style={{ marginRight: 6 }} />
-                    <Text style={styles.inputLabel}>Firebase Database Secret (Opsiyonel)</Text>
+                    <Text style={styles.inputLabel}>Supabase Anon / API Anahtarı (Anon / Service Role Key)</Text>
                   </View>
                   <TextInput 
                     style={styles.input}
-                    placeholder="Database Secret Auth Token"
+                    placeholder="Supabase API Key"
                     placeholderTextColor="#64748B"
                     value={secret}
                     onChangeText={setSecret}
@@ -948,14 +989,25 @@ export default function AyarlarScreen() {
                   />
                 </View>
 
+                {/* Bulut PDF Motoru (QuestPDF API) */}
+                <View style={[styles.cardHeader, { marginTop: 14, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#1E293B' }]}>
+                  <FileText color="#10B981" size={22} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>Bulut PDF Motoru (QuestPDF API)</Text>
+                    <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
+                      Mobil ve harici servisler için çalışan QuestPDF sunucusunun bağlantı ve API anahtarı ayarları.
+                    </Text>
+                  </View>
+                </View>
+
                 <View style={styles.inputGroup}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <Key color="#94A3B8" size={16} style={{ marginRight: 6 }} />
-                    <Text style={styles.inputLabel}>PDF Rapor Sunucu Adresi</Text>
+                    <Globe color="#94A3B8" size={16} style={{ marginRight: 6 }} />
+                    <Text style={styles.inputLabel}>QuestPDF Bulut Servis URL'si</Text>
                   </View>
                   <TextInput 
                     style={styles.input}
-                    placeholder="http://192.168.1.103:5244"
+                    placeholder="https://ermay-pdf-api-390930978984.europe-west1.run.app"
                     placeholderTextColor="#64748B"
                     value={pdfServerUrl}
                     onChangeText={setPdfServerUrl}
@@ -966,7 +1018,7 @@ export default function AyarlarScreen() {
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                   <Save color="#FFF" size={20} style={{ marginRight: 8 }} />
-                  <Text style={styles.saveButtonText}>Bağlantıları Kaydet</Text>
+                  <Text style={styles.saveButtonText}>Bulut ve API Ayarlarını Kaydet</Text>
                 </TouchableOpacity>
               </View>
             )}

@@ -178,13 +178,15 @@ export const cleanSupabaseUrl = (rawUrl?: string): string => {
 
 export const loadConfigFromStorage = async () => {
   try {
-    const rawUrl = await AsyncStorage.getItem('ermay_supabase_url');
-    const key = await AsyncStorage.getItem('ermay_supabase_key');
+    const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
+    const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
     const yr = await AsyncStorage.getItem('ermay_active_year');
     if (rawUrl && key) {
       const url = cleanSupabaseUrl(rawUrl);
-      cachedConfig = { url, anonKey: key.trim(), tenantId: 'default' };
-      supabase = createClient(url, key.trim());
+      const cleanKey = key.trim();
+      cachedConfig = { url, anonKey: cleanKey, tenantId: 'default' };
+      cachedExtendedConfig = { url, secret: cleanKey, tenantId: 'default' };
+      supabase = createClient(url, cleanKey);
     }
     if (yr) cachedYear = yr;
   } catch (e) {
@@ -196,9 +198,12 @@ export const saveSupabaseConfig = async (rawUrl: string, anonKey: string) => {
   const url = cleanSupabaseUrl(rawUrl);
   const cleanKey = (anonKey || '').trim();
   cachedConfig = { url, anonKey: cleanKey, tenantId: 'default' };
+  cachedExtendedConfig = { url, secret: cleanKey, tenantId: 'default' };
   supabase = createClient(url, cleanKey);
   await AsyncStorage.setItem('ermay_supabase_url', url);
   await AsyncStorage.setItem('ermay_supabase_key', cleanKey);
+  await AsyncStorage.setItem('ermay_firebase_url', url);
+  await AsyncStorage.setItem('ermay_firebase_secret', cleanKey);
   notifyConfigListeners();
 };
 
@@ -236,12 +241,12 @@ export const saveFirebaseConfig = async (
   tenantId: string = 'default',
   extra?: Partial<ExtendedFirebaseConfig>
 ) => {
-  if (url && secret) {
-    await saveSupabaseConfig(url, secret);
+  if (url) {
+    await saveSupabaseConfig(url, secret || '');
   }
   cachedExtendedConfig = {
     url,
-    secret,
+    secret: secret || '',
     tenantId,
     ...extra
   };

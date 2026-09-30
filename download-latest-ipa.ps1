@@ -1,26 +1,34 @@
 # VK Muhasebe - Otomatik iOS IPA Indirme Scripti
 $ErrorActionPreference = "Stop"
 
-$repo = "vkrts2/vk-muhasebe"
-$desktopPath = [Environment]::GetFolderPath('Desktop')
-$targetFile = Join-Path $desktopPath "VK.ipa"
+$repo = "vkrts02-cell/vk-muhasebe"
+$desktopPaths = @(
+    "C:\Users\mazik\Desktop\VK.ipa",
+    "C:\Users\mazik\OneDrive\Masaüstü\VK.ipa"
+)
+$targetFile = $desktopPaths[0]
 $releaseUrl = "https://github.com/$repo/releases/download/latest-ios/VK.ipa"
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  VK Muhasebe - iOS IPA Indirme Araci" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "Hedef Konum: $targetFile" -ForegroundColor Yellow
+Write-Host "Hedef Konumlar: $($desktopPaths -join ', ')" -ForegroundColor Yellow
 
 # 1. Once Releases uzerinden dogrudan indirmeyi dene
 Write-Host "`n[1/3] En guncel Release surumu kontrol ediliyor..." -ForegroundColor Cyan
 try {
     Write-Host "Releases uzerinden indiriliyor ($releaseUrl)..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri $releaseUrl -OutFile $targetFile -UserAgent "Mozilla/5.0"
-    if ((Test-Path $targetFile) -and ((Get-Item $targetFile).Length -gt 1000000)) {
-        $sizeMB = [math]::Round((Get-Item $targetFile).Length / 1MB, 2)
-        Write-Host "`n[BASARILI] VK.ipa basariyla Masaustune indirildi!" -ForegroundColor Green
-        Write-Host "Dosya Boyutu: $sizeMB MB" -ForegroundColor Green
-        Write-Host "Konum: $targetFile" -ForegroundColor Green
+    $tempFile = Join-Path $env:TEMP "VK_download.ipa"
+    Invoke-WebRequest -Uri $releaseUrl -OutFile $tempFile -UserAgent "Mozilla/5.0"
+    if ((Test-Path $tempFile) -and ((Get-Item $tempFile).Length -gt 1000000)) {
+        $sizeMB = [math]::Round((Get-Item $tempFile).Length / 1MB, 2)
+        foreach ($dp in $desktopPaths) {
+            $p = Split-Path $dp -Parent
+            if (Test-Path $p) {
+                Copy-Item -Path $tempFile -Destination $dp -Force
+                Write-Host "`n[BASARILI] VK.ipa basariyla Masaustune kopyalandi: $dp ($sizeMB MB)" -ForegroundColor Green
+            }
+        }
         exit 0
     }
 } catch {

@@ -167,6 +167,10 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
         smtpPass: smtpPass.trim(),
       });
       await saveActiveYear(year.trim());
+      await AsyncStorage.setItem('ermay_supabase_url', url.trim());
+      await AsyncStorage.setItem('ermay_supabase_key', secret.trim());
+      await AsyncStorage.setItem('ermay_firebase_url', url.trim());
+      await AsyncStorage.setItem('ermay_firebase_secret', secret.trim());
       if (smtpEmail.trim()) await AsyncStorage.setItem('ermay_smtp_email', smtpEmail.trim());
       if (smtpPass.trim()) await AsyncStorage.setItem('ermay_smtp_pass', smtpPass.trim());
 

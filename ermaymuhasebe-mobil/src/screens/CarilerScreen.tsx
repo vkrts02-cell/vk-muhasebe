@@ -205,10 +205,38 @@ export default function CarilerScreen({ route, navigation }: any) {
     };
   }, []);
 
+  const getCariNetBakiye = (item: any): number => {
+    const borc = (Number(item?.borc) || Number(item?.borcTutari) || Number(item?.borc_tutari) || 0) + (Number(item?.devirBorc) || Number(item?.devir_borc) || 0);
+    const alacak = (Number(item?.alacak) || Number(item?.alacakTutari) || Number(item?.alacak_tutari) || 0) + (Number(item?.devirAlacak) || Number(item?.devir_alacak) || 0);
+    if (borc !== 0 || alacak !== 0) {
+      return borc - alacak;
+    }
+    return Number(item?.bakiye) || 0;
+  };
+
+  const [sortByBakiye, setSortByBakiye] = useState<boolean>(false);
+  const [bakiyeSortDesc, setBakiyeSortDesc] = useState<boolean>(true);
+
+  const handleToggleBakiyeSort = () => {
+    if (!sortByBakiye) {
+      setSortByBakiye(true);
+      setBakiyeSortDesc(true); // Kullanıcı Bakiye'ye ilk tıkladığında en yüksek (+ bakiye) cariden başlayıp eksiye doğru sıralar
+    } else {
+      setBakiyeSortDesc(prev => !prev);
+    }
+  };
+
   const filteredCariler = cariler.filter(c => 
     (c.unvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
     (c.cariKod || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'))
-  );
+  ).sort((a, b) => {
+    if (sortByBakiye) {
+      const bakiyeA = getCariNetBakiye(a);
+      const bakiyeB = getCariNetBakiye(b);
+      return bakiyeSortDesc ? (bakiyeB - bakiyeA) : (bakiyeA - bakiyeB);
+    }
+    return (a.unvan || '').localeCompare(b.unvan || '', 'tr-TR');
+  });
 
   const resetForm = () => {
     setEditingId(null);
@@ -1105,9 +1133,7 @@ export default function CarilerScreen({ route, navigation }: any) {
   );
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
-    const borc = item.borc || 0;
-    const alacak = item.alacak || 0;
-    const netBakiye = borc - alacak;
+    const netBakiye = getCariNetBakiye(item);
     const isPositive = netBakiye > 0;
     const isNegative = netBakiye < 0;
 
@@ -1168,6 +1194,35 @@ export default function CarilerScreen({ route, navigation }: any) {
               <X color="#94A3B8" size={18} />
             </TouchableOpacity>
           ) : null}
+        </View>
+
+        {/* Kolon Başlıkları & Bakiye Sıralama Butonu (Masaüstü 2. Görsel ile Birebir) */}
+        <View style={styles.tableHeaderRow}>
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', alignItems: 'center' }} 
+            onPress={() => setSortByBakiye(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.tableHeaderTitle}>Ünvan / Cari</Text>
+            {!sortByBakiye && <Text style={styles.tableHeaderSub}> (A-Z)</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.bakiyeSortHeaderBtn, sortByBakiye && styles.bakiyeSortHeaderBtnActive]} 
+            onPress={handleToggleBakiyeSort}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.bakiyeSortHeaderText, sortByBakiye && styles.bakiyeSortHeaderTextActive]}>
+              Bakiye
+            </Text>
+            {sortByBakiye ? (
+              <Text style={styles.bakiyeSortIndicator}>
+                {bakiyeSortDesc ? ' ▼ (+/-)' : ' ▲ (-/+)'}
+              </Text>
+            ) : (
+              <Text style={{ color: '#64748B', fontSize: 12, marginLeft: 4 }}>⇅</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1986,6 +2041,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     color: '#FFFFFF',
     fontSize: 15,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  tableHeaderTitle: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tableHeaderSub: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  bakiyeSortHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  bakiyeSortHeaderBtnActive: {
+    backgroundColor: 'rgba(0, 97, 255, 0.18)',
+    borderColor: '#0061FF',
+  },
+  bakiyeSortHeaderText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bakiyeSortHeaderTextActive: {
+    color: '#38BDF8',
+    fontWeight: '800',
+  },
+  bakiyeSortIndicator: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '800',
+    marginLeft: 3,
   },
   appleListWrapper: {
     flex: 1,

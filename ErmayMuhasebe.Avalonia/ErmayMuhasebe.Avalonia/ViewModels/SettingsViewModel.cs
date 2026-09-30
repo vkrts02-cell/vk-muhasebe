@@ -261,7 +261,76 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
     }
 
     [RelayCommand]
-    private void SelectCategory(SettingCategory category) => CurrentCategory = category;
+    private void SelectCategory(SettingCategory category)
+    {
+        CurrentCategory = category;
+        if (category?.Id == "cloud")
+        {
+            ReloadCloudSettings();
+        }
+    }
+
+    private void ReloadCloudSettings()
+    {
+        try
+        {
+            var (url, secret) = _uow.GetCloudConfig();
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                CloudUrl = url;
+                CloudSecret = secret;
+            }
+            else
+            {
+                // Diskteki yapılandırma dosyalarından dene
+                var ermayDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                var candidatePaths = new[]
+                {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ermay_cloud_config.json"),
+                    Path.Combine(ermayDir, "ermay_cloud_config.json"),
+                    Path.Combine(ermayDir, "setup_config.json"),
+                    Path.Combine(ermayDir, "setup_initial_user.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ermay_cloud_config.json")
+                };
+
+                foreach (var path in candidatePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        try
+                        {
+                            var text = File.ReadAllText(path);
+                            using var doc = System.Text.Json.JsonDocument.Parse(text);
+                            var root = doc.RootElement;
+                            string u = "";
+                            string k = "";
+
+                            if (root.TryGetProperty("BaseUrl", out var bu)) u = bu.GetString() ?? "";
+                            else if (root.TryGetProperty("SupabaseUrl", out var su)) u = su.GetString() ?? "";
+
+                            if (root.TryGetProperty("AuthSecret", out var asProp)) k = asProp.GetString() ?? "";
+                            else if (root.TryGetProperty("SupabaseKey", out var skProp)) k = skProp.GetString() ?? "";
+
+                            if (!string.IsNullOrWhiteSpace(u) && !u.Contains("firebaseio.com"))
+                            {
+                                if (k.StartsWith("ENC::AES::"))
+                                {
+                                    var dec = AuthService.Decrypt(k);
+                                    if (!string.IsNullOrEmpty(dec)) k = dec;
+                                }
+                                CloudUrl = u;
+                                CloudSecret = k;
+                                _uow.SetCloudConfig(u, k);
+                                break;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+        }
+        catch { }
+    }
 
     [RelayCommand]
     private void GoBack() => CurrentCategory = null;
@@ -279,14 +348,16 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
     [SupportedOSPlatform("windows")]
     private async Task LoadInitialDataAsync()
     {
-        DatabasePath = await _uow.GetDatabasePathAsync();
-        var profil = await _uow.GetFirmaProfiliAsync();
-        LastBackupDate = profil.LastBackupDate?.ToString("dd.MM.yyyy HH:mm") ?? "Hiç yedek alınmadı";
+        try
+        {
+            DatabasePath = await _uow.GetDatabasePathAsync();
+            var profil = await _uow.GetFirmaProfiliAsync();
+            LastBackupDate = profil.LastBackupDate?.ToString("dd.MM.yyyy HH:mm") ?? "Hiç yedek alınmadı";
+        }
+        catch { }
         
         // Load cloud config settings
-        var (url, secret) = _uow.GetCloudConfig();
-        CloudUrl = url;
-        CloudSecret = secret;
+        ReloadCloudSettings();
         
         // Printer list (Windows specific)
         if (OperatingSystem.IsWindows())
@@ -2040,18 +2111,30 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                          }
                      }
                  }
+
+                 // Bildirim geçmişi dosyalarını sil
+                 try
+                 {
+                     var notifFiles = System.IO.Directory.GetFiles(appDir, "notifications_*.json");
+                     foreach (var nf in notifFiles)
+                     {
+                         try { System.IO.File.Delete(nf); } catch { }
+                     }
+                 }
+                 catch { }
              }
 
-             // Kullanılabilir yıllar listesini yenile (böylece 2027 vb. anında silinir)
+             // Kullanılabilir yıllar listesini yenile
              LoadAvailableYears();
              SelectedYearToSwitch = baseYear;
              RolloverSourceYear = baseYear;
              RolloverTargetYear = baseYear + 1;
 
              LogoBytes = null;
+             _dataProvider.InvalidateAllCache();
              WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
 
-             SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü ve tüm ekstra oluşturulmuş mali yıllar silindi. Lütfen programı yeniden başlatın.";
+             SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü ve tüm veriler kalıcı olarak sıfırlandı. Lütfen programı yeniden başlatın.";
              ErrorMessage = "";
              ResetPassword = "";
         }

@@ -10,6 +10,7 @@
              xmlns:models="using:ErmayMuhasebe.Models"
              mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
              x:Class="ErmayMuhasebe.Avalonia.Views.CariListView"
+             x:Name="RootView"
              x:DataType="vm:CariListViewModel"
              Background="{DynamicResource BackgroundBrush}"
              Focusable="True">
@@ -169,7 +170,17 @@
                           <TextBlock Text="{Binding Unvan}" VerticalAlignment="Center" Margin="10,0" FontSize="13"/>
                        </DataTemplate>
                      </DataGridTemplateColumn>
-                      <DataGridTemplateColumn Header="Bakiye" Width="140">
+                      <DataGridTemplateColumn Width="150" CanUserSort="True" SortMemberPath="Bakiye">
+                        <DataGridTemplateColumn.Header>
+                          <Button Command="{Binding #RootView.((vm:CariListViewModel)DataContext).SortByBakiyeCommand}" 
+                                  Background="Transparent" BorderThickness="0" Padding="4,2" 
+                                  Cursor="Hand" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                              <TextBlock Text="Bakiye" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <ic:SymbolIcon Symbol="{Binding #RootView.((vm:CariListViewModel)DataContext).BakiyeSortIcon}" FontSize="13" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                            </StackPanel>
+                          </Button>
+                        </DataGridTemplateColumn.Header>
                         <DataTemplate>
                           <TextBlock Text="{Binding Bakiye, StringFormat='{}{0:N2} ₺'}" 
                                      Foreground="{Binding Bakiye, Converter={StaticResource BakiyeToColorConverter}}"

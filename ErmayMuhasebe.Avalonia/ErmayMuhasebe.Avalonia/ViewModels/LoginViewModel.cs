@@ -225,6 +225,28 @@ public partial class LoginViewModel : ViewModelBase
                             if (!string.IsNullOrEmpty(val)) { factoryResetPass = val; hasFactoryPass = true; }
                         }
 
+                        // Kurulumdan gelen Supabase Bulut Veritabanı Yapılandırması
+                        if (doc.RootElement.TryGetProperty("SupabaseUrl", out var suElem) && suElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                        {
+                            var sUrl = suElem.GetString()?.Trim() ?? "";
+                            string sKey = "";
+                            if (doc.RootElement.TryGetProperty("SupabaseKey", out var skElem) && skElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                                sKey = skElem.GetString()?.Trim() ?? "";
+
+                            if (!string.IsNullOrEmpty(sUrl) && !string.IsNullOrEmpty(sKey))
+                            {
+                                try
+                                {
+                                    _dbService.SetCloudConfig(sUrl, sKey);
+                                    System.Diagnostics.Debug.WriteLine($"[LoginVM] Kurulum Supabase yapılandırması başarıyla kaydedildi: {sUrl}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[LoginVM] SetCloudConfig hatası: {ex.Message}");
+                                }
+                            }
+                        }
+
                         // Debug Log
                         try
                         {
