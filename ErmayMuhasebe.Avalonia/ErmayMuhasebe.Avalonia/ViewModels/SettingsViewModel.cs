@@ -2361,6 +2361,7 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             {
                 BackupStatus = "Bulut verileri (Supabase) tamamen temizleniyor...";
                 try { await dbService.SyncService.ClearCloudTablesAsync(); } catch { }
+                try { await dbService.SyncService.DeleteMaliYilAsync(yearToDelete); } catch { }
             }
             
             if (firebaseService != null && firebaseService.IsConfigured)

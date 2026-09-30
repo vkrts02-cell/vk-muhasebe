@@ -126,8 +126,8 @@ namespace ErmayMuhasebe.Services
                             if (!string.IsNullOrEmpty(loaded.GoogleClientSecret) && loaded.GoogleClientSecret.StartsWith("ENC::AES::"))
                                 loaded.GoogleClientSecret = AuthService.Decrypt(loaded.GoogleClientSecret);
 
-                            // Check if legacy Firebase URL is stored or if it's the old shared test database
-                            if (loaded.BaseUrl.Contains("firebaseio.com") || !loaded.BaseUrl.Contains("supabase.co") || loaded.BaseUrl.Contains("fqgbdymffknglqeqoogt.supabase.co"))
+                            // Check if legacy Firebase URL is stored
+                            if (loaded.BaseUrl.Contains("firebaseio.com") || !loaded.BaseUrl.Contains("supabase.co"))
                             {
                                 _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
                             }
@@ -1328,6 +1328,60 @@ namespace ErmayMuhasebe.Services
 
         public async Task SyncFaturaTasarimiAsync(FaturaTasarimi tasarim) => await Task.CompletedTask;
 
+        // ==========================================
+        // MALİ YILLAR SENKRONİZASYONU
+        // ==========================================
+        public async Task SyncMaliYilAsync(int year)
+        {
+            if (year <= 0) return;
+            var payload = new Dictionary<string, object?>
+            {
+                ["yil"] = year,
+                ["is_active"] = true,
+                ["is_deleted"] = false,
+                ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            };
+            await UpsertPayloadAsync("mali_yillar", payload);
+        }
+
+        public async Task SyncMaliYillarAsync(IEnumerable<int> years)
+        {
+            if (!IsConnected || years == null || !years.Any()) return;
+            var payloads = years.Where(y => y > 0).Distinct().Select(y => (object)new Dictionary<string, object?>
+            {
+                ["yil"] = y,
+                ["is_active"] = true,
+                ["is_deleted"] = false,
+                ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            }).ToList();
+            if (payloads.Any())
+            {
+                await UpsertBatchPayloadAsync("mali_yillar", payloads);
+            }
+        }
+
+        public async Task DeleteMaliYilAsync(int year)
+        {
+            if (!IsConnected || year <= 0) return;
+            await DeleteFilteredAsync("mali_yillar", $"yil=eq.{year}");
+        }
+
+        public async Task<List<int>?> PullMaliYillarAsync()
+        {
+            using var doc = await GetJsonAsync("mali_yillar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+            var list = new List<int>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.TryGetProperty("yil", out var y))
+                {
+                    int val = ParseInt(y);
+                    if (val > 0) list.Add(val);
+                }
+            }
+            return list.OrderBy(y => y).ToList();
+        }
+
         public async Task SyncNoteAsync(Note note)
         {
             var payload = new Dictionary<string, object?>
@@ -1673,7 +1727,8 @@ namespace ErmayMuhasebe.Services
                 "haftalik_satis_hedefleri",
                 "yillik_satis_hedefleri",
                 "portfoy_kartlar",
-                "firma_profili"
+                "firma_profili",
+                "mali_yillar"
             };
 
             // Multi-pass deletion to ensure any indirect or circular foreign key dependencies are completely cleared

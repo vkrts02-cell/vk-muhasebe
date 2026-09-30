@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Key, Link, Calendar, ShieldAlert, LogIn, Settings, CheckCircle2, User, History, ChevronRight, Send, Mail, Globe, Shield, Smartphone } from 'lucide-react-native';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser } from '../services/firebase';
+import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil } from '../services/firebase';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -242,7 +242,9 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     setError('');
 
     try {
-      await saveActiveYear(selectedYear.trim());
+      const yr = selectedYear.trim();
+      await createNewMaliYil(yr);
+      await saveActiveYear(yr);
       onLoginSuccess();
     } catch (err) {
       setError('Çalışma yılı kaydedilirken hata oluştu.');
@@ -480,7 +482,35 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                   {loading && availableYears.length === 0 ? (
                     <View style={{ padding: 24, alignItems: 'center' }}>
                       <ActivityIndicator color="#3B82F6" size="large" />
-                      <Text style={{ color: '#94A3B8', marginTop: 8, fontSize: 13 }}>Mali yıllar veritabanından getiriliyor...</Text>
+                      <Text style={{ color: '#94A3B8', marginTop: 8, fontSize: 13 }}>Mali yıllar canlı veritabanından kontrol ediliyor...</Text>
+                    </View>
+                  ) : availableYears.length === 0 ? (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Calendar color="#3B82F6" size={40} style={{ marginBottom: 12 }} />
+                      <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
+                        Kayıtlı Mali Yıl Bulunamadı
+                      </Text>
+                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
+                        Sistemde henüz bir çalışma yılı tanımlanmamış. Başlamak için lütfen ilk mali yılınızı oluşturun:
+                      </Text>
+                      <View style={{ width: '100%', marginBottom: 12 }}>
+                        <TextInput
+                          style={[styles.input, { textAlign: 'center', fontSize: 22, fontWeight: 'bold', letterSpacing: 2 }]}
+                          placeholder={new Date().getFullYear().toString()}
+                          placeholderTextColor="#64748B"
+                          value={selectedYear}
+                          onChangeText={setSelectedYear}
+                          keyboardType="numeric"
+                          maxLength={4}
+                        />
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.startAppButton, { width: '100%', marginTop: 0 }]} 
+                        onPress={handleYearConfirm}
+                        disabled={loading}
+                      >
+                        <Text style={styles.startAppButtonText}>Mali Yılı Oluştur ve Başlat</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
                     availableYears.map((y) => {
@@ -502,38 +532,41 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                   )}
                 </View>
 
-                {/* Custom Year Option Toggle */}
-                {!showCustomInput ? (
-                  <TouchableOpacity style={styles.customYearToggle} onPress={() => setShowCustomInput(true)}>
-                    <Text style={styles.customYearToggleText}>+ Listede olmayan farklı bir yıl yazın</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Özel Mali Yıl Girin</Text>
-                    <TextInput
-                      style={[styles.input, { marginTop: 6 }]}
-                      placeholder="Örn: 2026"
-                      placeholderTextColor="#64748B"
-                      value={selectedYear}
-                      onChangeText={setSelectedYear}
-                      keyboardType="numeric"
-                      maxLength={4}
-                    />
-                  </View>
-                )}
+                {/* Custom Year Option Toggle & Primary Button (Listedeki yıllar varken) */}
+                {availableYears.length > 0 && (
+                  <>
+                    {!showCustomInput ? (
+                      <TouchableOpacity style={styles.customYearToggle} onPress={() => setShowCustomInput(true)}>
+                        <Text style={styles.customYearToggleText}>+ Listede olmayan farklı bir yıl yazın</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Özel Mali Yıl Girin</Text>
+                        <TextInput
+                          style={[styles.input, { marginTop: 6 }]}
+                          placeholder="Örn: 2026"
+                          placeholderTextColor="#64748B"
+                          value={selectedYear}
+                          onChangeText={setSelectedYear}
+                          keyboardType="numeric"
+                          maxLength={4}
+                        />
+                      </View>
+                    )}
 
-                {/* Primary Button */}
-                <TouchableOpacity 
-                  style={[styles.startAppButton, loading && styles.buttonDisabled]} 
-                  onPress={handleYearConfirm}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFF" />
-                  ) : (
-                    <Text style={styles.startAppButtonText}>Uygulamayı Başlat</Text>
-                  )}
-                </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.startAppButton, loading && styles.buttonDisabled]} 
+                      onPress={handleYearConfirm}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <Text style={styles.startAppButtonText}>Uygulamayı Başlat</Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
 
                 {/* Footer Note */}
                 <Text style={styles.footerNoteText}>

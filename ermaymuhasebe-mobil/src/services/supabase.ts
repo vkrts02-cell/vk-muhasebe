@@ -78,21 +78,66 @@ export const toCamelCase = (obj: any): any => {
 const TABLE_MAPPINGS: Record<string, string> = {
   'cariler': 'cariler',
   'carihareketler': 'cari_hareketler',
+  'cari_hareketler': 'cari_hareketler',
   'stoklar': 'stoklar',
   'stokhareketler': 'stok_hareketler',
+  'stok_hareketler': 'stok_hareketler',
+  'stokgruplar': 'stok_gruplar',
+  'stok_gruplar': 'stok_gruplar',
   'faturalar': 'faturalar',
   'faturadetaylar': 'fatura_detaylar',
+  'fatura_detaylar': 'fatura_detaylar',
   'siparisler': 'siparisler',
   'siparisdetaylar': 'siparis_detaylar',
+  'siparis_detaylar': 'siparis_detaylar',
   'teklifler': 'teklifler',
   'teklifdetaylar': 'teklif_detaylar',
+  'teklif_detaylar': 'teklif_detaylar',
   'kasalar': 'kasalar',
   'kasahareketler': 'kasa_hareketler',
+  'kasa_hareketler': 'kasa_hareketler',
   'bankalar': 'bankalar',
   'bankahareketler': 'banka_hareketler',
+  'banka_hareketler': 'banka_hareketler',
   'firmaprofili': 'firma_profili',
+  'firma_profili': 'firma_profili',
   'notes': 'notlar',
-  'notlar': 'notlar'
+  'notlar': 'notlar',
+  'maliyillar': 'mali_yillar',
+  'mali_yillar': 'mali_yillar',
+  'cekler': 'cekler',
+  'senetler': 'senetler',
+  'kredikartiislemler': 'kredi_karti_islemler',
+  'kredi_karti_islemler': 'kredi_karti_islemler',
+  'eftislemler': 'eft_islemler',
+  'eft_islemler': 'eft_islemler',
+  'dovizkurlari': 'doviz_kurlari',
+  'doviz_kurlari': 'doviz_kurlari',
+  'belgearsiv': 'belge_arsiv',
+  'belge_arsiv': 'belge_arsiv',
+  'gorevler': 'gorevler',
+  'personeller': 'personeller',
+  'satishedefleri': 'satis_hedefleri',
+  'satis_hedefleri': 'satis_hedefleri',
+  'haftaliksatishedefleri': 'haftalik_satis_hedefleri',
+  'haftalik_satis_hedefleri': 'haftalik_satis_hedefleri',
+  'yilliksatishedefleri': 'yillik_satis_hedefleri',
+  'yillik_satis_hedefleri': 'yillik_satis_hedefleri',
+  'stoksayimlar': 'stok_sayim_fisileri',
+  'stoksayimfisileri': 'stok_sayim_fisileri',
+  'stok_sayim_fisileri': 'stok_sayim_fisileri',
+  'stoksayimdetaylar': 'stok_sayim_detaylari',
+  'stoksayimdetaylari': 'stok_sayim_detaylari',
+  'stok_sayim_detaylari': 'stok_sayim_detaylari',
+  'portfoykartlar': 'portfoy_kartlar',
+  'portfoykartlari': 'portfoy_kartlar',
+  'portfoy_kartlar': 'portfoy_kartlar',
+  'musteritakipklasorler': 'musteri_takip_klasorler',
+  'musteri_takip_klasorler': 'musteri_takip_klasorler',
+  'musteritakipdetaylar': 'musteri_takip_detaylar',
+  'musteri_takip_detaylar': 'musteri_takip_detaylar',
+  'kullanicilar': 'kullanicilar',
+  'users': 'kullanicilar'
 };
 
 export const parsePath = (path: string): { table: string; id?: string; field?: string; isDetail?: boolean; foreignKey?: string } => {
@@ -203,8 +248,127 @@ export const saveFirebaseConfig = async (
 };
 
 export const fetchAvailableYears = async (): Promise<string[]> => {
-  const current = new Date().getFullYear();
-  return [ (current - 1).toString(), current.toString(), (current + 1).toString() ];
+  try {
+    // 1. Doğrudan mali_yillar tablosunu sorgula
+    const { data, error } = await supabase
+      .from('mali_yillar')
+      .select('yil')
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .order('yil', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      const years = data
+        .map((r: any) => String(r.yil))
+        .filter((y: string) => /^\d{4}$/.test(y));
+      if (years.length > 0) {
+        return Array.from(new Set(years)).sort();
+      }
+    }
+
+    // 2. Tablo yoksa veya henüz kayıt girilmemişse hareketler ve faturalardaki tarihlerden distinct yılları bul
+    const distinctYears = new Set<string>();
+
+    try {
+      const { data: faturaData } = await supabase
+        .from('faturalar')
+        .select('tarih')
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .limit(200);
+
+      if (faturaData) {
+        faturaData.forEach((f: any) => {
+          if (f.tarih) {
+            const yr = new Date(f.tarih).getFullYear();
+            if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
+          }
+        });
+      }
+    } catch {}
+
+    try {
+      const { data: chData } = await supabase
+        .from('cari_hareketler')
+        .select('tarih')
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .limit(200);
+
+      if (chData) {
+        chData.forEach((h: any) => {
+          if (h.tarih) {
+            const yr = new Date(h.tarih).getFullYear();
+            if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
+          }
+        });
+      }
+    } catch {}
+
+    if (distinctYears.size > 0) {
+      return Array.from(distinctYears).sort();
+    }
+
+    // 3. Veritabanı tamamen boşsa: Kesinlikle uydurma 3 yıl dönme!
+    // Boş liste dön ki kullanıcı masaüstündeki gibi "Yıl Oluştur" panelini görsün.
+    return [];
+  } catch (err) {
+    console.warn('[Supabase] fetchAvailableYears error:', err);
+    return [];
+  }
+};
+
+export const createNewMaliYil = async (year: string): Promise<boolean> => {
+  try {
+    const yrNum = parseInt(year, 10);
+    if (isNaN(yrNum) || yrNum < 2000 || yrNum > 2100) return false;
+
+    const { error } = await supabase.from('mali_yillar').upsert({
+      yil: yrNum,
+      is_active: true,
+      is_deleted: false,
+      olusturma_tarihi: new Date().toISOString()
+    });
+
+    if (error) {
+      console.warn('[Supabase] createNewMaliYil upsert error, fallback to insert:', error.message);
+      await supabase.from('mali_yillar').insert({
+        yil: yrNum,
+        is_active: true,
+        is_deleted: false,
+        olusturma_tarihi: new Date().toISOString()
+      });
+    }
+
+    await saveActiveYear(year);
+    return true;
+  } catch (e: any) {
+    console.error('[Supabase] createNewMaliYil error:', e.message);
+    return false;
+  }
+};
+
+export const deleteMaliYil = async (year: string): Promise<boolean> => {
+  try {
+    const yrNum = parseInt(year, 10);
+    if (isNaN(yrNum)) return false;
+
+    // 1. mali_yillar tablosundan soft-delete ve kalıcı silme
+    try {
+      await supabase.from('mali_yillar').update({ is_deleted: true, is_active: false }).eq('yil', yrNum);
+      await supabase.from('mali_yillar').delete().eq('yil', yrNum);
+    } catch {}
+
+    // 2. Eğer silinen yıl aktif yıl ise storage'ı temizle
+    const currentActive = await AsyncStorage.getItem('ermay_active_year');
+    if (currentActive === year) {
+      await AsyncStorage.removeItem('ermay_active_year');
+      cachedYear = '';
+    }
+
+    notifyConfigListeners();
+    return true;
+  } catch (e: any) {
+    console.error('[Supabase] deleteMaliYil error:', e.message);
+    return false;
+  }
 };
 
 export const getIdToken = () => null;
@@ -911,7 +1075,7 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
 
     // List all
     let query = supabase.from(table).select('*');
-    if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler'].includes(table)) {
+    if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler', 'mali_yillar', 'cekler', 'senetler', 'kredi_karti_islemler', 'eft_islemler', 'belge_arsiv', 'doviz_kurlari', 'portfoy_kartlar', 'musteri_takip_klasorler', 'musteri_takip_detaylar'].includes(table)) {
       query = query.or('is_deleted.is.null,is_deleted.eq.false');
     }
     const { data, error } = await query;
@@ -927,9 +1091,9 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
 
     // For detail tables when queried without specific ID, group by parent foreign key
     // so that screens can access them via detailsMap[parentId]
-    if (table === 'fatura_detaylar' || table === 'siparis_detaylar' || table === 'teklif_detaylar') {
-      const parentFk = table === 'fatura_detaylar' ? 'faturaId' : (table === 'siparis_detaylar' ? 'siparisId' : 'teklifId');
-      const snakeFk = table === 'fatura_detaylar' ? 'fatura_id' : (table === 'siparis_detaylar' ? 'siparis_id' : 'teklif_id');
+    if (table === 'fatura_detaylar' || table === 'siparis_detaylar' || table === 'teklif_detaylar' || table === 'stok_sayim_detaylari' || table === 'musteri_takip_detaylar') {
+      const parentFk = table === 'fatura_detaylar' ? 'faturaId' : (table === 'siparis_detaylar' ? 'siparisId' : (table === 'teklif_detaylar' ? 'teklifId' : (table === 'stok_sayim_detaylari' ? 'fisiId' : 'klasorId')));
+      const snakeFk = table === 'fatura_detaylar' ? 'fatura_id' : (table === 'siparis_detaylar' ? 'siparis_id' : (table === 'teklif_detaylar' ? 'teklif_id' : (table === 'stok_sayim_detaylari' ? 'fisi_id' : 'klasor_id')));
       const groupedMap: Record<string, any[]> = {};
       for (const item of normList) {
         if (!item) continue;
@@ -944,8 +1108,11 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
 
     const recordMap: Record<string, any> = {};
     for (const item of normList) {
-      if (item && item.id !== undefined) {
-        recordMap[item.id.toString()] = item;
+      if (item) {
+        const key = item.id !== undefined ? item.id.toString() : (item.yil !== undefined ? item.yil.toString() : '');
+        if (key) {
+          recordMap[key] = item;
+        }
       }
     }
     return recordMap;

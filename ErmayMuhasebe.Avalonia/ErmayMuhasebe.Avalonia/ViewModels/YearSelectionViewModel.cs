@@ -123,6 +123,18 @@ public partial class YearSelectionViewModel : ViewModelBase
 
         RolloverSourceYear = SelectedYear ?? DateTime.Now.Year;
         RolloverTargetYear = RolloverSourceYear + 1;
+
+        if (available.Any())
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _dbService.SyncService.SyncMaliYillarAsync(available);
+                }
+                catch { }
+            });
+        }
     }
 
     [RelayCommand]
@@ -181,6 +193,12 @@ public partial class YearSelectionViewModel : ViewModelBase
             _yearContext.CurrentYear = yearToCreate;
             var dbName = $"ermay_{yearToCreate}.db";
             await _dataProvider.InitializeAsync(dbName);
+
+            try
+            {
+                await _dbService.SyncService.SyncMaliYilAsync(yearToCreate);
+            }
+            catch { }
 
             // Automatically switch to the newly created year and pass back to login/main
             _onYearSelected?.Invoke(yearToCreate);

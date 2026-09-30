@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, SafeAreaView, TextInput, TouchableOpacity, Scro
 import { Settings, Globe, Key, Calendar, Wifi, Save, Database, User, MapPin, Phone, Building, Lock, MonitorSmartphone, ArrowLeft, Trash2, Image as ImageIcon, UploadCloud, CheckSquare, Square, ArrowRight, Sparkles, RefreshCw } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears } from '../services/firebase';
+import { saveFirebaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil } from '../services/firebase';
 import { getLockSettings, savePin, setLockEnabled, clearLock, setLockTimeout, DEFAULT_LOCK_MINUTES } from '../services/lockService';
 import { resetPdfServiceCache, cleanBase64Logo } from '../services/pdfService';
 
@@ -45,7 +45,7 @@ export default function AyarlarScreen() {
   const [newPin, setNewPin] = useState('');
   const [lockTimeout, setLockTimeoutState] = useState('30');
   
-  // Yıl Devir Sihirbazı State
+  // Yıl Devir ve Yönetim State
   const [devirKaynakYil, setDevirKaynakYil] = useState((new Date().getFullYear() - 1).toString());
   const [devirHedefYil, setDevirHedefYil] = useState(new Date().getFullYear().toString());
   const [devirCariSecili, setDevirCariSecili] = useState(true);
@@ -53,6 +53,8 @@ export default function AyarlarScreen() {
   const [devirBankaSecili, setDevirBankaSecili] = useState(true);
   const [devirStokSecili, setDevirStokSecili] = useState(true);
   const [devirYukleniyor, setDevirYukleniyor] = useState(false);
+  const [newYearInput, setNewYearInput] = useState('');
+  const [selectedYearToDelete, setSelectedYearToDelete] = useState('');
 
   // Kategori Seçim State
   const [currentCategory, setCurrentCategory] = useState<string | null>(null);
@@ -512,6 +514,87 @@ export default function AyarlarScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateNewYear = async () => {
+    if (!newYearInput || !/^\d{4}$/.test(newYearInput.trim())) {
+      Alert.alert('Hata', 'Lütfen geçerli 4 haneli bir mali yıl girin (Örn: 2026).');
+      return;
+    }
+    const yr = newYearInput.trim();
+    if (availableYears.includes(yr)) {
+      Alert.alert('Bilgi', `${yr} yılı zaten mevcut.`);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const ok = await createNewMaliYil(yr);
+      if (ok) {
+        setAvailableYears(prev => [...prev, yr].sort());
+        setNewYearInput('');
+        Alert.alert('Başarılı', `${yr} mali yılı başarıyla oluşturuldu ve buluta kaydedildi.`);
+      } else {
+        Alert.alert('Hata', 'Mali yıl oluşturulamadı.');
+      }
+    } catch (e: any) {
+      Alert.alert('Hata', e?.message || 'Mali yıl oluşturulurken hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteYear = async (yearToDelete: string) => {
+    if (!yearToDelete) {
+      Alert.alert('Hata', 'Lütfen silinecek bir mali yıl seçin.');
+      return;
+    }
+
+    Alert.alert(
+      'Mali Yılı Sil / Sıfırla',
+      `DİKKAT: ${yearToDelete} mali yılını silmek üzeresiniz!\n\nBu işlem, seçilen yıla ait tüm verileri ve yılı veritabanından kalıcı olarak silecektir.\n\nBu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Evet, Kalıcı Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const ok = await deleteMaliYil(yearToDelete);
+              if (ok) {
+                const remaining = availableYears.filter(y => y !== yearToDelete);
+                setAvailableYears(remaining);
+                setSelectedYearToDelete('');
+
+                if (yearToDelete === activeYear) {
+                  Alert.alert(
+                    'Mali Yıl Silindi',
+                    `${yearToDelete} yılı başarıyla silindi. Aktif yıl silindiği için oturum sonlandırılıyor.`,
+                    [
+                      {
+                        text: 'Tamam',
+                        onPress: async () => {
+                          await logoutUser();
+                        }
+                      }
+                    ]
+                  );
+                } else {
+                  Alert.alert('Başarılı', `${yearToDelete} mali yılı başarıyla silindi.`);
+                }
+              } else {
+                Alert.alert('Hata', 'Mali yıl silinemedi.');
+              }
+            } catch (err: any) {
+              Alert.alert('Hata', err?.message || 'Silme işleminde hata oluştu.');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleYearTransfer = async () => {
@@ -1122,7 +1205,7 @@ export default function AyarlarScreen() {
                     Uygulamanın fatura, hareket ve stok kayıtlarını işlediği aktif mali yıl.
                   </Text>
                   
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
                     {availableYears.map((yr) => (
                       <TouchableOpacity
                         key={yr}
@@ -1139,6 +1222,67 @@ export default function AyarlarScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
+
+                  {/* Yeni Yıl Ekleme Alanı */}
+                  <View style={{ borderTopWidth: 1, borderTopColor: '#1E293B', paddingTop: 14 }}>
+                    <Text style={[styles.inputLabel, { fontWeight: 'bold', marginBottom: 8 }]}>Yeni Mali Yıl Oluştur</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TextInput
+                        style={[styles.input, { flex: 1, fontWeight: 'bold' }]}
+                        placeholder="Örn: 2027"
+                        placeholderTextColor="#64748B"
+                        value={newYearInput}
+                        onChangeText={setNewYearInput}
+                        keyboardType="numeric"
+                        maxLength={4}
+                      />
+                      <TouchableOpacity
+                        style={[styles.btn, { backgroundColor: '#2563EB', paddingHorizontal: 18, marginTop: 0 }]}
+                        onPress={handleCreateNewYear}
+                        disabled={loading}
+                      >
+                        <Text style={[styles.btnText, { fontSize: 13 }]}>Yıl Oluştur</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Mali Yıl Silme / Sıfırlama Kartı */}
+                <View style={[styles.card, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                  <View style={styles.cardHeader}>
+                    <Trash2 color="#EF4444" size={22} />
+                    <Text style={[styles.cardTitle, { color: '#EF4444' }]}>Mali Yıl Silme / Sıfırlama</Text>
+                  </View>
+                  <Text style={[styles.inputLabel, { fontWeight: 'normal', marginBottom: 12 }]}>
+                    Kullanılmayan veya yanlışlıkla açılmış bir mali yılı ve veritabanı kayıtlarını kalıcı olarak siler.
+                  </Text>
+
+                  {availableYears.length === 0 ? (
+                    <Text style={{ color: '#64748B', fontSize: 12, fontStyle: 'italic' }}>Kayıtlı mali yıl bulunmuyor.</Text>
+                  ) : (
+                    <View style={{ gap: 8 }}>
+                      {availableYears.map((yr) => (
+                        <View key={yr} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0F172A', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#1E293B' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Calendar color={activeYear === yr ? "#3B82F6" : "#64748B"} size={18} />
+                            <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 15 }}>{yr}</Text>
+                            {activeYear === yr && (
+                              <Text style={{ color: '#3B82F6', fontSize: 11, backgroundColor: 'rgba(59, 130, 246, 0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>Aktif Yıl</Text>
+                            )}
+                          </View>
+
+                          <TouchableOpacity
+                            style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                            onPress={() => handleDeleteYear(yr)}
+                            disabled={loading}
+                          >
+                            <Trash2 color="#EF4444" size={14} />
+                            <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 12 }}>Yılı Sil</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
 
                 {/* Yıl Devir Sihirbazı Kartı */}

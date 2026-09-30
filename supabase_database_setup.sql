@@ -309,8 +309,18 @@ CREATE TABLE IF NOT EXISTS public.kullanicilar (
 ALTER TABLE public.kullanicilar ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "kullanicilar_all_policy" ON public.kullanicilar FOR ALL USING (true) WITH CHECK (true);
 
+-- 18. MALİ YILLAR TABLOSU
+CREATE TABLE IF NOT EXISTS public.mali_yillar (
+    yil INTEGER PRIMARY KEY,
+    olusturma_tarihi TIMESTAMPTZ DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+ALTER TABLE public.mali_yillar ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "mali_yillar_all_policy" ON public.mali_yillar FOR ALL USING (true) WITH CHECK (true);
+
 -- ==============================================================================
--- 18. SUPABASE REALTIME (CANLI YAYIN) YETKİLERİ
+-- 19. SUPABASE REALTIME (CANLI YAYIN) YETKİLERİ
 -- Mobil ve masaüstü arasında saniyelik canlı senkronizasyon için tabloları realtime yayınına ekler.
 -- ==============================================================================
 DO $$
@@ -333,7 +343,8 @@ BEGIN
             public.teklif_detaylar,
             public.firma_profili,
             public.notlar,
-            public.kullanicilar;
+            public.kullanicilar,
+            public.mali_yillar;
     END IF;
 EXCEPTION
     WHEN duplicate_object THEN NULL;
