@@ -898,7 +898,7 @@ namespace ErmayMuhasebe.Services
                         OrtalamaSatisFiyati = stok.OrtalamaSatisFiyati,
                         KdvOrani = stok.KdvOrani,
                         KDV = stok.KDV,
-                        Miktar = (double)netMiktar,
+                        Miktar = netMiktar,
                         IsDeleted = false
                     };
                     await targetDb.InsertOrReplaceAsync(targetStok);
@@ -933,7 +933,7 @@ namespace ErmayMuhasebe.Services
                         await targetDb.DeleteAsync(existingMoves[i]);
                     }
 
-                    targetStok.Miktar += (double)fark;
+                    targetStok.Miktar += fark;
                     targetStok.AlisFiyati = stok.AlisFiyati;
                     targetStok.SatisFiyati = stok.SatisFiyati;
                     targetStok.OrtalamaAlisFiyati = stok.OrtalamaAlisFiyati;
@@ -958,7 +958,7 @@ namespace ErmayMuhasebe.Services
                         KalanMiktar = netMiktar,
                         Fiyat = devirFiyat
                     });
-                    targetStok.Miktar = (double)netMiktar;
+                    targetStok.Miktar = netMiktar;
                     targetStok.AlisFiyati = stok.AlisFiyati;
                     targetStok.SatisFiyati = stok.SatisFiyati;
                     targetStok.OrtalamaAlisFiyati = stok.OrtalamaAlisFiyati;
@@ -1315,7 +1315,7 @@ namespace ErmayMuhasebe.Services
                                 await targetDb.DeleteAsync(existingMoves[i]);
                             }
 
-                            targetStok.Miktar += (double)fark;
+                            targetStok.Miktar += fark;
                             targetStok.AlisFiyati = s.AlisFiyati;
                             targetStok.SatisFiyati = s.SatisFiyati;
                             targetStok.OrtalamaAlisFiyati = s.OrtalamaAlisFiyati;

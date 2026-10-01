@@ -1100,6 +1100,62 @@ namespace ErmayMuhasebe.Services
             try { await _db.ExecuteAsync("PRAGMA wal_checkpoint(TRUNCATE);"); } catch { }
         }
 
+        public async Task BackupToAsync(string destinationPath)
+        {
+            await EnsureInitializedAsync();
+
+            var destDir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            if (File.Exists(destinationPath))
+            {
+                try { File.Delete(destinationPath); } catch { }
+            }
+
+            // Flush WAL before taking snapshot
+            try
+            {
+                var syncConn = _db.GetConnection();
+                syncConn.Execute("PRAGMA wal_checkpoint(TRUNCATE);");
+            }
+            catch { }
+
+            // 1. First attempt: Atomic VACUUM INTO (SQLite 3.27+ / SQLCipher creates clone with same cipher key)
+            try
+            {
+                string safePath = destinationPath.Replace("'", "''");
+                var syncConn = _db.GetConnection();
+                syncConn.Execute($"VACUUM INTO '{safePath}';");
+                return;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DatabaseService] VACUUM INTO failed, falling back to copy: {ex.Message}");
+            }
+
+            // 2. Fallback: Full checkpoint and copy file (with WAL if present)
+            try
+            {
+                var syncConn = _db.GetConnection();
+                syncConn.Execute("PRAGMA wal_checkpoint(TRUNCATE);");
+            }
+            catch { }
+
+            await Task.Run(() =>
+            {
+                File.Copy(_dbPath, destinationPath, true);
+                string walSrc = _dbPath + "-wal";
+                string walDst = destinationPath + "-wal";
+                if (File.Exists(walSrc))
+                {
+                    try { File.Copy(walSrc, walDst, true); } catch { }
+                }
+            });
+        }
+
         public async Task ClearAllTablesAsync()
         {
             await EnsureInitializedAsync();
@@ -1741,7 +1797,7 @@ namespace ErmayMuhasebe.Services
                     .ToListAsync();
                 foreach (var m in movements)
                 {
-                    double miktar = m.Miktar > 0 ? (double)m.Miktar : (double)(m.Giren > 0 ? m.Giren : (m.Cikan > 0 ? m.Cikan : 0));
+                    decimal miktar = m.Miktar > 0 ? m.Miktar : (m.Giren > 0 ? m.Giren : (m.Cikan > 0 ? m.Cikan : 0));
                     detaylar.Add(new FaturaDetay 
                     { 
                         FaturaId = item.Id, 
@@ -1821,8 +1877,8 @@ namespace ErmayMuhasebe.Services
                 var currentStok = await _db.Table<StokKart>().FirstOrDefaultAsync(s => s.Id == sId);
                 if (currentStok != null)
                 {
-                    var sumGiren = await _db.ExecuteScalarAsync<double>("SELECT IFNULL(SUM(CASE WHEN Giren > 0 THEN Giren WHEN Miktar > 0 AND (IslemTuru LIKE '%Giriş%' OR IslemTuru LIKE '%Alış%' OR IslemTuru LIKE '%Açılış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
-                    var sumCikan = await _db.ExecuteScalarAsync<double>("SELECT IFNULL(SUM(CASE WHEN Cikan > 0 THEN Cikan WHEN Miktar > 0 AND (IslemTuru LIKE '%Çıkış%' OR IslemTuru LIKE '%Satış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
+                    var sumGiren = await _db.ExecuteScalarAsync<decimal>("SELECT IFNULL(SUM(CASE WHEN Giren > 0 THEN Giren WHEN Miktar > 0 AND (IslemTuru LIKE '%Giriş%' OR IslemTuru LIKE '%Alış%' OR IslemTuru LIKE '%Açılış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
+                    var sumCikan = await _db.ExecuteScalarAsync<decimal>("SELECT IFNULL(SUM(CASE WHEN Cikan > 0 THEN Cikan WHEN Miktar > 0 AND (IslemTuru LIKE '%Çıkış%' OR IslemTuru LIKE '%Satış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
                     currentStok.Miktar = sumGiren - sumCikan;
                     await _db.UpdateAsync(currentStok);
                     await _sync.SyncStokAsync(currentStok);
@@ -2256,8 +2312,8 @@ namespace ErmayMuhasebe.Services
                 }
                 else
                 {
-                    double sumGiren = (double)remaining.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş") || (h.IslemTuru ?? "").Contains("Alış") || (h.IslemTuru ?? "").Contains("Açılış")) ? h.Miktar : 0));
-                    double sumCikan = (double)remaining.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış") || (h.IslemTuru ?? "").Contains("Satış")) ? h.Miktar : 0));
+                    decimal sumGiren = remaining.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş") || (h.IslemTuru ?? "").Contains("Alış") || (h.IslemTuru ?? "").Contains("Açılış")) ? h.Miktar : 0));
+                    decimal sumCikan = remaining.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış") || (h.IslemTuru ?? "").Contains("Satış")) ? h.Miktar : 0));
                     currentStok.Miktar = sumGiren - sumCikan;
                 }
                 await _db.UpdateAsync(currentStok);
@@ -4902,8 +4958,8 @@ namespace ErmayMuhasebe.Services
                             averageSalesPrice = stk.SatisFiyati;
                         }
 
-                        double finalMiktar = (double)currentQuantity;
-                        if (Math.Abs(stk.Miktar - finalMiktar) > 0.0001 || stk.OrtalamaAlisFiyati != averagePrice || stk.OrtalamaSatisFiyati != averageSalesPrice)
+                        decimal finalMiktar = currentQuantity;
+                        if (Math.Abs(stk.Miktar - finalMiktar) > 0.0001m || stk.OrtalamaAlisFiyati != averagePrice || stk.OrtalamaSatisFiyati != averageSalesPrice)
                         {
                             stk.Miktar = finalMiktar;
                             stk.OrtalamaAlisFiyati = averagePrice;
@@ -6975,10 +7031,10 @@ namespace ErmayMuhasebe.Services
                     }
                     else
                     {
-                        double sumGiren = (double)movements.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
-                        double sumCikan = (double)movements.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
-                        double computedMiktar = sumGiren - sumCikan;
-                        if (Math.Abs(stok.Miktar - computedMiktar) > 0.0001)
+                        decimal sumGiren = movements.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
+                        decimal sumCikan = movements.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
+                        decimal computedMiktar = sumGiren - sumCikan;
+                        if (Math.Abs(stok.Miktar - computedMiktar) > 0.0001m)
                         {
                             stok.Miktar = computedMiktar;
                             changed = true;

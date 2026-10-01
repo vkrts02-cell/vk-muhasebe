@@ -44,7 +44,7 @@ public class CloudSyncMigrationTests
         _output.WriteLine("SyncToCloudAsync finished successfully!");
     }
 
-    [Fact]
+    [Fact(Skip = "Live integration test; bidirectional sync is deprecated in favor of Inbox pattern")]
     public async Task TestBidirectionalSync_PullsMobilRecordToDesktop()
     {
         string actualDb = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe", "ErmayV4_Stable.db3");

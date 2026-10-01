@@ -93,10 +93,10 @@
                      <span class="form-section-title">Stok ve Limitler</span>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudNumericField T="double" @bind-Value="stok.Miktar" Label="Mevcut Stok Miktarı" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Başlangıç bakiyesi" Class="bg-dark-input" />
+                    <MudNumericField T="decimal" @bind-Value="stok.Miktar" Label="Mevcut Stok Miktarı" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Başlangıç bakiyesi" Class="bg-dark-input" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudNumericField T="double" @bind-Value="stok.MinSeviye" Label="Kritik Stok Uyarısı" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Bu seviyenin altında uyarı verir" Class="bg-dark-input" />
+                    <MudNumericField T="decimal" @bind-Value="stok.MinSeviye" Label="Kritik Stok Uyarısı" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Bu seviyenin altında uyarı verir" Class="bg-dark-input" />
                 </MudItem>
             </MudGrid>
         </MudForm>

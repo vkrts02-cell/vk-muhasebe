@@ -159,7 +159,7 @@ public abstract partial class StokListViewModel : ViewModelBase
                     (!hasKod || (s.StokKodu != null && s.StokKodu.Contains(kod)) || (s.StokAdi != null && s.StokAdi.Contains(kod)) || (s.Barkod != null && s.Barkod.Contains(kod))) &&
                     (!hasAd || (s.StokAdi != null && s.StokAdi.Contains(ad))) &&
                     (!hasGrup || (s.Kategori != null && s.Kategori.Contains(grup))) &&
-                    (!OnlyWithBalance || (s.Miktar > 0.0001 || s.Miktar < -0.0001));
+                    (!OnlyWithBalance || (s.Miktar > 0.0001m || s.Miktar < -0.0001m));
             }
             else
             {
@@ -357,8 +357,8 @@ public abstract partial class StokListViewModel : ViewModelBase
             if (SelectedStok != null)
             {
                 lastId = SelectedStok.Id;
-                double eskiMiktar = SelectedStok.Miktar;
-                double yeniMiktar = (double)(EditAcilisBakiye ?? 0);
+                decimal eskiMiktar = SelectedStok.Miktar;
+                decimal yeniMiktar = EditAcilisBakiye ?? 0m;
  
                 SelectedStok.Barkod = EditBarkod;
                 SelectedStok.StokKodu = EditStokKodu;
@@ -373,7 +373,7 @@ public abstract partial class StokListViewModel : ViewModelBase
                 SelectedStok.Miktar = yeniMiktar;
  
                 await _uow.Stoklar.SaveAsync(SelectedStok);
-                if (Math.Abs(eskiMiktar - yeniMiktar) > 0.0001)
+                if (Math.Abs(eskiMiktar - yeniMiktar) > 0.0001m)
                 {
                     await _uow.Stoklar.SaveHareketAsync(new StokHareket
                     {
@@ -402,7 +402,7 @@ public abstract partial class StokListViewModel : ViewModelBase
                     OrtalamaAlisFiyati = EditOrtalamaAlisFiyati ?? 0,
                     SatisFiyati = EditSatisFiyati ?? 0,
                     KDV = (int)(EditKDV ?? 0),
-                    Miktar = (double)(EditAcilisBakiye ?? 0),
+                    Miktar = EditAcilisBakiye ?? 0m,
                     Birim = EditBirim,
                     Kategori = EditKategori,
                     KayitTarihi = DateTime.Now
@@ -522,8 +522,8 @@ public abstract partial class StokListViewModel : ViewModelBase
 
             if (IsEditingTransaction && SelectedStokHareket != null)
             {
-                if (SelectedStokHareket.IslemTuru == "GİRİŞ") SelectedStok.Miktar -= (double)SelectedStokHareket.Miktar;
-                else SelectedStok.Miktar += (double)SelectedStokHareket.Miktar;
+                if (SelectedStokHareket.IslemTuru == "GİRİŞ") SelectedStok.Miktar -= SelectedStokHareket.Miktar;
+                else SelectedStok.Miktar += SelectedStokHareket.Miktar;
 
                 SelectedStokHareket.Tarih = parsedTarih;
                 SelectedStokHareket.IslemTuru = tur;
@@ -533,8 +533,8 @@ public abstract partial class StokListViewModel : ViewModelBase
                 SelectedStokHareket.Giren = tur == "GİRİŞ" ? miktar : 0;
                 SelectedStokHareket.Cikan = tur == "ÇIKIŞ" ? miktar : 0;
 
-                if (tur == "GİRİŞ") SelectedStok.Miktar += (double)miktar;
-                else SelectedStok.Miktar -= (double)miktar;
+                if (tur == "GİRİŞ") SelectedStok.Miktar += miktar;
+                else SelectedStok.Miktar -= miktar;
 
                 await _uow.Stoklar.SaveHareketAsync(SelectedStokHareket);
             }
@@ -553,8 +553,8 @@ public abstract partial class StokListViewModel : ViewModelBase
                     Giren = tur == "GİRİŞ" ? miktar : 0,
                     Cikan = tur == "ÇIKIŞ" ? miktar : 0
                 };
-                if (tur == "GİRİŞ") SelectedStok.Miktar += (double)miktar;
-                else SelectedStok.Miktar -= (double)miktar;
+                if (tur == "GİRİŞ") SelectedStok.Miktar += miktar;
+                else SelectedStok.Miktar -= miktar;
 
                 await _uow.Stoklar.SaveHareketAsync(hareket);
             }
@@ -654,8 +654,8 @@ public abstract partial class StokListViewModel : ViewModelBase
                 }
                 else
                 {
-                    double sumGiren = (double)remainingMovements.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
-                    double sumCikan = (double)remainingMovements.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
+                    decimal sumGiren = remainingMovements.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
+                    decimal sumCikan = remainingMovements.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
                     currentStok.Miktar = sumGiren - sumCikan;
                 }
 

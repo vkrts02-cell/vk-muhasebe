@@ -407,7 +407,7 @@ public abstract partial class FaturaDetayViewModel : ViewModelBase
                 StokId = i.Stok.Id,
                 StokKodu = i.Kod,
                 StokAdi = i.Ad,
-                Miktar = (double)(i.Miktar ?? 0),
+                Miktar = i.Miktar ?? 0m,
                 Birim = i.Birim,
                 BirimFiyat = i.BirimFiyat ?? 0,
                 KDVOrani = (int)(i.KdvOrani ?? 0),

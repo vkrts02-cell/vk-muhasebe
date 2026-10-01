@@ -24,6 +24,8 @@ public class DatabaseServiceTests : IDisposable
         ErmayMuhasebe.Data.Constants.DatabasePath = _testDbPath;
         
         _dbService = new DatabaseService();
+        _dbService.UseEncryption = false;
+        _dbService.DisableCloudSync = true;
     }
 
     [Fact]
@@ -194,6 +196,52 @@ public class DatabaseServiceTests : IDisposable
         // Assert
         var deleted = await _dbService.GetDeletedCariKartsAsync();
         Assert.Contains(deleted, c => c.Id == id && c.IsDeleted);
+    }
+
+    [Fact]
+    public async Task BackupToAsync_ShouldCreateConsistentBackup_AndVerifyData()
+    {
+        // Arrange
+        await _dbService.InitializeAsync();
+        var cari = new CariKart
+        {
+            Unvan = "Yedek Test Cari Ltd.",
+            Tur = "Musteri",
+            VergiNo = "1234567890"
+        };
+        int id = await _dbService.SaveCariKartAsync(cari);
+        string backupFile = Path.Combine(Path.GetTempPath(), $"TestBackup_{Guid.NewGuid()}.db3");
+
+        try
+        {
+            // Act
+            await _dbService.BackupToAsync(backupFile);
+
+            // Assert: Backup file exists and has size
+            Assert.True(File.Exists(backupFile));
+            var fi = new FileInfo(backupFile);
+            Assert.True(fi.Length > 0);
+
+            var backupDbService = new DatabaseService();
+            backupDbService.UseEncryption = false;
+            backupDbService.DisableCloudSync = true;
+            await backupDbService.InitializeAsync(backupFile);
+            var restoredCari = await backupDbService.GetCariKartAsync(id);
+
+            Assert.NotNull(restoredCari);
+            Assert.Equal("Yedek Test Cari Ltd.", restoredCari.Unvan);
+            Assert.Equal("1234567890", restoredCari.VergiNo);
+
+            await backupDbService.CloseConnectionAsync();
+        }
+        finally
+        {
+            if (File.Exists(backupFile))
+            {
+                try { File.Delete(backupFile); } catch { }
+            }
+            ErmayMuhasebe.Data.Constants.DatabasePath = _testDbPath;
+        }
     }
 
 

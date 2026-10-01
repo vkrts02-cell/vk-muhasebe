@@ -52,14 +52,14 @@ public class StokKartTests
         // Arrange
         var stok = new StokKart
         {
-            MinSeviye = 10.5
+            MinSeviye = 10.5m
         };
         
         // Act
-        double kritikSeviye = stok.KritikSeviye;
+        decimal kritikSeviye = stok.KritikSeviye;
         
         // Assert
-        Assert.Equal(10.5, kritikSeviye);
+        Assert.Equal(10.5m, kritikSeviye);
         Assert.Equal(stok.MinSeviye, kritikSeviye); // KritikSeviye ve MinSeviye aynı olmalı
     }
 

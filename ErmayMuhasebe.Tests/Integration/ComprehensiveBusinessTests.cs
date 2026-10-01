@@ -1,4 +1,4 @@
-﻿using ErmayMuhasebe.Models;
+using ErmayMuhasebe.Models;
 using ErmayMuhasebe.Services;
 using System;
 using System.Collections.Generic;
@@ -313,9 +313,9 @@ namespace ErmayMuhasebe.Tests.Integration
             // Bu noktaya ulasildiysa, 200 iterasyon x ortalama 3 dal = ~600 yolun tamami taranmis ve matematiksel olarak onaylanmistir.
         }
 
-        private async Task ApplyPurchase(StokKart s, CariKart c, double miktar, decimal fiyat)
+        private async Task ApplyPurchase(StokKart s, CariKart c, decimal miktar, decimal fiyat)
         {
-            var f = new Fatura { CariId = c.Id, Tur = "Alis", GenelToplam = (decimal)miktar * fiyat, Tarih = DateTime.Now };
+            var f = new Fatura { CariId = c.Id, Tur = "Alis", GenelToplam = miktar * fiyat, Tarih = DateTime.Now };
             var details = new List<FaturaDetay> { 
                 new FaturaDetay { StokId = s.Id, Miktar = miktar, BirimFiyat = fiyat, KDVOrani = 1 } 
             };

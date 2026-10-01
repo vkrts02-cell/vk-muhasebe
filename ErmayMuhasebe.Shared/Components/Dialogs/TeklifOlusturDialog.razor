@@ -125,8 +125,8 @@
                      StokId = stok.Id,
                      StokAdi = fDetay.UrunAdi,
                      Aciklama = fDetay.Aciklama,
-                     TopMiktari = double.TryParse(fDetay.TopMiktari, out var tm) ? tm : 0,
-                     Miktar = (double)fDetay.Miktar,
+                     TopMiktari = decimal.TryParse(fDetay.TopMiktari, out var tm) ? tm : 0,
+                     Miktar = (decimal)fDetay.Miktar,
                      BirimFiyat = fDetay.BirimFiyat
                  });
             }

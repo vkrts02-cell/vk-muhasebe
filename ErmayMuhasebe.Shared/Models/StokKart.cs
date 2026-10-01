@@ -51,11 +51,11 @@ namespace ErmayMuhasebe.Models
         private int _kdv = 20;
         public int KDV { get => _kdv; set { _kdv = value; OnPropertyChanged(); OnPropertyChanged(nameof(KdvOrani)); } }
 
-        private double _miktar;
-        public double Miktar { get => _miktar; set { _miktar = value; OnPropertyChanged(); } }
+        private decimal _miktar;
+        public decimal Miktar { get => _miktar; set { _miktar = value; OnPropertyChanged(); } }
 
-        private double _minSeviye;
-        public double MinSeviye { get => _minSeviye; set { _minSeviye = value; OnPropertyChanged(); OnPropertyChanged(nameof(KritikSeviye)); } }
+        private decimal _minSeviye;
+        public decimal MinSeviye { get => _minSeviye; set { _minSeviye = value; OnPropertyChanged(); OnPropertyChanged(nameof(KritikSeviye)); } }
 
         private string? _aciklama;
         public string? Aciklama { get => _aciklama; set { _aciklama = value; OnPropertyChanged(); } }
@@ -66,7 +66,7 @@ namespace ErmayMuhasebe.Models
         // Compatibility Aliases (Not stored in DB)
         [Ignore] public string? Grup { get => Kategori; set => Kategori = value; }
         [Ignore] public int KdvOrani { get => KDV; set => KDV = value; }
-        [Ignore] public double KritikSeviye { get => MinSeviye; set => MinSeviye = value; }
+        [Ignore] public decimal KritikSeviye { get => MinSeviye; set => MinSeviye = value; }
         
         public bool IsDeleted { get; set; }
         [Ignore] public string? StokGrubu { get => Kategori; set => Kategori = value; }

@@ -28,9 +28,9 @@ namespace ErmayMuhasebe.Models
         public string? StokKodu { get; set; }
         public string? StokAdi { get; set; }
         
-        public double MevcutMiktar { get; set; } // Sistemdeki
-        public double SayilanMiktar { get; set; } // Gerçek
-        public double Fark { get => SayilanMiktar - MevcutMiktar; }
+        public decimal MevcutMiktar { get; set; } // Sistemdeki
+        public decimal SayilanMiktar { get; set; } // Gerçek
+        public decimal Fark { get => SayilanMiktar - MevcutMiktar; }
         
         public string? Aciklama { get; set; }
     }

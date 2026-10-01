@@ -716,7 +716,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
                 double devirHizi = 0;
                 if (s.Miktar > 0)
                 {
-                    devirHizi = (double)satisMiktari / s.Miktar;
+                    devirHizi = (double)satisMiktari / (double)s.Miktar;
                 }
                 
                 data.Add(new[] { 

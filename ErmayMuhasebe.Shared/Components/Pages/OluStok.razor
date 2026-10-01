@@ -47,7 +47,7 @@
             <MudTd>@context.StokAdi</MudTd>
             <MudTd>@context.Kategori</MudTd>
             <MudTd>@context.Miktar</MudTd>
-            <MudTd>@((context.Miktar * (double)context.AlisFiyati).ToString("C2"))</MudTd>
+            <MudTd>@((context.Miktar * context.AlisFiyati).ToString("C2"))</MudTd>
         </RowTemplate>
     </MudTable>
     
@@ -81,7 +81,7 @@
                 s.StokAdi ?? "",
                 s.Kategori ?? "",
                 s.Miktar.ToString(),
-                (s.Miktar * (double)s.AlisFiyati).ToString("C2")
+                (s.Miktar * s.AlisFiyati).ToString("C2")
             }).ToList();
             
             rows.Add(new[] { "", "TOPLAM DEĞER", "", "", toplamDeger.ToString("C2") });

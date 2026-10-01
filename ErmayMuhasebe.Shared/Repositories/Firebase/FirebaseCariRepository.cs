@@ -326,8 +326,8 @@ public class FirebaseCariRepository : BaseFirebaseRepository<CariKart>, ICariRep
                     var stok = allStoklar.FirstOrDefault(s => s.Id == d.StokId);
                     if (stok != null)
                     {
-                        if (isSatis) stok.Miktar += (double)d.Miktar;
-                        else stok.Miktar -= (double)d.Miktar;
+                        if (isSatis) stok.Miktar += d.Miktar;
+                        else stok.Miktar -= d.Miktar;
                         await _firebaseService.SaveAsync("Stoklar", stok, stok.Id);
                     }
                 }

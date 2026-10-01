@@ -301,7 +301,7 @@ public partial class SiparisListViewModel : ViewModelBase
                 StokId = d.StokId,
                 StokKodu = stok?.StokKodu ?? "",
                 StokAdi = d.StokAdi,
-                Miktar = (double)d.Miktar,
+                Miktar = d.Miktar,
                 Birim = d.Birim ?? stok?.Birim,
                 BirimFiyat = d.BirimFiyat,
                 ToplamTutar = d.Tutar,

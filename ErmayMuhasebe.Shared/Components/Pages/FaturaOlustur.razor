@@ -52,7 +52,7 @@
             <RowTemplate>
                 <MudTd>@context.StokAdi</MudTd>
                 <MudTd>
-                    <MudNumericField T="double" @bind-Value="context.Miktar" Min="1" Margin="Margin.Dense" Variant="Variant.Text" TextChanged="RecalculateTotals" />
+                    <MudNumericField T="decimal" @bind-Value="context.Miktar" Min="1" Margin="Margin.Dense" Variant="Variant.Text" TextChanged="RecalculateTotals" />
                 </MudTd>
                  <MudTd>@context.Birim</MudTd>
                 <MudTd>

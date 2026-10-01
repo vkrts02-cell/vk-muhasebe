@@ -262,7 +262,7 @@
     private decimal editSatisFiyati = 0;
     private decimal editKDV = 20;
     private decimal editAcilisBakiye = 0;
-    private double islemMiktar = 0;
+    private decimal islemMiktar = 0;
     private DateTime? islemTarih = DateTime.Now;
 
     protected override async Task OnInitializedAsync()
@@ -352,7 +352,7 @@
 
          var hareket = new StokHareket {
              StokId = selectedStok.Id, StokKodu = selectedStok.StokKodu, StokAdi = selectedStok.StokAdi,
-             Tarih = DateTime.Now, IslemTuru = islemTuru, Miktar = (decimal)islemMiktar,
+             Tarih = DateTime.Now, IslemTuru = islemTuru, Miktar = islemMiktar,
              Aciklama = "Hızlı Panel İşlemi"
          };
          
@@ -422,8 +422,8 @@
                 decimal.TryParse(GetVal("AlisFiyati", "Alis", "AlisFiyat") ?? "0", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var alis);
                 decimal.TryParse(GetVal("SatisFiyati", "Satis", "SatisFiyat") ?? "0", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var satis);
                 int.TryParse(GetVal("KDV", "KdvOrani") ?? "20", out var kdv);
-                double.TryParse(GetVal("Miktar", "AcilisBakiyesi", "AcilisBakiye", "Adet") ?? "0", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var miktar);
-                double.TryParse(GetVal("MinSeviye", "KritikSeviye") ?? "0", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var minSeviye);
+                decimal.TryParse(GetVal("Miktar", "AcilisBakiyesi", "AcilisBakiye", "Adet") ?? "0", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var miktar);
+                decimal.TryParse(GetVal("MinSeviye", "KritikSeviye") ?? "0", System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var minSeviye);
 
                 var existing = (await DbService.GetStoklarAsync()).FirstOrDefault(x => string.Equals(x.StokKodu, kod, StringComparison.OrdinalIgnoreCase));
                 var s = existing ?? new StokKart { StokKodu = kod, KayitTarihi = DateTime.Now };

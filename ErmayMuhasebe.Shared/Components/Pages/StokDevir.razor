@@ -67,17 +67,17 @@
 
             foreach(var s in stoklar)
             {
-                double toplamSatis = 0;
+                decimal toplamSatis = 0;
                 // Bu stok için tüm fatura detaylarını tara (biraz maliyetli ama doğru sonuç)
                 // Daha iyi performans için DatabaseService'e özel metod eklenebilir
                 var detaylar = await DbService.GetStokHareketleriByStokIdAsync(s.Id);
-                toplamSatis = (double)detaylar.Where(h => h.IslemTuru == "ÇIKIŞ").Sum(h => h.Miktar);
+                toplamSatis = detaylar.Where(h => h.IslemTuru == "ÇIKIŞ").Sum(h => h.Miktar);
 
                 analizListesi.Add(new DevirAnaliz {
                     StokAdi = s.StokAdi ?? "",
                     SatisMiktari = toplamSatis,
-                    MevcutStok = (double)s.Miktar,
-                    DevirHizi = s.Miktar > 0 ? toplamSatis / (double)s.Miktar : (toplamSatis > 0 ? 10 : 0)
+                    MevcutStok = s.Miktar,
+                    DevirHizi = s.Miktar > 0 ? (double)(toplamSatis / s.Miktar) : (toplamSatis > 0 ? 10 : 0)
                 });
             }
             analizListesi = analizListesi.OrderByDescending(x => x.DevirHizi).ToList();
@@ -110,8 +110,8 @@
 
         class DevirAnaliz {
             public string StokAdi { get; set; } = "";
-            public double SatisMiktari { get; set; }
-            public double MevcutStok { get; set; }
+            public decimal SatisMiktari { get; set; }
+            public decimal MevcutStok { get; set; }
             public double DevirHizi { get; set; }
         }
     }

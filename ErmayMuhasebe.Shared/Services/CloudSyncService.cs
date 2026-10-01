@@ -697,10 +697,10 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("satis_fiyati", out var sf)) s.SatisFiyati = ParseDecimal(sf);
             if (el.TryGetProperty("ortalama_satis_fiyati", out var osf)) s.OrtalamaSatisFiyati = ParseDecimal(osf);
             if (el.TryGetProperty("kdv_orani", out var ko)) s.KDV = ParseInt(ko, 20);
-            if (el.TryGetProperty("mevcut_miktar", out var mm)) s.Miktar = ParseDouble(mm);
-            else if (el.TryGetProperty("miktar", out var mq)) s.Miktar = ParseDouble(mq);
-            if (el.TryGetProperty("kritik_seviye", out var ks)) s.MinSeviye = ParseDouble(ks);
-            else if (el.TryGetProperty("kritik_stok", out var kst)) s.MinSeviye = ParseDouble(kst);
+            if (el.TryGetProperty("mevcut_miktar", out var mm)) s.Miktar = ParseDecimal(mm);
+            else if (el.TryGetProperty("miktar", out var mq)) s.Miktar = ParseDecimal(mq);
+            if (el.TryGetProperty("kritik_seviye", out var ks)) s.MinSeviye = ParseDecimal(ks);
+            else if (el.TryGetProperty("kritik_stok", out var kst)) s.MinSeviye = ParseDecimal(kst);
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) s.Aciklama = ac.GetString();
             if (el.TryGetProperty("kayit_tarihi", out var kt) && kt.ValueKind == JsonValueKind.String && DateTime.TryParse(kt.GetString(), out var dtKt)) s.KayitTarihi = dtKt;
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) s.IsDeleted = true;
@@ -798,7 +798,7 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("stok_id", out var si)) d.StokId = ParseInt(si);
             if (el.TryGetProperty("stok_kodu", out var sk) && sk.ValueKind == JsonValueKind.String) d.StokKodu = sk.GetString();
             if (el.TryGetProperty("stok_adi", out var sa) && sa.ValueKind == JsonValueKind.String) d.StokAdi = sa.GetString();
-            if (el.TryGetProperty("miktar", out var mq)) d.Miktar = ParseDouble(mq);
+            if (el.TryGetProperty("miktar", out var mq)) d.Miktar = ParseDecimal(mq);
             if (el.TryGetProperty("birim", out var br) && br.ValueKind == JsonValueKind.String) d.Birim = br.GetString();
             if (el.TryGetProperty("birim_fiyat", out var bf)) d.BirimFiyat = ParseDecimal(bf);
             if (el.TryGetProperty("kdv_orani", out var ko)) d.KDVOrani = ParseInt(ko);
@@ -1351,7 +1351,7 @@ namespace ErmayMuhasebe.Services
                 if (el.TryGetProperty("siparis_id", out var sid)) sd.SiparisId = ParseInt(sid);
                 if (el.TryGetProperty("stok_id", out var stid)) sd.StokId = ParseInt(stid);
                 if (el.TryGetProperty("stok_adi", out var sa) && sa.ValueKind == JsonValueKind.String) sd.StokAdi = sa.GetString();
-                if (el.TryGetProperty("miktar", out var mq)) sd.Miktar = ParseDouble(mq);
+                if (el.TryGetProperty("miktar", out var mq)) sd.Miktar = ParseDecimal(mq);
                 if (el.TryGetProperty("birim_fiyat", out var bf)) sd.BirimFiyat = ParseDecimal(bf);
                 if (el.TryGetProperty("kdv_orani", out var ko)) sd.KdvOrani = ParseDouble(ko);
                 if (el.TryGetProperty("toplam_tutar", out var tt)) sd.Tutar = ParseDecimal(tt);
@@ -1420,7 +1420,7 @@ namespace ErmayMuhasebe.Services
                 if (el.TryGetProperty("teklif_id", out var tid)) td.TeklifId = ParseInt(tid);
                 if (el.TryGetProperty("stok_id", out var stid)) td.StokId = ParseInt(stid);
                 if (el.TryGetProperty("stok_adi", out var sa) && sa.ValueKind == JsonValueKind.String) td.StokAdi = sa.GetString();
-                if (el.TryGetProperty("miktar", out var mq)) td.Miktar = ParseDouble(mq);
+                if (el.TryGetProperty("miktar", out var mq)) td.Miktar = ParseDecimal(mq);
                 if (el.TryGetProperty("birim_fiyat", out var bf)) td.BirimFiyat = ParseDecimal(bf);
                 if (el.TryGetProperty("kdv_orani", out var ko)) td.KdvOrani = ParseDouble(ko);
                 if (el.TryGetProperty("toplam_tutar", out var tt)) td.Tutar = ParseDecimal(tt);

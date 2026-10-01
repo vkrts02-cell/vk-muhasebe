@@ -29,8 +29,8 @@ namespace ErmayMuhasebe.Models
         public int TeklifId { get; set; }
         public int StokId { get; set; }
         public string? StokAdi { get; set; }
-        public double Miktar { get; set; }
-        public double TopMiktari { get; set; } 
+        public decimal Miktar { get; set; }
+        public decimal TopMiktari { get; set; } 
         public string? Birim { get; set; }
         public decimal BirimFiyat { get; set; } 
         public decimal Fiyat { get => BirimFiyat; set => BirimFiyat = value; } 
@@ -68,8 +68,8 @@ namespace ErmayMuhasebe.Models
         public int SiparisId { get; set; }
         public int StokId { get; set; }
         public string? StokAdi { get; set; }
-        public double Miktar { get; set; }
-        public double TopMiktari { get; set; } 
+        public decimal Miktar { get; set; }
+        public decimal TopMiktari { get; set; } 
         public string? Birim { get; set; } 
         public decimal BirimFiyat { get; set; } 
         public decimal Fiyat { get => BirimFiyat; set => BirimFiyat = value; }

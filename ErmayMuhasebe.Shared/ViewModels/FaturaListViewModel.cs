@@ -81,7 +81,7 @@ public abstract partial class FaturaListViewModel : ViewModelBase
     // Line Item Entry
     [ObservableProperty] private string _lineStokKodu = "";
     [ObservableProperty] private string _lineStokAdi = "";
-    [ObservableProperty] private double _lineMiktar = 1;
+    [ObservableProperty] private decimal _lineMiktar = 1;
     [ObservableProperty] private decimal _lineFiyat;
     [ObservableProperty] private StokKart? _selectedStockForLine;
     [ObservableProperty] private CariKart? _selectedCariForInvoice;
@@ -367,7 +367,7 @@ public abstract partial class FaturaListViewModel : ViewModelBase
             StokAdi = LineStokAdi,
             Miktar = LineMiktar,
             BirimFiyat = LineFiyat,
-            ToplamTutar = (decimal)LineMiktar * LineFiyat,
+            ToplamTutar = LineMiktar * LineFiyat,
             KDVOrani = SelectedStockForLine?.KDV ?? 20
         };
         line.KDVTutari = line.ToplamTutar * line.KDVOrani / 100m;

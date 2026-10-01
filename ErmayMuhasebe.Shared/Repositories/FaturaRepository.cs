@@ -78,7 +78,7 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
                 .ToListAsync();
             foreach (var m in movements)
             {
-                double miktar = m.Miktar > 0 ? (double)m.Miktar : (double)(m.Giren > 0 ? m.Giren : (m.Cikan > 0 ? m.Cikan : 0));
+                decimal miktar = m.Miktar > 0 ? m.Miktar : (m.Giren > 0 ? m.Giren : (m.Cikan > 0 ? m.Cikan : 0));
                 detaylar.Add(new FaturaDetay 
                 { 
                     FaturaId = entity.Id, 
@@ -206,8 +206,8 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
             var currentStok = await db.Table<StokKart>().FirstOrDefaultAsync(s => s.Id == sId);
             if (currentStok != null)
             {
-                var sumGiren = await db.ExecuteScalarAsync<double>("SELECT IFNULL(SUM(CASE WHEN Giren > 0 THEN Giren WHEN Miktar > 0 AND (IslemTuru LIKE '%Giriş%' OR IslemTuru LIKE '%Alış%' OR IslemTuru LIKE '%Açılış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
-                var sumCikan = await db.ExecuteScalarAsync<double>("SELECT IFNULL(SUM(CASE WHEN Cikan > 0 THEN Cikan WHEN Miktar > 0 AND (IslemTuru LIKE '%Çıkış%' OR IslemTuru LIKE '%Satış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
+                var sumGiren = await db.ExecuteScalarAsync<decimal>("SELECT IFNULL(SUM(CASE WHEN Giren > 0 THEN Giren WHEN Miktar > 0 AND (IslemTuru LIKE '%Giriş%' OR IslemTuru LIKE '%Alış%' OR IslemTuru LIKE '%Açılış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
+                var sumCikan = await db.ExecuteScalarAsync<decimal>("SELECT IFNULL(SUM(CASE WHEN Cikan > 0 THEN Cikan WHEN Miktar > 0 AND (IslemTuru LIKE '%Çıkış%' OR IslemTuru LIKE '%Satış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
                 currentStok.Miktar = sumGiren - sumCikan;
                 await db.UpdateAsync(currentStok);
                 await _syncService.SyncStokAsync(currentStok);
@@ -482,7 +482,7 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
                         var oldMovements = tran.Query<StokHareket>("SELECT * FROM StokHareket WHERE FaturaId = ? OR EvrakNo = ?", fatura.Id, fatura.FaturaNo ?? "");
                         foreach (var m in oldMovements)
                         {
-                            double miktar = m.Miktar > 0 ? (double)m.Miktar : (double)(m.Giren > 0 ? m.Giren : (m.Cikan > 0 ? m.Cikan : 0));
+                            decimal miktar = m.Miktar > 0 ? m.Miktar : (m.Giren > 0 ? m.Giren : (m.Cikan > 0 ? m.Cikan : 0));
                             oldDetails.Add(new FaturaDetay { FaturaId = fatura.Id, StokId = m.StokId, Miktar = miktar });
                         }
                     }

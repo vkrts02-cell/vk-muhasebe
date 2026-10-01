@@ -49,7 +49,7 @@ namespace ErmayMuhasebe.Tests.Integration
             await _dbService.SaveStokKartAsync(item);
 
             // --- 2. FATURA VE HAREKETLER ---
-            var inv = new Fatura { CariId = customer.Id, CariUnvan = customer.Unvan, Tur = "Satış", FaturaNo = "INV-001", Tarih = DateTime.Now.AddDays(-5), GenelToplam = 240 };
+            var inv = new Fatura { CariId = customer.Id, CariUnvan = customer.Unvan, Tur = "Satış", FaturaNo = "INV-001", Tarih = DateTime.Now, GenelToplam = 240 };
             var details = new List<FaturaDetay> { new FaturaDetay { StokId = item.Id, Miktar = 1, BirimFiyat = 200, KDVOrani = 20, ToplamTutar = 240 } };
             await _dbService.SaveFaturaWithTransactionAsync(inv, details, customer);
 

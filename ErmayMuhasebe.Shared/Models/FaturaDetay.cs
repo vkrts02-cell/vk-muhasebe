@@ -16,7 +16,7 @@ namespace ErmayMuhasebe.Models
         public string? StokKodu { get; set; }
         public string? StokAdi { get; set; }
         
-        public double Miktar { get; set; }
+        public decimal Miktar { get; set; }
         public string? Birim { get; set; }
         
         public decimal BirimFiyat { get; set; }

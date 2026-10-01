@@ -232,7 +232,7 @@ namespace ErmayMuhasebe.Services
         private class StandardPdfItem
         {
             public string Description { get; set; } = "";
-            public double Quantity { get; set; }
+            public decimal Quantity { get; set; }
             public string Unit { get; set; } = "kg";
             public decimal UnitPrice { get; set; }
             public double TaxRate { get; set; }

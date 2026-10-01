@@ -211,9 +211,9 @@
             });
 
             // S4: ENVANTER DEĞERLEME
-            var totalInvValue = allStoklar.Sum(s => s.Miktar * (double)s.AlisFiyati);
-            var s4Rows = allStoklar.OrderByDescending(s => s.Miktar * (double)s.AlisFiyati).Take(15)
-                .Select(s => new[] { s.StokAdi ?? "", s.Miktar.ToString("N1"), (s.Miktar * (double)s.AlisFiyati).ToString("N2") + " ₺" }).ToList();
+            var totalInvValue = allStoklar.Sum(s => s.Miktar * s.AlisFiyati);
+            var s4Rows = allStoklar.OrderByDescending(s => s.Miktar * s.AlisFiyati).Take(15)
+                .Select(s => new[] { s.StokAdi ?? "", s.Miktar.ToString("N1"), (s.Miktar * s.AlisFiyati).ToString("N2") + " ₺" }).ToList();
             sections.Add(new ReportSection { 
                 Title = $"4. ENVANTER DEĞERLEME (Toplam Değer: {totalInvValue:N2} ₺)", 
                 Headers = new[] { "Ürün", "Miktar", "Toplam Değer" }, 

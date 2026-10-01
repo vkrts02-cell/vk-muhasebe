@@ -10,8 +10,8 @@ public class StokExcelDto
     public decimal AlisFiyati { get; set; }
     public decimal SatisFiyati { get; set; }
     public int KDV { get; set; } = 20;
-    public double Miktar { get; set; }
-    public double MinSeviye { get; set; }
+    public decimal Miktar { get; set; }
+    public decimal MinSeviye { get; set; }
     public string? Aciklama { get; set; }
 }
 

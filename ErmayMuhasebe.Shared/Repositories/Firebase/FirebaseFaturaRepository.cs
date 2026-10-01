@@ -129,8 +129,8 @@ public class FirebaseFaturaRepository : BaseFirebaseRepository<Fatura>, IFaturaR
                             var stok = allStoklar.FirstOrDefault(s => s.Id == od.StokId);
                             if (stok != null)
                             {
-                                if (oldIsSatis) stok.Miktar += (double)od.Miktar;
-                                else stok.Miktar -= (double)od.Miktar;
+                                if (oldIsSatis) stok.Miktar += od.Miktar;
+                                else stok.Miktar -= od.Miktar;
                                 await _firebaseService.SaveAsync("Stoklar", stok, stok.Id);
                             }
                         }
@@ -159,8 +159,8 @@ public class FirebaseFaturaRepository : BaseFirebaseRepository<Fatura>, IFaturaR
                     var stok = allStoklar.FirstOrDefault(s => s.Id == d.StokId);
                     if (stok != null)
                     {
-                        if (isSatis) stok.Miktar -= (double)d.Miktar;
-                        else stok.Miktar += (double)d.Miktar;
+                        if (isSatis) stok.Miktar -= d.Miktar;
+                        else stok.Miktar += d.Miktar;
 
                         if (updateStokPrices)
                         {
@@ -250,8 +250,8 @@ public class FirebaseFaturaRepository : BaseFirebaseRepository<Fatura>, IFaturaR
                 var stok = allStoklar.FirstOrDefault(s => s.Id == d.StokId);
                 if (stok != null)
                 {
-                    if (isSatis) stok.Miktar += (double)d.Miktar;
-                    else stok.Miktar -= (double)d.Miktar;
+                    if (isSatis) stok.Miktar += d.Miktar;
+                    else stok.Miktar -= d.Miktar;
                     await _firebaseService.SaveAsync("Stoklar", stok, stok.Id);
                 }
             }
@@ -295,7 +295,7 @@ public class FirebaseFaturaRepository : BaseFirebaseRepository<Fatura>, IFaturaR
                     {
                         decimal sumGiren = moves.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
                         decimal sumCikan = moves.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
-                        stok.Miktar = (double)(sumGiren - sumCikan);
+                        stok.Miktar = sumGiren - sumCikan;
                         
                         decimal totPurVal = 0, totPurQty = 0;
                         decimal totSaleVal = 0, totSaleQty = 0;
