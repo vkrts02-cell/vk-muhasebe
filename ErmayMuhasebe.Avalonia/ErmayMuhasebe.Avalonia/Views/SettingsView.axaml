@@ -850,23 +850,50 @@
                                     <TextBlock Text="Bulut Senkronizasyon ve API Ayarları" FontSize="20" FontWeight="Bold"/>
                                 </StackPanel>
 
-                                <!-- 1. SUPABASE BULUT VERİTABANI -->
+                                <!-- 1. SUPABASE BULUT VERİTABANI (KORUMALI & SABİT) -->
                                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="14" Padding="20">
                                     <StackPanel Spacing="16">
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <ic:SymbolIcon Symbol="Database" FontSize="18" Foreground="#60A5FA"/>
-                                            <TextBlock Text="Supabase Bulut Veritabanı (PostgreSQL)" FontSize="15" FontWeight="Bold" Foreground="#60A5FA"/>
-                                        </StackPanel>
-                                        
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="Bulut Veritabanı URL" FontSize="13" FontWeight="SemiBold" Opacity="0.8"/>
-                                            <TextBox Text="{Binding CloudUrl}" Watermark="https://your-project.supabase.co" Height="46" CornerRadius="10"/>
-                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                <Border Background="rgba(16, 185, 129, 0.15)" Width="36" Height="36" CornerRadius="10">
+                                                    <ic:SymbolIcon Symbol="ShieldCheckmark" FontSize="20" Foreground="#10B981" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Supabase Bulut Veritabanı (PostgreSQL)" FontSize="15" FontWeight="Bold" Foreground="#60A5FA"/>
+                                                    <TextBlock Text="Kurumsal Güvenlik Protokolü &amp; Entegre Bulut Altyapısı" FontSize="11" Foreground="#94a3b8"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            
+                                            <Border Grid.Column="1" Background="rgba(34, 197, 94, 0.15)" BorderBrush="#22C55E" BorderThickness="1" CornerRadius="20" Padding="12,6" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <Border Width="8" Height="8" CornerRadius="4" Background="#22C55E" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="SİSTEM ÇEKİRDEĞİNE KİLİTLİ" FontSize="11" FontWeight="Bold" Foreground="#4ADE80" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
 
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="Supabase Anon / API Anahtarı (Anon / Service Role Key)" FontSize="13" FontWeight="SemiBold" Opacity="0.8"/>
-                                            <TextBox Text="{Binding CloudSecret}" PasswordChar="*" Watermark="Supabase API Key" Height="46" CornerRadius="10"/>
-                                        </StackPanel>
+                                        <Border Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="14">
+                                            <TextBlock Text="Supabase bulut veritabanı uç noktası ve yetkilendirme anahtarları doğrudan uygulama çekirdeğine sabitlenmiştir. Veri güvenliği ve bütünlüğü ilkeleri gereğince dışarıdan görüntülemeye ve müdahaleye karşı kilitlenmiştir." 
+                                                       FontSize="12" Foreground="#94a3b8" TextWrapping="Wrap" LineHeight="18"/>
+                                        </Border>
+
+                                        <Grid ColumnDefinitions="*,*" HorizontalAlignment="Stretch">
+                                            <!-- URL Masked Display -->
+                                            <Border Grid.Column="0" Margin="0,0,6,0" Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="Bulut Bağlantı Uç Noktası" FontSize="11" FontWeight="SemiBold" Foreground="#64748b"/>
+                                                    <TextBlock Text="https://fqgb***.supabase.co (Korumalı Sabit Hat)" FontSize="13" FontWeight="Bold"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Key Masked Display -->
+                                            <Border Grid.Column="1" Margin="6,0,0,0" Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="Yetkilendirme &amp; Güvenlik Anahtarı" FontSize="11" FontWeight="SemiBold" Foreground="#64748b"/>
+                                                    <TextBlock Text="●●●●●●●●●●●●●●●●●●●●●●●● (Korumalı Anon / JWT)" FontSize="13" FontWeight="Bold" Foreground="#10B981"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 

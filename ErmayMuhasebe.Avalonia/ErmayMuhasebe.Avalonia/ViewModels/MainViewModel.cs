@@ -492,6 +492,13 @@ public partial class MainViewModel : ViewModelBase
     {
         while(true)
         {
+            if (ErmayMuhasebe.Services.DatabaseService.IsResetting)
+            {
+                SyncStatusText = "Fabrika Ayarlarına Dönülüyor...";
+                await System.Threading.Tasks.Task.Delay(1000);
+                continue;
+            }
+
             if (!IsAuthenticated || _dbService == null || _dbService.IsClosed || !_dbService.IsCloudConnected)
             {
                 SyncStatusText = !IsAuthenticated ? "" : "Bulut Devre Dışı";

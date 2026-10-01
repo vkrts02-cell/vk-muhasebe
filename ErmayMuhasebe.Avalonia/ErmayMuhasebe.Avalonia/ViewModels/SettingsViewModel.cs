@@ -275,7 +275,7 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
         try
         {
             var (url, secret) = _uow.GetCloudConfig();
-            if (!string.IsNullOrWhiteSpace(url))
+            if (!string.IsNullOrWhiteSpace(url) && !url.Contains("firebaseio.com"))
             {
                 CloudUrl = url;
                 CloudSecret = secret;
@@ -327,6 +327,13 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
                         catch { }
                     }
                 }
+            }
+
+            if (string.IsNullOrWhiteSpace(CloudUrl) || CloudUrl.Contains("firebaseio.com") || string.IsNullOrWhiteSpace(CloudSecret))
+            {
+                CloudUrl = CloudConfig.DefaultSupabaseUrl;
+                CloudSecret = CloudConfig.DefaultSupabaseKey;
+                _uow.SetCloudConfig(CloudUrl, CloudSecret);
             }
         }
         catch { }
@@ -2070,73 +2077,183 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
         try
         {
-             IsBusy = true;
+            IsBusy = true;
+            DatabaseService.IsResetting = true;
+            BackupStatus = "Fabrika ayarlarına dönülüyor...";
 
-             int baseYear = DateTime.Now.Year;
-             _yearContext.CurrentYear = baseYear;
-             ActiveYear = baseYear;
+            var dbService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
+            var firebaseService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<IFirebaseService>();
 
-             await _dataProvider.InitializeAsync($"ermay_{baseYear}.db");
-             await _uow.ClearAllTablesAsync();
+            // 0. Mevcut Bulut (Supabase) yapılandırmasını güvene al - Fabrika ayarlarında kullanıcı ayarları korunmalıdır
+            var (savedCloudUrl, savedCloudSecret) = _uow.GetCloudConfig();
+            if (string.IsNullOrWhiteSpace(savedCloudUrl) && !string.IsNullOrWhiteSpace(CloudUrl))
+            {
+                savedCloudUrl = CloudUrl;
+                savedCloudSecret = CloudSecret;
+            }
+            if (string.IsNullOrWhiteSpace(savedCloudUrl) && dbService?.SyncService?.Config != null && !string.IsNullOrWhiteSpace(dbService.SyncService.Config.BaseUrl))
+            {
+                savedCloudUrl = dbService.SyncService.Config.BaseUrl;
+                savedCloudSecret = dbService.SyncService.AuthSecret;
+            }
 
-             // Yeniden profil ve başlangıç verilerini yükle
-             await LoadFirmaProfiliAsync();
-             if (OperatingSystem.IsWindows())
-             {
-                 await LoadInitialDataAsync();
-             }
+            // 1. Arka plan dinleyicilerini ve timer'ları durdur (Yarış durumunu engelle)
+            try { _securitySyncService?.StopListeners(); } catch { }
+            if (dbService != null)
+            {
+                try { dbService.StopRealtimeSync(); } catch { }
+            }
 
-             // SQLCipher ve SQLite handle'larını serbest bırakması için GC
-             GC.Collect();
-             GC.WaitForPendingFinalizers();
+            // 2. Buluttaki tüm verileri kalıcı olarak temizle (Supabase ve Firebase)
+            if (dbService != null)
+            {
+                if (!dbService.IsCloudConnected && !string.IsNullOrWhiteSpace(savedCloudUrl) && !string.IsNullOrWhiteSpace(savedCloudSecret))
+                {
+                    try { dbService.SetCloudConfig(savedCloudUrl, savedCloudSecret); } catch { }
+                }
 
-             // Oluşturulmuş tüm ek mali yılları (örn. 2027, 2028 vb.) diskten kalıcı olarak sil
-             string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-             if (System.IO.Directory.Exists(appDir))
-             {
-                 var yearFiles = System.IO.Directory.GetFiles(appDir, "ermay_*.db*");
-                 foreach (var file in yearFiles)
-                 {
-                     var fileName = System.IO.Path.GetFileName(file);
-                     // Temel yıl dışındaki tüm oluşturulmuş ekstra yıl veritabanlarını (.db, .db-wal, .db-shm) sil
-                     if (!fileName.StartsWith($"ermay_{baseYear}."))
-                     {
-                         try
-                         {
-                             System.IO.File.Delete(file);
-                         }
-                         catch (Exception fEx)
-                         {
-                             System.Diagnostics.Debug.WriteLine($"[FactoryReset] Yıl dosyası silinemedi ({file}): {fEx.Message}");
-                         }
-                     }
-                 }
+                if (dbService.IsCloudConnected)
+                {
+                    BackupStatus = "Bulut verileri (Supabase) tamamen temizleniyor...";
+                    try { await dbService.SyncService.ClearCloudTablesAsync(); } catch { }
+                }
+            }
 
-                 // Bildirim geçmişi dosyalarını sil
-                 try
-                 {
-                     var notifFiles = System.IO.Directory.GetFiles(appDir, "notifications_*.json");
-                     foreach (var nf in notifFiles)
-                     {
-                         try { System.IO.File.Delete(nf); } catch { }
-                     }
-                 }
-                 catch { }
-             }
+            if (firebaseService != null && firebaseService.IsConfigured)
+            {
+                try
+                {
+                    var cloudYears = await firebaseService.GetAvailableYearsAsync();
+                    foreach (var yr in cloudYears)
+                    {
+                        try { await firebaseService.DeleteYearAsync(yr); } catch { }
+                    }
+                }
+                catch { }
+            }
 
-             // Kullanılabilir yıllar listesini yenile
-             LoadAvailableYears();
-             SelectedYearToSwitch = baseYear;
-             RolloverSourceYear = baseYear;
-             RolloverTargetYear = baseYear + 1;
+            // 3. Veritabanı bağlantılarını ve handle'ları kapat ki dosya kilitleri serbest kalsın
+            if (dbService != null)
+            {
+                await dbService.CloseConnectionAsync();
+            }
+            try { SQLite.SQLiteAsyncConnection.ResetPool(); } catch { }
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
 
-             LogoBytes = null;
-             _dataProvider.InvalidateAllCache();
-             WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+            int baseYear = DateTime.Now.Year;
 
-             SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü ve tüm veriler kalıcı olarak sıfırlandı. Lütfen programı yeniden başlatın.";
-             ErrorMessage = "";
-             ResetPassword = "";
+            // 4. Oluşturulmuş tüm ek mali yılları (.db, .db-wal, .db-shm) diskten kalıcı olarak sil
+            string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            if (System.IO.Directory.Exists(appDir))
+            {
+                var yearFiles = System.IO.Directory.GetFiles(appDir, "ermay_*.db*");
+                foreach (var file in yearFiles)
+                {
+                    var fileName = System.IO.Path.GetFileName(file);
+                    // Temel yıl dışındaki tüm oluşturulmuş ekstra yıl veritabanlarını (.db, .db-wal, .db-shm) sil
+                    if (!fileName.StartsWith($"ermay_{baseYear}."))
+                    {
+                        try
+                        {
+                            System.IO.File.Delete(file);
+                        }
+                        catch (Exception fEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[FactoryReset] Yıl dosyası silinemedi ({file}): {fEx.Message}");
+                        }
+                    }
+                }
+
+                // Bildirim geçmişi dosyalarını sil
+                try
+                {
+                    var notifFiles = System.IO.Directory.GetFiles(appDir, "notifications_*.json");
+                    foreach (var nf in notifFiles)
+                    {
+                        try { System.IO.File.Delete(nf); } catch { }
+                    }
+                }
+                catch { }
+            }
+
+            // 5. Temel yıl veritabanını başlat ve tüm tablolarını kalıcı olarak sıfırla
+            _yearContext.CurrentYear = baseYear;
+            ActiveYear = baseYear;
+
+            await _dataProvider.InitializeAsync($"ermay_{baseYear}.db");
+            await _uow.ClearAllTablesAsync();
+
+            // 6. Bulut (Supabase) yapılandırmasını kesin olarak koru ve yeniden uygula
+            if (!string.IsNullOrWhiteSpace(savedCloudUrl) && !string.IsNullOrWhiteSpace(savedCloudSecret))
+            {
+                _uow.SetCloudConfig(savedCloudUrl, savedCloudSecret);
+                CloudUrl = savedCloudUrl;
+                CloudSecret = savedCloudSecret;
+
+                // setup_config.json ve setup_initial_user.json dosyalarını da güncelle (yeniden başlatmada eski firebaseio.com bilgisiyle ezilmesin)
+                try
+                {
+                    var setupPath = System.IO.Path.Combine(appDir, "setup_initial_user.json");
+                    var permPath = System.IO.Path.Combine(appDir, "setup_config.json");
+                    foreach (var path in new[] { setupPath, permPath })
+                    {
+                        if (System.IO.File.Exists(path))
+                        {
+                            var json = await System.IO.File.ReadAllTextAsync(path);
+                            var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+                            if (node != null)
+                            {
+                                node["SupabaseUrl"] = savedCloudUrl;
+                                node["SupabaseKey"] = savedCloudSecret;
+                                await System.IO.File.WriteAllTextAsync(path, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                // Buluta temel yılı temiz olarak kaydet
+                if (dbService != null && dbService.IsCloudConnected)
+                {
+                    try { await dbService.SyncService.SyncMaliYilAsync(baseYear); } catch { }
+                }
+            }
+
+            // 7. Profil ve yerel durumu yenile
+            await LoadFirmaProfiliAsync();
+            ReloadCloudSettings();
+            LoadAvailableYears();
+            SelectedYearToSwitch = baseYear;
+            RolloverSourceYear = baseYear;
+            RolloverTargetYear = baseYear + 1;
+
+            LogoBytes = null;
+            _dataProvider.InvalidateAllCache();
+
+            // Tüm açık modülleri temiz veriyle anında güncelle
+            WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+
+            // 8. Sıfırlama modundan çık ve canlı senkronizasyonu başlat
+            DatabaseService.IsResetting = false;
+            if (dbService != null && dbService.IsCloudConnected)
+            {
+                try { dbService.StartRealtimeSync(); } catch { }
+            }
+
+            // Durum çubuğunu ve ana ekranı güncelle
+            var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<MainViewModel>();
+            if (mainVm != null)
+            {
+                mainVm.SyncStatusText = (dbService != null && dbService.IsCloudConnected) ? "Bulut Eşitlendi" : "Çevrimiçi";
+                // Kullanıcıya tertemiz uygulamayı anında göstermek için Dashboard'a yönlendir
+                WeakReferenceMessenger.Default.Send(new NavigationRequestMessage(typeof(DashboardViewModel)));
+            }
+
+            SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü; yerel ve bulut veriler tamamen temizlendi. Uygulama kullanıma hazır.";
+            ErrorMessage = "";
+            ResetPassword = "";
         }
         catch (Exception ex)
         {
@@ -2144,6 +2261,7 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
         }
         finally
         {
+            DatabaseService.IsResetting = false;
             IsBusy = false;
         }
     }
@@ -3179,10 +3297,36 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             }
             await _uow.SaveFirmaProfiliAsync(profil);
 
-            if (!string.IsNullOrWhiteSpace(CloudUrl))
+            if (string.IsNullOrWhiteSpace(CloudUrl) || CloudUrl.Contains("firebaseio.com") || string.IsNullOrWhiteSpace(CloudSecret))
             {
-                _uow.SetCloudConfig(CloudUrl, CloudSecret);
+                CloudUrl = CloudConfig.DefaultSupabaseUrl;
+                CloudSecret = CloudConfig.DefaultSupabaseKey;
             }
+
+            _uow.SetCloudConfig(CloudUrl, CloudSecret);
+
+            // setup_config.json ve setup_initial_user.json varsa daima senkronize tut
+            try
+            {
+                var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                var setupPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                var permPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                foreach (var path in new[] { setupPath, permPath })
+                {
+                    if (System.IO.File.Exists(path))
+                    {
+                        var json = await System.IO.File.ReadAllTextAsync(path);
+                        var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+                        if (node != null)
+                        {
+                            node["SupabaseUrl"] = CloudUrl;
+                            node["SupabaseKey"] = CloudSecret;
+                            await System.IO.File.WriteAllTextAsync(path, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                        }
+                    }
+                }
+            }
+            catch { }
 
             var httpPdf = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<PdfService>() as HttpPdfService;
             if (httpPdf != null)

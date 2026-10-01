@@ -34,3 +34,5 @@ Thumbs.db
 Publish_Output/
 output/
 *.ipa
+crash_log.txt
+*.ps1.tmp

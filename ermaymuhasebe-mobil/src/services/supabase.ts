@@ -438,25 +438,54 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     if (data.vergiNo !== undefined || data.vergi_no !== undefined) p.vergi_no = data.vergiNo ?? data.vergi_no;
     if (data.tcNo !== undefined || data.tcKimlikNo !== undefined || data.tc_kimlik_no !== undefined) p.tc_kimlik_no = data.tcNo ?? data.tcKimlikNo ?? data.tc_kimlik_no;
     if (data.adres !== undefined) p.adres = data.adres;
+    if (data.sevkAdresi !== undefined || data.sevk_adresi !== undefined) p.sevk_adresi = data.sevkAdresi ?? data.sevk_adresi;
     p.sehir = data.sehir || data.il || '';
     p.il = p.sehir;
     if (data.ilce !== undefined) p.ilce = data.ilce;
+    if (data.postaKodu !== undefined || data.posta_kodu !== undefined) p.posta_kodu = data.postaKodu ?? data.posta_kodu;
+    if (data.ulke !== undefined) p.ulke = data.ulke;
     if (data.telefon !== undefined) p.telefon = data.telefon;
     if (data.telefon2 !== undefined || data.cepTelefon !== undefined || data.cep_telefon !== undefined) p.telefon2 = data.telefon2 ?? data.cepTelefon ?? data.cep_telefon;
     p.yetkili_kisi = data.yetkiliKisi || data.yetkili || data.yetkili_kisi || '';
     p.email = data.email || data.eposta || '';
     p.eposta = p.email;
     p.web_sitesi = data.webSitesi || data.webAdresi || data.web_sitesi || '';
-    if (data.notlar !== undefined || data.aciklama !== undefined) p.notlar = data.notlar ?? data.aciklama;
+    if (data.iban !== undefined) p.iban = data.iban;
+    if (data.notlar !== undefined || data.aciklama !== undefined) {
+      p.notlar = data.notlar ?? data.aciklama;
+      p.aciklama = p.notlar;
+    }
     p.bakiye = Number(data.bakiye) || 0;
     p.borc_tutari = Number(data.borcTutari ?? data.borc ?? data.borc_tutari) || 0;
     p.alacak_tutari = Number(data.alacakTutari ?? data.alacak ?? data.alacak_tutari) || 0;
     p.borc = p.borc_tutari;
     p.alacak = p.alacak_tutari;
-    if (data.krediLimiti !== undefined || data.riskLimiti !== undefined || data.risk_limiti !== undefined) p.kredi_limiti = Number(data.krediLimiti ?? data.riskLimiti ?? data.risk_limiti) || 0;
-    if (data.vadeGun !== undefined || data.vadeGunu !== undefined || data.vade_gunu !== undefined) p.vade_gun = Number(data.vadeGun ?? data.vadeGunu ?? data.vade_gunu) || 0;
+    if (data.krediLimiti !== undefined || data.riskLimiti !== undefined || data.risk_limiti !== undefined || data.kredi_limiti !== undefined) {
+      const rl = Number(data.riskLimiti ?? data.krediLimiti ?? data.risk_limiti ?? data.kredi_limiti) || 0;
+      p.kredi_limiti = rl;
+      p.risk_limiti = rl;
+    }
+    if (data.vadeGun !== undefined || data.vadeGunu !== undefined || data.vade_gun !== undefined || data.vade_gunu !== undefined) {
+      const vg = Number(data.vadeGunu ?? data.vadeGun ?? data.vade_gunu ?? data.vade_gun) || 0;
+      p.vade_gun = vg;
+      p.vade_gunu = vg;
+    }
+    if (data.odemePlani !== undefined || data.odeme_plani !== undefined) p.odeme_plani = data.odemePlani ?? data.odeme_plani;
+    if (data.ticaretSicilNo !== undefined || data.ticaret_sicil_no !== undefined) p.ticaret_sicil_no = data.ticaretSicilNo ?? data.ticaret_sicil_no;
+    if (data.lat !== undefined || data.latitude !== undefined) {
+      p.lat = data.lat ?? data.latitude;
+      p.latitude = p.lat;
+    }
+    if (data.lng !== undefined || data.longitude !== undefined) {
+      p.lng = data.lng ?? data.longitude;
+      p.longitude = p.lng;
+    }
+    if (data.riskTakibiYapilsin !== undefined || data.risk_takibi_yapilsin !== undefined) p.risk_takibi_yapilsin = !!(data.riskTakibiYapilsin ?? data.risk_takibi_yapilsin);
+    if (data.vadeGecmisteEngelle !== undefined || data.vade_gecmiste_engelle !== undefined) p.vade_gecmiste_engelle = !!(data.vadeGecmisteEngelle ?? data.vade_gecmiste_engelle);
+    if (data.faturadaRiskKontrolu !== undefined || data.faturada_risk_kontrolu !== undefined) p.faturada_risk_kontrolu = (data.faturadaRiskKontrolu ?? data.faturada_risk_kontrolu) !== false;
     if (data.iskontoOrani !== undefined || data.iskonto_orani !== undefined) p.iskonto_orani = Number(data.iskontoOrani ?? data.iskonto_orani) || 0;
     if (data.grup !== undefined) p.grup = data.grup;
+    if (data.tur !== undefined) p.tur = data.tur;
     if (data.sektor !== undefined) p.sektor = data.sektor;
     p.is_active = data.isActive !== false && data.is_active !== false && data.aktifMi !== false;
     p.is_deleted = data.isDeleted === true || data.is_deleted === true;
@@ -474,7 +503,9 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     p.grup = p.grup_adi;
     p.birim = data.birim || 'Adet';
     p.alis_fiyati = Number(data.alisFiyati ?? data.alis_fiyati) || 0;
+    p.ortalama_alis_fiyati = Number(data.ortalamaAlisFiyati ?? data.ortalama_alis_fiyati) || 0;
     p.satis_fiyati = Number(data.satisFiyati ?? data.satis_fiyati) || 0;
+    p.ortalama_satis_fiyati = Number(data.ortalamaSatisFiyati ?? data.ortalama_satis_fiyati) || 0;
     p.kdv_orani = Number(data.kdvOrani ?? data.kdv ?? data.kdv_orani) || 20;
     p.mevcut_miktar = Number(data.mevcutMiktar ?? data.miktar ?? data.mevcut_miktar) || 0;
     p.miktar = p.mevcut_miktar;
@@ -502,6 +533,15 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     p.iskonto_toplam = Number(data.iskontoToplam ?? data.iskonto_toplam) || 0;
     p.genel_toplam = Number(data.genelToplam ?? data.genel_toplam) || 0;
     if (data.aciklama !== undefined) p.aciklama = data.aciklama;
+    p.doviz_turu = data.dovizTuru ?? data.doviz_turu ?? 'TRY';
+    p.doviz_kuru = Number(data.dovizKuru ?? data.doviz_kuru) || 1;
+    p.odeme_sekli = data.odemeSekli ?? data.odeme_sekli ?? 'Açık Hesap';
+    p.is_earsiv = data.isEArsiv === true || data.is_earsiv === true;
+    if (data.vergiDairesi !== undefined || data.vergi_dairesi !== undefined) p.vergi_dairesi = data.vergiDairesi ?? data.vergi_dairesi;
+    if (data.vergiNo !== undefined || data.vergi_no !== undefined) p.vergi_no = data.vergiNo ?? data.vergi_no;
+    if (data.adres !== undefined) p.adres = data.adres;
+    if (data.baglantiEvrakNo !== undefined || data.baglanti_evrak_no !== undefined) p.baglanti_evrak_no = data.baglantiEvrakNo ?? data.baglanti_evrak_no;
+    p.iptal_mi = data.iptalMi === true || data.iptal_mi === true;
     p.is_kapali = data.isKapali === true || data.is_kapali === true || (Number(p.genel_toplam) > 0 && Number(data.odenen) >= Number(p.genel_toplam));
     if (data.kasaId !== undefined || data.kasa_id !== undefined) p.kasa_id = Number(data.kasaId ?? data.kasa_id) || null;
     if (data.bankaId !== undefined || data.banka_id !== undefined) p.banka_id = Number(data.bankaId ?? data.banka_id) || null;
@@ -774,10 +814,33 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
     const kod = row.cari_kodu || row.kod || r.cariKod || `CARI-${row.id}`;
     const unvan = row.unvan || r.unvan || '';
     const sehir = row.sehir || row.il || r.sehir || r.il || '';
+    const ilce = row.ilce || r.ilce || '';
+    const adres = row.adres || r.adres || '';
+    const sevkAdresi = row.sevk_adresi || row.sevkAdresi || r.sevkAdresi || '';
+    const postaKodu = row.posta_kodu || row.postaKodu || r.postaKodu || '';
+    const ulke = row.ulke || r.ulke || 'Türkiye';
     const yetkili = row.yetkili_kisi || row.yetkili || r.yetkiliKisi || r.yetkili || '';
+    const telefon = row.telefon || r.telefon || '';
+    const cepTelefon = row.telefon2 || row.cep_telefon || row.cepTelefon || r.cepTelefon || r.telefon2 || '';
     const eposta = row.email || row.eposta || r.email || r.eposta || '';
     const web = row.web_sitesi || row.web_adresi || r.webSitesi || r.webAdresi || '';
+    const vergiDairesi = row.vergi_dairesi || row.vergiDairesi || r.vergiDairesi || '';
+    const vergiNo = row.vergi_no || row.vergiNo || r.vergiNo || '';
     const tc = row.tc_kimlik_no || row.tc_no || r.tcKimlikNo || r.tcNo || '';
+    const iban = row.iban || r.iban || '';
+    const grup = row.grup || r.grup || 'Müşteri';
+    const tur = row.tur || r.tur || (grup === 'Tedarikçi' ? 'Satici' : 'Alici');
+    const aciklama = row.aciklama || row.notlar || r.aciklama || r.notlar || '';
+    const odemePlani = row.odeme_plani || row.odemePlani || r.odemePlani || '';
+    const ticaretSicilNo = row.ticaret_sicil_no || row.ticaretSicilNo || r.ticaretSicilNo || '';
+    const vadeGunu = Number(row.vade_gunu ?? row.vade_gun ?? row.vadeGunu ?? row.vadeGun ?? r.vadeGunu ?? r.vadeGun) || 0;
+    const riskLimiti = Number(row.risk_limiti ?? row.kredi_limiti ?? row.riskLimiti ?? row.krediLimiti ?? r.riskLimiti ?? r.krediLimiti) || 0;
+    const lat = row.latitude ?? row.lat ?? r.latitude ?? r.lat ?? null;
+    const lng = row.longitude ?? row.lng ?? r.longitude ?? r.lng ?? null;
+    const riskTakibiYapilsin = !!(row.risk_takibi_yapilsin ?? row.riskTakibiYapilsin ?? r.riskTakibiYapilsin);
+    const vadeGecmisteEngelle = !!(row.vade_gecmiste_engelle ?? row.vadeGecmisteEngelle ?? r.vadeGecmisteEngelle);
+    const faturadaRiskKontrolu = (row.faturada_risk_kontrolu ?? row.faturadaRiskKontrolu ?? r.faturadaRiskKontrolu) !== false;
+    const aktifMi = (row.is_active ?? row.aktif_mi ?? row.aktifMi ?? r.aktifMi) !== false;
     const borc = Number(row.borc_tutari ?? row.borc ?? r.borcTutari ?? r.borc) || 0;
     const alacak = Number(row.alacak_tutari ?? row.alacak ?? r.alacakTutari ?? r.alacak) || 0;
     const bakiye = Number(row.bakiye ?? r.bakiye ?? (borc - alacak)) || 0;
@@ -786,17 +849,47 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       ...r,
       cariKod: kod,
       cariKodu: kod,
+      kod,
       unvan,
       il: sehir,
       sehir,
+      ilce,
+      adres,
+      sevkAdresi,
+      postaKodu,
+      ulke,
       yetkili,
       yetkiliKisi: yetkili,
+      telefon,
+      cepTelefon,
+      telefon2: cepTelefon,
       eposta,
       email: eposta,
       webAdresi: web,
       webSitesi: web,
+      vergiDairesi,
+      vergiNo,
       tcNo: tc,
       tcKimlikNo: tc,
+      iban,
+      grup,
+      tur,
+      aciklama,
+      notlar: aciklama,
+      odemePlani,
+      ticaretSicilNo,
+      vadeGunu,
+      vadeGun: vadeGunu,
+      riskLimiti,
+      krediLimiti: riskLimiti,
+      lat,
+      lng,
+      latitude: lat,
+      longitude: lng,
+      riskTakibiYapilsin,
+      vadeGecmisteEngelle,
+      faturadaRiskKontrolu,
+      aktifMi,
       borc,
       borcTutari: borc,
       alacak,
@@ -812,6 +905,13 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
     const miktar = Number(row.mevcut_miktar ?? row.miktar ?? r.mevcutMiktar ?? r.miktar) || 0;
     const minSeviye = Number(row.kritik_seviye ?? row.min_seviye ?? r.kritikSeviye ?? r.minSeviye) || 0;
     const kdv = Number(row.kdv_orani ?? row.kdv ?? r.kdvOrani ?? r.kdv) || 20;
+    const alisFiyati = Number(row.alis_fiyati ?? row.alisFiyati ?? r.alisFiyati) || 0;
+    const ortalamaAlisFiyati = Number(row.ortalama_alis_fiyati ?? row.ortalamaAlisFiyati ?? r.ortalamaAlisFiyati) || 0;
+    const satisFiyati = Number(row.satis_fiyati ?? row.satisFiyati ?? r.satisFiyati) || 0;
+    const ortalamaSatisFiyati = Number(row.ortalama_satis_fiyati ?? row.ortalamaSatisFiyati ?? r.ortalamaSatisFiyati) || 0;
+    const barkod = row.barkod || r.barkod || '';
+    const birim = row.birim || r.birim || 'Adet';
+    const aciklama = row.aciklama || r.aciklama || '';
 
     return {
       ...r,
@@ -825,7 +925,14 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       minSeviye,
       kritikSeviye: minSeviye,
       kdv,
-      kdvOrani: kdv
+      kdvOrani: kdv,
+      alisFiyati,
+      ortalamaAlisFiyati,
+      satisFiyati,
+      ortalamaSatisFiyati,
+      barkod,
+      birim,
+      aciklama
     };
   }
 
@@ -835,6 +942,18 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
     const araToplam = Number(row.ara_toplam ?? r.araToplam) || 0;
     const kdvToplam = Number(row.kdv_toplam ?? r.kdvToplam ?? r.toplamKdv) || 0;
     const genelToplam = Number(row.genel_toplam ?? r.genelToplam) || 0;
+    const cariId = Number(row.cari_id ?? row.cariId ?? r.cariId) || 0;
+    const cariUnvan = row.cari_unvan || row.cariUnvan || r.cariUnvan || '';
+    const tarih = row.tarih || r.tarih || '';
+    const vadeTarihi = row.vade_tarihi || row.vadeTarihi || r.vadeTarihi || '';
+    const aciklama = row.aciklama || r.aciklama || '';
+    const dovizTuru = row.doviz_turu || row.dovizTuru || r.dovizTuru || 'TRY';
+    const dovizKuru = Number(row.doviz_kuru ?? row.dovizKuru ?? r.dovizKuru) || 1;
+    const odemeSekli = row.odeme_sekli || row.odemeSekli || r.odemeSekli || 'Açık Hesap';
+    const isEArsiv = !!(row.is_earsiv ?? row.isEArsiv ?? r.isEArsiv);
+    const vergiDairesi = row.vergi_dairesi || row.vergiDairesi || r.vergiDairesi || '';
+    const vergiNo = row.vergi_no || row.vergiNo || r.vergiNo || '';
+    const adres = row.adres || r.adres || '';
 
     return {
       ...r,
@@ -844,7 +963,19 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       araToplam,
       kdvToplam,
       toplamKdv: kdvToplam,
-      genelToplam
+      genelToplam,
+      cariId,
+      cariUnvan,
+      tarih,
+      vadeTarihi,
+      aciklama,
+      dovizTuru,
+      dovizKuru,
+      odemeSekli,
+      isEArsiv,
+      vergiDairesi,
+      vergiNo,
+      adres
     };
   }
 

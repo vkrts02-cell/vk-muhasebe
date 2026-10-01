@@ -233,16 +233,22 @@ public partial class LoginViewModel : ViewModelBase
                             if (doc.RootElement.TryGetProperty("SupabaseKey", out var skElem) && skElem.ValueKind == System.Text.Json.JsonValueKind.String)
                                 sKey = skElem.GetString()?.Trim() ?? "";
 
-                            if (!string.IsNullOrEmpty(sUrl) && !string.IsNullOrEmpty(sKey))
+                            // Eski firebaseio.com URL'lerini kesinlikle yoksay
+                            if (!string.IsNullOrEmpty(sUrl) && !string.IsNullOrEmpty(sKey) && !sUrl.Contains("firebaseio.com", StringComparison.OrdinalIgnoreCase))
                             {
-                                try
+                                var (currUrl, _) = _dbService.GetCloudConfig();
+                                // Eğer veritabanında zaten geçerli bir supabase.co URL'i varsa kurulum dosyasıyla üzerine yazma
+                                if (string.IsNullOrWhiteSpace(currUrl) || !currUrl.Contains("supabase.co", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    _dbService.SetCloudConfig(sUrl, sKey);
-                                    System.Diagnostics.Debug.WriteLine($"[LoginVM] Kurulum Supabase yapılandırması başarıyla kaydedildi: {sUrl}");
-                                }
-                                catch (Exception ex)
-                                {
-                                    System.Diagnostics.Debug.WriteLine($"[LoginVM] SetCloudConfig hatası: {ex.Message}");
+                                    try
+                                    {
+                                        _dbService.SetCloudConfig(sUrl, sKey);
+                                        System.Diagnostics.Debug.WriteLine($"[LoginVM] Kurulum Supabase yapılandırması başarıyla kaydedildi: {sUrl}");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"[LoginVM] SetCloudConfig hatası: {ex.Message}");
+                                    }
                                 }
                             }
                         }

@@ -66,7 +66,7 @@ public abstract partial class CariListViewModel : ViewModelBase
     [ObservableProperty] private string _editPostaKodu = "";
     [ObservableProperty] private string _editUlke = "Türkiye";
     [ObservableProperty] private string _editYetkili = "";
-    [ObservableProperty] private int? _editVadeGunu = 30;
+    [ObservableProperty] private decimal? _editVadeGunu = 30;
     [ObservableProperty] private decimal? _editRiskLimiti;
     [ObservableProperty] private string _editAciklama = "";
     [ObservableProperty] private decimal _editAcilisBakiye;
@@ -605,7 +605,7 @@ public abstract partial class CariListViewModel : ViewModelBase
         cari.PostaKodu = EditPostaKodu;
         cari.Ulke = EditUlke;
         cari.Yetkili = EditYetkili;
-        cari.VadeGunu = EditVadeGunu ?? 0;
+        cari.VadeGunu = (int)(EditVadeGunu ?? 0);
         cari.RiskLimiti = EditRiskLimiti ?? 0;
         cari.Aciklama = EditAciklama;
         cari.IBAN = EditIBAN;

@@ -68,6 +68,7 @@ namespace ErmayMuhasebe.Services
         public bool UseEncryption { get; set; } = true;
         public string CurrentTenantId { get; set; } = "default";
         public bool IsTestMode { get; set; } = false;
+        public static bool IsResetting { get; set; } = false;
         public bool DisableCloudSync
         {
             get => CloudSyncService.DisableCloudSync;
@@ -107,7 +108,7 @@ namespace ErmayMuhasebe.Services
         
         public void SafeFireAndForget(Func<Task> asyncAction, string operationName = "BackgroundSync")
         {
-            if (DisableCloudSync || IsTestMode) return;
+            if (IsResetting || DisableCloudSync || IsTestMode) return;
             _ = Task.Run(async () =>
             {
                 try
@@ -1242,11 +1243,10 @@ namespace ErmayMuhasebe.Services
             }
             catch { }
 
-            // 5. Clear cloud tables in Firebase Realtime Database
+            // 5. Clear cloud tables in Firebase / Supabase
             try
             {
                 await _sync.ClearCloudTablesAsync(CurrentTenantId);
-                _sync.Disconnect();
             }
             catch { }
 
@@ -5266,6 +5266,7 @@ namespace ErmayMuhasebe.Services
 
         public async Task SyncToCloudAsync()
         {
+            if (IsResetting || !IsCloudConnected) return;
             await EnsureInitializedAsync();
             await SyncFromCloudAsync();
             var cariler = await _db.Table<CariKart>().ToListAsync();
@@ -5457,7 +5458,7 @@ namespace ErmayMuhasebe.Services
 
         public async Task SyncFromCloudAsync()
         {
-            if (!IsCloudConnected) return;
+            if (IsResetting || !IsCloudConnected) return;
             await EnsureInitializedAsync();
             await CleanupLocalDuplicatesAsync();
             bool hasAnyChanges = false;
@@ -5506,8 +5507,42 @@ namespace ErmayMuhasebe.Services
                         }
                         else if (existing.IsDeleted)
                         {
-                            c.IsDeleted = false;
-                            await _db.UpdateAsync(c);
+                            existing.IsDeleted = false;
+                            existing.Unvan = c.Unvan ?? existing.Unvan;
+                            existing.CariKod = c.CariKod ?? existing.CariKod;
+                            existing.Telefon = c.Telefon ?? existing.Telefon;
+                            existing.CepTelefon = c.CepTelefon ?? existing.CepTelefon;
+                            existing.Email = c.Email ?? existing.Email;
+                            existing.Adres = c.Adres ?? existing.Adres;
+                            existing.SevkAdresi = c.SevkAdresi ?? existing.SevkAdresi;
+                            existing.Il = c.Il ?? existing.Il;
+                            existing.Ilce = c.Ilce ?? existing.Ilce;
+                            existing.PostaKodu = c.PostaKodu ?? existing.PostaKodu;
+                            existing.Ulke = c.Ulke ?? existing.Ulke;
+                            existing.VergiDairesi = c.VergiDairesi ?? existing.VergiDairesi;
+                            existing.VergiNo = c.VergiNo ?? existing.VergiNo;
+                            existing.TCNo = c.TCNo ?? existing.TCNo;
+                            existing.Yetkili = c.Yetkili ?? existing.Yetkili;
+                            existing.WebAdresi = c.WebAdresi ?? existing.WebAdresi;
+                            existing.Grup = c.Grup ?? existing.Grup;
+                            existing.Tur = c.Tur ?? existing.Tur;
+                            existing.TicaretSicilNo = c.TicaretSicilNo ?? existing.TicaretSicilNo;
+                            existing.IBAN = c.IBAN ?? existing.IBAN;
+                            existing.OdemePlani = c.OdemePlani ?? existing.OdemePlani;
+                            if (!string.IsNullOrEmpty(c.Aciklama)) existing.Aciklama = c.Aciklama;
+                            if (c.VadeGunu > 0 || existing.VadeGunu == 0) existing.VadeGunu = c.VadeGunu;
+                            if (c.RiskLimiti > 0 || existing.RiskLimiti == 0) existing.RiskLimiti = c.RiskLimiti;
+                            if (c.Latitude.HasValue) existing.Latitude = c.Latitude;
+                            if (c.Longitude.HasValue) existing.Longitude = c.Longitude;
+                            existing.RiskTakibiYapilsin = c.RiskTakibiYapilsin;
+                            existing.VadeGecmisteEngelle = c.VadeGecmisteEngelle;
+                            existing.FaturadaRiskKontrolu = c.FaturadaRiskKontrolu;
+                            existing.AktifMi = c.AktifMi;
+                            existing.Borc = c.Borc;
+                            existing.Alacak = c.Alacak;
+                            existing.UpdatedAt = c.UpdatedAt > existing.UpdatedAt ? c.UpdatedAt : existing.UpdatedAt;
+                            existing.Version = Math.Max(existing.Version, c.Version);
+                            await _db.UpdateAsync(existing);
                             hasAnyChanges = true;
                         }
                         else
@@ -5527,11 +5562,49 @@ namespace ErmayMuhasebe.Services
                                              existing.Yetkili != c.Yetkili ||
                                              existing.Borc != c.Borc ||
                                              existing.Alacak != c.Alacak ||
-                                             existing.Grup != c.Grup;
+                                             existing.Grup != c.Grup ||
+                                             (c.VadeGunu > 0 && existing.VadeGunu != c.VadeGunu) ||
+                                             (c.RiskLimiti > 0 && existing.RiskLimiti != c.RiskLimiti) ||
+                                             (!string.IsNullOrEmpty(c.IBAN) && existing.IBAN != c.IBAN) ||
+                                             (!string.IsNullOrEmpty(c.Aciklama) && existing.Aciklama != c.Aciklama);
 
                             if (isChanged)
                             {
-                                await _db.UpdateAsync(c);
+                                existing.Unvan = c.Unvan ?? existing.Unvan;
+                                existing.CariKod = c.CariKod ?? existing.CariKod;
+                                existing.Telefon = c.Telefon ?? existing.Telefon;
+                                existing.CepTelefon = c.CepTelefon ?? existing.CepTelefon;
+                                existing.Email = c.Email ?? existing.Email;
+                                existing.Adres = c.Adres ?? existing.Adres;
+                                existing.SevkAdresi = c.SevkAdresi ?? existing.SevkAdresi;
+                                existing.Il = c.Il ?? existing.Il;
+                                existing.Ilce = c.Ilce ?? existing.Ilce;
+                                existing.PostaKodu = c.PostaKodu ?? existing.PostaKodu;
+                                existing.Ulke = c.Ulke ?? existing.Ulke;
+                                existing.VergiDairesi = c.VergiDairesi ?? existing.VergiDairesi;
+                                existing.VergiNo = c.VergiNo ?? existing.VergiNo;
+                                existing.TCNo = c.TCNo ?? existing.TCNo;
+                                existing.Yetkili = c.Yetkili ?? existing.Yetkili;
+                                existing.WebAdresi = c.WebAdresi ?? existing.WebAdresi;
+                                existing.Grup = c.Grup ?? existing.Grup;
+                                existing.Tur = c.Tur ?? existing.Tur;
+                                existing.TicaretSicilNo = c.TicaretSicilNo ?? existing.TicaretSicilNo;
+                                existing.IBAN = c.IBAN ?? existing.IBAN;
+                                existing.OdemePlani = c.OdemePlani ?? existing.OdemePlani;
+                                if (!string.IsNullOrEmpty(c.Aciklama)) existing.Aciklama = c.Aciklama;
+                                if (c.VadeGunu > 0 || existing.VadeGunu == 0) existing.VadeGunu = c.VadeGunu;
+                                if (c.RiskLimiti > 0 || existing.RiskLimiti == 0) existing.RiskLimiti = c.RiskLimiti;
+                                if (c.Latitude.HasValue) existing.Latitude = c.Latitude;
+                                if (c.Longitude.HasValue) existing.Longitude = c.Longitude;
+                                existing.RiskTakibiYapilsin = c.RiskTakibiYapilsin;
+                                existing.VadeGecmisteEngelle = c.VadeGecmisteEngelle;
+                                existing.FaturadaRiskKontrolu = c.FaturadaRiskKontrolu;
+                                existing.AktifMi = c.AktifMi;
+                                existing.Borc = c.Borc;
+                                existing.Alacak = c.Alacak;
+                                existing.UpdatedAt = c.UpdatedAt > existing.UpdatedAt ? c.UpdatedAt : existing.UpdatedAt;
+                                existing.Version = Math.Max(existing.Version, c.Version);
+                                await _db.UpdateAsync(existing);
                                 hasAnyChanges = true;
                             }
                         }
@@ -5646,6 +5719,13 @@ namespace ErmayMuhasebe.Services
                             if (isChanged)
                             {
                                 f.Id = cloudFaturaId;
+                                if (string.IsNullOrEmpty(f.DovizTuru) && !string.IsNullOrEmpty(existing.DovizTuru)) f.DovizTuru = existing.DovizTuru;
+                                if (f.DovizKuru == 0 && existing.DovizKuru != 0) f.DovizKuru = existing.DovizKuru;
+                                if (string.IsNullOrEmpty(f.OdemeSekli) && !string.IsNullOrEmpty(existing.OdemeSekli)) f.OdemeSekli = existing.OdemeSekli;
+                                if (string.IsNullOrEmpty(f.VergiDairesi) && !string.IsNullOrEmpty(existing.VergiDairesi)) f.VergiDairesi = existing.VergiDairesi;
+                                if (string.IsNullOrEmpty(f.VergiNo) && !string.IsNullOrEmpty(existing.VergiNo)) f.VergiNo = existing.VergiNo;
+                                if (string.IsNullOrEmpty(f.Adres) && !string.IsNullOrEmpty(existing.Adres)) f.Adres = existing.Adres;
+                                if (string.IsNullOrEmpty(f.BaglantiEvrakNo) && !string.IsNullOrEmpty(existing.BaglantiEvrakNo)) f.BaglantiEvrakNo = existing.BaglantiEvrakNo;
                                 await _db.UpdateAsync(f);
                                 hasAnyChanges = true;
                             }
@@ -5719,6 +5799,9 @@ namespace ErmayMuhasebe.Services
                         else if (existing.IsDeleted)
                         {
                             s.IsDeleted = false;
+                            if (s.OrtalamaAlisFiyati == 0 && existing.OrtalamaAlisFiyati != 0) s.OrtalamaAlisFiyati = existing.OrtalamaAlisFiyati;
+                            if (s.OrtalamaSatisFiyati == 0 && existing.OrtalamaSatisFiyati != 0) s.OrtalamaSatisFiyati = existing.OrtalamaSatisFiyati;
+                            if (s.KayitTarihi == default && existing.KayitTarihi != default) s.KayitTarihi = existing.KayitTarihi;
                             await _db.UpdateAsync(s);
                             hasAnyChanges = true;
                         }
@@ -5738,6 +5821,9 @@ namespace ErmayMuhasebe.Services
 
                             if (isChanged)
                             {
+                                if (s.OrtalamaAlisFiyati == 0 && existing.OrtalamaAlisFiyati != 0) s.OrtalamaAlisFiyati = existing.OrtalamaAlisFiyati;
+                                if (s.OrtalamaSatisFiyati == 0 && existing.OrtalamaSatisFiyati != 0) s.OrtalamaSatisFiyati = existing.OrtalamaSatisFiyati;
+                                if (s.KayitTarihi == default && existing.KayitTarihi != default) s.KayitTarihi = existing.KayitTarihi;
                                 await _db.UpdateAsync(s);
                                 hasAnyChanges = true;
                             }
@@ -5977,6 +6063,11 @@ namespace ErmayMuhasebe.Services
                             if (isChanged)
                             {
                                 s.Id = cloudSiparisId;
+                                if (!s.TeslimatTarihi.HasValue && existing.TeslimatTarihi.HasValue) s.TeslimatTarihi = existing.TeslimatTarihi;
+                                if (string.IsNullOrEmpty(s.PdfNotlar) && !string.IsNullOrEmpty(existing.PdfNotlar)) s.PdfNotlar = existing.PdfNotlar;
+                                if (string.IsNullOrEmpty(s.OdemeBilgisi) && !string.IsNullOrEmpty(existing.OdemeBilgisi)) s.OdemeBilgisi = existing.OdemeBilgisi;
+                                if (string.IsNullOrEmpty(s.Oncelik) && !string.IsNullOrEmpty(existing.Oncelik)) s.Oncelik = existing.Oncelik;
+                                if (string.IsNullOrEmpty(s.BaglantiEvrakNo) && !string.IsNullOrEmpty(existing.BaglantiEvrakNo)) s.BaglantiEvrakNo = existing.BaglantiEvrakNo;
                                 await _db.UpdateAsync(s);
                                 hasAnyChanges = true;
                             }
@@ -6084,6 +6175,8 @@ namespace ErmayMuhasebe.Services
                             if (isChanged)
                             {
                                 t.Id = cloudTeklifId;
+                                if (!t.GecerlilikTarihi.HasValue && existing.GecerlilikTarihi.HasValue) t.GecerlilikTarihi = existing.GecerlilikTarihi;
+                                if (string.IsNullOrEmpty(t.OdemeBilgisi) && !string.IsNullOrEmpty(existing.OdemeBilgisi)) t.OdemeBilgisi = existing.OdemeBilgisi;
                                 await _db.UpdateAsync(t);
                                 hasAnyChanges = true;
                             }
@@ -6164,9 +6257,24 @@ namespace ErmayMuhasebe.Services
                                     b.Yetkili = existing.Yetkili;
                                 }
 
+                                if (string.IsNullOrEmpty(b.Telefon) && !string.IsNullOrEmpty(existing.Telefon))
+                                {
+                                    b.Telefon = existing.Telefon;
+                                }
+
+                                if (string.IsNullOrEmpty(b.SubeKodu) && !string.IsNullOrEmpty(existing.SubeKodu))
+                                {
+                                    b.SubeKodu = existing.SubeKodu;
+                                }
+
                                 if (b.AcilisBakiyesi == 0 && existing.AcilisBakiyesi != 0)
                                 {
                                     b.AcilisBakiyesi = existing.AcilisBakiyesi;
+                                }
+
+                                if (b.GuncelBakiye == 0 && existing.GuncelBakiye != 0 && b.Bakiye == 0)
+                                {
+                                    b.GuncelBakiye = existing.GuncelBakiye;
                                 }
 
                                 if (existing.GuncelBakiye != b.GuncelBakiye || existing.BankaAdi != b.BankaAdi || existing.HesapNo != b.HesapNo || existing.KartTuru != b.KartTuru)

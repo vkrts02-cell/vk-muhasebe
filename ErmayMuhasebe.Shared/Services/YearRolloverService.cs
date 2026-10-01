@@ -745,6 +745,38 @@ namespace ErmayMuhasebe.Services
                     };
                     await targetDb.InsertOrReplaceAsync(targetCari);
                 }
+                else
+                {
+                    targetCari.Unvan = cari.Unvan;
+                    targetCari.Tur = cari.Tur;
+                    targetCari.Grup = cari.Grup;
+                    targetCari.VergiDairesi = cari.VergiDairesi;
+                    targetCari.VergiNo = cari.VergiNo;
+                    targetCari.TicaretSicilNo = cari.TicaretSicilNo;
+                    targetCari.Yetkili = cari.Yetkili;
+                    targetCari.Telefon = cari.Telefon;
+                    targetCari.CepTelefon = cari.CepTelefon;
+                    targetCari.Email = cari.Email;
+                    targetCari.WebAdresi = cari.WebAdresi;
+                    targetCari.Adres = cari.Adres;
+                    targetCari.SevkAdresi = cari.SevkAdresi;
+                    targetCari.Il = cari.Il;
+                    targetCari.Ilce = cari.Ilce;
+                    targetCari.PostaKodu = cari.PostaKodu;
+                    targetCari.Ulke = cari.Ulke;
+                    targetCari.RiskLimiti = cari.RiskLimiti;
+                    targetCari.VadeGunu = cari.VadeGunu;
+                    targetCari.IBAN = cari.IBAN;
+                    targetCari.OdemePlani = cari.OdemePlani;
+                    targetCari.TCNo = cari.TCNo;
+                    targetCari.Latitude = cari.Latitude;
+                    targetCari.Longitude = cari.Longitude;
+                    targetCari.Aciklama = cari.Aciklama;
+                    targetCari.RiskTakibiYapilsin = cari.RiskTakibiYapilsin;
+                    targetCari.VadeGecmisteEngelle = cari.VadeGecmisteEngelle;
+                    targetCari.FaturadaRiskKontrolu = cari.FaturadaRiskKontrolu;
+                    targetCari.AktifMi = cari.AktifMi;
+                }
                 // Hedef yıldaki dönem içi hareketlerin toplamını hesapla (Devir Fişi hariç)
                 var targetMoves = await targetDb.Table<CariHareket>().Where(h => h.CariId == targetCari.Id).ToListAsync();
                 var nonDevirTargetMoves = targetMoves.Where(h => (h.IslemTuru == null || (h.IslemTuru != "Devir Fişi" && h.IslemTuru != "Açılış Fişi" && !h.IslemTuru.StartsWith("Devir"))) && 

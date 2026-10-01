@@ -1,7 +1,11 @@
 # VK Muhasebe - GitHub Actions Takip ve Otomatik Indirme Scripti
-$repo = "vkrts02-cell/vk-muhasebe"
-$desktopPath = [Environment]::GetFolderPath('Desktop')
-$targetFile = Join-Path $desktopPath "VK.ipa"
+$repo = "vkrts2/vk-muhasebe"
+$desktopPaths = @(
+    [Environment]::GetFolderPath('Desktop'),
+    "C:\Users\mazik\OneDrive\Masaüstü",
+    "C:\Users\mazik\Desktop"
+) | Where-Object { ! [string]::IsNullOrEmpty($_) -and (Test-Path $_) } | Select-Object -Unique
+$targetFile = Join-Path ($desktopPaths | Select-Object -First 1) "VK.ipa"
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  VK Muhasebe - Otomatik iOS IPA Derleme Takipcisi" -ForegroundColor Cyan
@@ -13,7 +17,7 @@ Write-Host "Yerel En Guncel Commit: $latestLocalCommit" -ForegroundColor Yellow
 
 Write-Host "`nGitHub Actions derlemesi bekleniyor..." -ForegroundColor Cyan
 
-$maxWaitSeconds = 600 # 10 dakika
+$maxWaitSeconds = 1800 # 30 dakika
 $elapsed = 0
 
 while ($elapsed -lt $maxWaitSeconds) {
@@ -35,13 +39,34 @@ while ($elapsed -lt $maxWaitSeconds) {
                         Start-Sleep -Seconds 5
                         
                         $releaseUrl = "https://github.com/$repo/releases/download/latest-ios/VK.ipa"
-                        Invoke-WebRequest -Uri $releaseUrl -OutFile $targetFile -UserAgent "Mozilla/5.0"
-                        
-                        if (Test-Path $targetFile) {
+                        $downloaded = $false
+                        for ($retry = 0; $retry -lt 10; $retry++) {
+                            try {
+                                Invoke-WebRequest -Uri $releaseUrl -OutFile $targetFile -UserAgent "Mozilla/5.0"
+                                if ((Test-Path $targetFile) -and ((Get-Item $targetFile).Length -gt 1000000)) {
+                                    $downloaded = $true
+                                    break
+                                }
+                            } catch { }
+                            Write-Host "Release dosyasinin olusmasi bekleniyor... ($($retry + 1)/10)" -ForegroundColor Yellow
+                            Start-Sleep -Seconds 6
+                        }
+
+                        if ($downloaded) {
                             $sizeMB = [math]::Round((Get-Item $targetFile).Length / 1MB, 2)
+                            foreach ($dp in $desktopPaths) {
+                                $dest = Join-Path $dp "VK.ipa"
+                                if ($dest -ne $targetFile) {
+                                    Copy-Item -Path $targetFile -Destination $dest -Force -ErrorAction SilentlyContinue
+                                }
+                            }
                             Write-Host "`n[TAMAMLANDI] Yeni VK.ipa Masaustune kaydedildi! ($sizeMB MB)" -ForegroundColor Green
+                            Write-Host "Konum: $targetFile" -ForegroundColor Green
                             explorer.exe /select,"$targetFile"
                             exit 0
+                        } else {
+                            Write-Host "`n[UYARI] VK.ipa release dosyasina ulasilamadi." -ForegroundColor Red
+                            exit 1
                         }
                     } else {
                         Write-Host "`n[UYARI] Derleme sonucu: $conclusion. Link: $runUrl" -ForegroundColor Red

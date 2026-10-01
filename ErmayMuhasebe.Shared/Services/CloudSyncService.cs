@@ -12,16 +12,16 @@ namespace ErmayMuhasebe.Services
 {
     public class CloudConfig
     {
-        public const string DefaultSupabaseUrl = "";
-        public const string DefaultSupabaseKey = "";
+        public const string DefaultSupabaseUrl = "https://fqgbdymffknglqeqoogt.supabase.co";
+        public const string DefaultSupabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxZ2JkeW1mZmtuZ2xxZXFvb2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODUzMDEsImV4cCI6MjEwNTE2MTMwMX0.pBeE2ivWpbkAd8KSN1y2pXNZPIr_1mGMLXXHYPzjTDg";
 
         public string BaseUrl { get; set; } = DefaultSupabaseUrl;
         public string AuthSecret { get; set; } = DefaultSupabaseKey;
         public string GoogleApiKey { get; set; } = "";
         public string GoogleClientId { get; set; } = "";
         public string GoogleClientSecret { get; set; } = "";
-        public bool IsActive { get; set; } = false;
-        public bool IsAutoSyncEnabled { get; set; } = false;
+        public bool IsActive { get; set; } = true;
+        public bool IsAutoSyncEnabled { get; set; } = true;
     }
 
     public class CloudSyncService
@@ -213,7 +213,13 @@ namespace ErmayMuhasebe.Services
                         // Check if legacy Firebase URL is stored
                         if (loaded.BaseUrl.Contains("firebaseio.com"))
                         {
-                            _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
+                            _config = new CloudConfig
+                            {
+                                BaseUrl = CloudConfig.DefaultSupabaseUrl,
+                                AuthSecret = CloudConfig.DefaultSupabaseKey,
+                                IsActive = true,
+                                IsAutoSyncEnabled = true
+                            };
                         }
                         else
                         {
@@ -226,26 +232,51 @@ namespace ErmayMuhasebe.Services
                     else
                     {
                         _config = loaded;
-                        _config.IsActive = false;
+                        _config.BaseUrl = CloudConfig.DefaultSupabaseUrl;
+                        _config.AuthSecret = CloudConfig.DefaultSupabaseKey;
+                        _config.IsActive = true;
+                        _config.IsAutoSyncEnabled = true;
                     }
                 }
                 else
                 {
-                    _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
+                    _config = new CloudConfig
+                    {
+                        BaseUrl = CloudConfig.DefaultSupabaseUrl,
+                        AuthSecret = CloudConfig.DefaultSupabaseKey,
+                        IsActive = true,
+                        IsAutoSyncEnabled = true
+                    };
+                }
+
+                if (string.IsNullOrWhiteSpace(_config.BaseUrl) || string.IsNullOrWhiteSpace(_config.AuthSecret))
+                {
+                    _config.BaseUrl = CloudConfig.DefaultSupabaseUrl;
+                    _config.AuthSecret = CloudConfig.DefaultSupabaseKey;
+                    _config.IsActive = true;
+                    _config.IsAutoSyncEnabled = true;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Cloud Config Load Error: {ex.Message}");
-                _config = new CloudConfig { BaseUrl = "", AuthSecret = "", IsActive = false, IsAutoSyncEnabled = false };
+                _config = new CloudConfig
+                {
+                    BaseUrl = CloudConfig.DefaultSupabaseUrl,
+                    AuthSecret = CloudConfig.DefaultSupabaseKey,
+                    IsActive = true,
+                    IsAutoSyncEnabled = true
+                };
             }
         }
 
         public void SaveConfig(string url, string secret)
         {
-            _config.BaseUrl = CleanSupabaseUrl(url);
-            _config.AuthSecret = secret?.Trim() ?? "";
+            var cleanUrl = CleanSupabaseUrl(url);
+            _config.BaseUrl = string.IsNullOrWhiteSpace(cleanUrl) ? CloudConfig.DefaultSupabaseUrl : cleanUrl;
+            _config.AuthSecret = string.IsNullOrWhiteSpace(secret) ? CloudConfig.DefaultSupabaseKey : secret.Trim();
             _config.IsActive = !string.IsNullOrEmpty(_config.BaseUrl) && !string.IsNullOrEmpty(_config.AuthSecret);
+            _config.IsAutoSyncEnabled = true;
             SaveConfigInternal();
         }
 
@@ -478,25 +509,47 @@ namespace ErmayMuhasebe.Services
             ["vergi_dairesi"] = c.VergiDairesi,
             ["vergi_no"] = c.VergiNo,
             ["tc_kimlik_no"] = c.TCNo,
+            ["tc_no"] = c.TCNo,
             ["adres"] = c.Adres,
+            ["sevk_adresi"] = c.SevkAdresi,
             ["sehir"] = c.Il,
             ["il"] = c.Il,
             ["ilce"] = c.Ilce,
+            ["posta_kodu"] = c.PostaKodu,
+            ["ulke"] = c.Ulke,
             ["telefon"] = c.Telefon,
             ["telefon2"] = c.CepTelefon,
+            ["cep_telefon"] = c.CepTelefon,
             ["yetkili_kisi"] = c.Yetkili,
+            ["yetkili"] = c.Yetkili,
             ["email"] = c.Email,
             ["eposta"] = c.Email,
             ["web_sitesi"] = c.WebAdresi,
+            ["web_adresi"] = c.WebAdresi,
+            ["iban"] = c.IBAN,
+            ["aciklama"] = c.Aciklama,
+            ["notlar"] = c.Aciklama,
             ["bakiye"] = c.Bakiye,
             ["borc_tutari"] = c.Borc,
             ["alacak_tutari"] = c.Alacak,
             ["borc"] = c.Borc,
             ["alacak"] = c.Alacak,
             ["kredi_limiti"] = c.RiskLimiti,
+            ["risk_limiti"] = c.RiskLimiti,
             ["vade_gun"] = c.VadeGunu,
+            ["vade_gunu"] = c.VadeGunu,
+            ["odeme_plani"] = c.OdemePlani,
+            ["ticaret_sicil_no"] = c.TicaretSicilNo,
+            ["tur"] = c.Tur,
             ["grup"] = c.Grup,
-            ["is_active"] = true,
+            ["latitude"] = c.Latitude,
+            ["lat"] = c.Latitude,
+            ["longitude"] = c.Longitude,
+            ["lng"] = c.Longitude,
+            ["risk_takibi_yapilsin"] = c.RiskTakibiYapilsin,
+            ["vade_gecmiste_engelle"] = c.VadeGecmisteEngelle,
+            ["faturada_risk_kontrolu"] = c.FaturadaRiskKontrolu,
+            ["is_active"] = c.AktifMi,
             ["is_deleted"] = c.IsDeleted,
             ["guncelleme_tarihi"] = c.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
@@ -507,26 +560,96 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("id", out var id)) c.Id = ParseInt(id);
             if (el.TryGetProperty("cari_kodu", out var ck) && ck.ValueKind == JsonValueKind.String) c.CariKod = ck.GetString();
             else if (el.TryGetProperty("kod", out var k) && k.ValueKind == JsonValueKind.String) c.CariKod = k.GetString();
+            else if (el.TryGetProperty("cariKod", out var ckCamel) && ckCamel.ValueKind == JsonValueKind.String) c.CariKod = ckCamel.GetString();
+
             if (el.TryGetProperty("unvan", out var u) && u.ValueKind == JsonValueKind.String) c.Unvan = u.GetString();
             if (el.TryGetProperty("vergi_dairesi", out var vd) && vd.ValueKind == JsonValueKind.String) c.VergiDairesi = vd.GetString();
+            else if (el.TryGetProperty("vergiDairesi", out var vdCamel) && vdCamel.ValueKind == JsonValueKind.String) c.VergiDairesi = vdCamel.GetString();
+
             if (el.TryGetProperty("vergi_no", out var vn) && vn.ValueKind == JsonValueKind.String) c.VergiNo = vn.GetString();
+            else if (el.TryGetProperty("vergiNo", out var vnCamel) && vnCamel.ValueKind == JsonValueKind.String) c.VergiNo = vnCamel.GetString();
+
             if (el.TryGetProperty("tc_kimlik_no", out var tc) && tc.ValueKind == JsonValueKind.String) c.TCNo = tc.GetString();
+            else if (el.TryGetProperty("tc_no", out var tcn) && tcn.ValueKind == JsonValueKind.String) c.TCNo = tcn.GetString();
+            else if (el.TryGetProperty("tcNo", out var tcCamel) && tcCamel.ValueKind == JsonValueKind.String) c.TCNo = tcCamel.GetString();
+            else if (el.TryGetProperty("tcKimlikNo", out var tcKCamel) && tcKCamel.ValueKind == JsonValueKind.String) c.TCNo = tcKCamel.GetString();
+
             if (el.TryGetProperty("adres", out var adr) && adr.ValueKind == JsonValueKind.String) c.Adres = adr.GetString();
+            if (el.TryGetProperty("sevk_adresi", out var sadr) && sadr.ValueKind == JsonValueKind.String) c.SevkAdresi = sadr.GetString();
+            else if (el.TryGetProperty("sevkAdresi", out var sadrCamel) && sadrCamel.ValueKind == JsonValueKind.String) c.SevkAdresi = sadrCamel.GetString();
+
             if (el.TryGetProperty("sehir", out var sh) && sh.ValueKind == JsonValueKind.String) c.Il = sh.GetString();
             else if (el.TryGetProperty("il", out var il) && il.ValueKind == JsonValueKind.String) c.Il = il.GetString();
+
             if (el.TryGetProperty("ilce", out var ilc) && ilc.ValueKind == JsonValueKind.String) c.Ilce = ilc.GetString();
+            if (el.TryGetProperty("posta_kodu", out var pk) && pk.ValueKind == JsonValueKind.String) c.PostaKodu = pk.GetString();
+            else if (el.TryGetProperty("postaKodu", out var pkCamel) && pkCamel.ValueKind == JsonValueKind.String) c.PostaKodu = pkCamel.GetString();
+
+            if (el.TryGetProperty("ulke", out var ulk) && ulk.ValueKind == JsonValueKind.String) c.Ulke = ulk.GetString();
+
             if (el.TryGetProperty("telefon", out var tel) && tel.ValueKind == JsonValueKind.String) c.Telefon = tel.GetString();
             if (el.TryGetProperty("telefon2", out var tel2) && tel2.ValueKind == JsonValueKind.String) c.CepTelefon = tel2.GetString();
+            else if (el.TryGetProperty("cep_telefon", out var ctel) && ctel.ValueKind == JsonValueKind.String) c.CepTelefon = ctel.GetString();
+            else if (el.TryGetProperty("cepTelefon", out var ctelCamel) && ctelCamel.ValueKind == JsonValueKind.String) c.CepTelefon = ctelCamel.GetString();
+
             if (el.TryGetProperty("yetkili_kisi", out var yk) && yk.ValueKind == JsonValueKind.String) c.Yetkili = yk.GetString();
             else if (el.TryGetProperty("yetkili", out var yt) && yt.ValueKind == JsonValueKind.String) c.Yetkili = yt.GetString();
+            else if (el.TryGetProperty("yetkiliKisi", out var ykCamel) && ykCamel.ValueKind == JsonValueKind.String) c.Yetkili = ykCamel.GetString();
+
             if (el.TryGetProperty("email", out var em) && em.ValueKind == JsonValueKind.String) c.Email = em.GetString();
             else if (el.TryGetProperty("eposta", out var ep) && ep.ValueKind == JsonValueKind.String) c.Email = ep.GetString();
+
             if (el.TryGetProperty("web_sitesi", out var ws) && ws.ValueKind == JsonValueKind.String) c.WebAdresi = ws.GetString();
+            else if (el.TryGetProperty("web_adresi", out var wa) && wa.ValueKind == JsonValueKind.String) c.WebAdresi = wa.GetString();
+            else if (el.TryGetProperty("webAdresi", out var waCamel) && waCamel.ValueKind == JsonValueKind.String) c.WebAdresi = waCamel.GetString();
+
+            if (el.TryGetProperty("iban", out var ib) && ib.ValueKind == JsonValueKind.String) c.IBAN = ib.GetString();
+            if (el.TryGetProperty("aciklama", out var ack) && ack.ValueKind == JsonValueKind.String) c.Aciklama = ack.GetString();
+            else if (el.TryGetProperty("notlar", out var ntl) && ntl.ValueKind == JsonValueKind.String) c.Aciklama = ntl.GetString();
+
             if (el.TryGetProperty("borc_tutari", out var bt)) c.Borc = ParseDecimal(bt);
             else if (el.TryGetProperty("borc", out var brc)) c.Borc = ParseDecimal(brc);
+
             if (el.TryGetProperty("alacak_tutari", out var at)) c.Alacak = ParseDecimal(at);
             else if (el.TryGetProperty("alacak", out var alc)) c.Alacak = ParseDecimal(alc);
+
+            if (el.TryGetProperty("vade_gun", out var vg)) c.VadeGunu = ParseInt(vg);
+            else if (el.TryGetProperty("vade_gunu", out var vgu)) c.VadeGunu = ParseInt(vgu);
+            else if (el.TryGetProperty("vadeGunu", out var vguCamel)) c.VadeGunu = ParseInt(vguCamel);
+            else if (el.TryGetProperty("vadeGun", out var vgCamel)) c.VadeGunu = ParseInt(vgCamel);
+
+            if (el.TryGetProperty("kredi_limiti", out var kl)) c.RiskLimiti = ParseDecimal(kl);
+            else if (el.TryGetProperty("risk_limiti", out var rl)) c.RiskLimiti = ParseDecimal(rl);
+            else if (el.TryGetProperty("riskLimiti", out var rlCamel)) c.RiskLimiti = ParseDecimal(rlCamel);
+            else if (el.TryGetProperty("krediLimiti", out var klCamel)) c.RiskLimiti = ParseDecimal(klCamel);
+
+            if (el.TryGetProperty("odeme_plani", out var op) && op.ValueKind == JsonValueKind.String) c.OdemePlani = op.GetString();
+            else if (el.TryGetProperty("odemePlani", out var opCamel) && opCamel.ValueKind == JsonValueKind.String) c.OdemePlani = opCamel.GetString();
+
+            if (el.TryGetProperty("ticaret_sicil_no", out var tsn) && tsn.ValueKind == JsonValueKind.String) c.TicaretSicilNo = tsn.GetString();
+            else if (el.TryGetProperty("ticaretSicilNo", out var tsnCamel) && tsnCamel.ValueKind == JsonValueKind.String) c.TicaretSicilNo = tsnCamel.GetString();
+
+            if (el.TryGetProperty("tur", out var tr) && tr.ValueKind == JsonValueKind.String) c.Tur = tr.GetString();
             if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) c.Grup = grp.GetString();
+
+            if (el.TryGetProperty("latitude", out var latEl)) c.Latitude = ParseDouble(latEl);
+            else if (el.TryGetProperty("lat", out var latEl2)) c.Latitude = ParseDouble(latEl2);
+
+            if (el.TryGetProperty("longitude", out var lngEl)) c.Longitude = ParseDouble(lngEl);
+            else if (el.TryGetProperty("lng", out var lngEl2)) c.Longitude = ParseDouble(lngEl2);
+
+            if (el.TryGetProperty("risk_takibi_yapilsin", out var rty)) c.RiskTakibiYapilsin = rty.ValueKind == JsonValueKind.True;
+            else if (el.TryGetProperty("riskTakibiYapilsin", out var rtyCamel)) c.RiskTakibiYapilsin = rtyCamel.ValueKind == JsonValueKind.True;
+
+            if (el.TryGetProperty("vade_gecmiste_engelle", out var vge)) c.VadeGecmisteEngelle = vge.ValueKind == JsonValueKind.True;
+            else if (el.TryGetProperty("vadeGecmisteEngelle", out var vgeCamel)) c.VadeGecmisteEngelle = vgeCamel.ValueKind == JsonValueKind.True;
+
+            if (el.TryGetProperty("faturada_risk_kontrolu", out var frk)) c.FaturadaRiskKontrolu = frk.ValueKind != JsonValueKind.False;
+            else if (el.TryGetProperty("faturadaRiskKontrolu", out var frkCamel)) c.FaturadaRiskKontrolu = frkCamel.ValueKind != JsonValueKind.False;
+
+            if (el.TryGetProperty("is_active", out var isAct)) c.AktifMi = isAct.ValueKind != JsonValueKind.False;
+            else if (el.TryGetProperty("aktifMi", out var actCamel)) c.AktifMi = actCamel.ValueKind != JsonValueKind.False;
+
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) c.IsDeleted = true;
             if (el.TryGetProperty("guncelleme_tarihi", out var gt) && gt.ValueKind == JsonValueKind.String && DateTime.TryParse(gt.GetString(), out var dtGt)) c.UpdatedAt = dtGt;
             else if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) c.UpdatedAt = dtUa;
@@ -544,13 +667,16 @@ namespace ErmayMuhasebe.Services
             ["grup"] = s.Kategori ?? s.Grup,
             ["birim"] = s.Birim ?? "Adet",
             ["alis_fiyati"] = s.AlisFiyati,
+            ["ortalama_alis_fiyati"] = s.OrtalamaAlisFiyati,
             ["satis_fiyati"] = s.SatisFiyati,
+            ["ortalama_satis_fiyati"] = s.OrtalamaSatisFiyati,
             ["kdv_orani"] = s.KDV,
             ["mevcut_miktar"] = (decimal)s.Miktar,
             ["miktar"] = (decimal)s.Miktar,
             ["kritik_seviye"] = (decimal)s.MinSeviye,
             ["kritik_stok"] = (decimal)s.MinSeviye,
             ["aciklama"] = s.Aciklama,
+            ["kayit_tarihi"] = s.KayitTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["is_active"] = true,
             ["is_deleted"] = s.IsDeleted,
             ["guncelleme_tarihi"] = s.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -567,13 +693,16 @@ namespace ErmayMuhasebe.Services
             else if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) s.Kategori = grp.GetString();
             if (el.TryGetProperty("birim", out var br) && br.ValueKind == JsonValueKind.String) s.Birim = br.GetString() ?? "Adet";
             if (el.TryGetProperty("alis_fiyati", out var af)) s.AlisFiyati = ParseDecimal(af);
+            if (el.TryGetProperty("ortalama_alis_fiyati", out var oaf)) s.OrtalamaAlisFiyati = ParseDecimal(oaf);
             if (el.TryGetProperty("satis_fiyati", out var sf)) s.SatisFiyati = ParseDecimal(sf);
+            if (el.TryGetProperty("ortalama_satis_fiyati", out var osf)) s.OrtalamaSatisFiyati = ParseDecimal(osf);
             if (el.TryGetProperty("kdv_orani", out var ko)) s.KDV = ParseInt(ko, 20);
             if (el.TryGetProperty("mevcut_miktar", out var mm)) s.Miktar = ParseDouble(mm);
             else if (el.TryGetProperty("miktar", out var mq)) s.Miktar = ParseDouble(mq);
             if (el.TryGetProperty("kritik_seviye", out var ks)) s.MinSeviye = ParseDouble(ks);
             else if (el.TryGetProperty("kritik_stok", out var kst)) s.MinSeviye = ParseDouble(kst);
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) s.Aciklama = ac.GetString();
+            if (el.TryGetProperty("kayit_tarihi", out var kt) && kt.ValueKind == JsonValueKind.String && DateTime.TryParse(kt.GetString(), out var dtKt)) s.KayitTarihi = dtKt;
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) s.IsDeleted = true;
             if (el.TryGetProperty("guncelleme_tarihi", out var gt) && gt.ValueKind == JsonValueKind.String && DateTime.TryParse(gt.GetString(), out var dtGt)) s.UpdatedAt = dtGt;
             else if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) s.UpdatedAt = dtUa;
@@ -595,6 +724,17 @@ namespace ErmayMuhasebe.Services
             ["iskonto_toplam"] = 0m,
             ["genel_toplam"] = f.GenelToplam,
             ["aciklama"] = f.Aciklama,
+            ["doviz_turu"] = f.DovizTuru ?? "TRY",
+            ["doviz_kuru"] = f.DovizKuru,
+            ["odeme_sekli"] = f.OdemeSekli,
+            ["is_earsiv"] = f.IsEArsiv,
+            ["vergi_dairesi"] = f.VergiDairesi,
+            ["vergi_no"] = f.VergiNo,
+            ["adres"] = f.Adres,
+            ["baglanti_evrak_no"] = f.BaglantiEvrakNo,
+            ["kasa_id"] = f.KasaId?.ToString(),
+            ["banka_id"] = f.BankaId?.ToString(),
+            ["iptal_mi"] = f.IptalMi,
             ["is_deleted"] = f.IsDeleted,
             ["guncelleme_tarihi"] = f.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
@@ -614,6 +754,15 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("kdv_toplam", out var kt)) f.KdvToplam = ParseDecimal(kt);
             if (el.TryGetProperty("genel_toplam", out var gt)) f.GenelToplam = ParseDecimal(gt);
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) f.Aciklama = ac.GetString();
+            if (el.TryGetProperty("doviz_turu", out var dt) && dt.ValueKind == JsonValueKind.String) f.DovizTuru = dt.GetString();
+            if (el.TryGetProperty("doviz_kuru", out var dk)) f.DovizKuru = ParseDecimal(dk);
+            if (el.TryGetProperty("odeme_sekli", out var os) && os.ValueKind == JsonValueKind.String) f.OdemeSekli = os.GetString();
+            if (el.TryGetProperty("is_earsiv", out var iea)) f.IsEArsiv = iea.ValueKind == JsonValueKind.True;
+            if (el.TryGetProperty("vergi_dairesi", out var fvd) && fvd.ValueKind == JsonValueKind.String) f.VergiDairesi = fvd.GetString();
+            if (el.TryGetProperty("vergi_no", out var fvn) && fvn.ValueKind == JsonValueKind.String) f.VergiNo = fvn.GetString();
+            if (el.TryGetProperty("adres", out var fadr) && fadr.ValueKind == JsonValueKind.String) f.Adres = fadr.GetString();
+            if (el.TryGetProperty("baglanti_evrak_no", out var ben) && ben.ValueKind == JsonValueKind.String) f.BaglantiEvrakNo = ben.GetString();
+            if (el.TryGetProperty("iptal_mi", out var im)) f.IptalMi = im.ValueKind == JsonValueKind.True;
             if (el.TryGetProperty("kasa_id", out var ki)) f.KasaId = ParseNullableInt(ki);
             if (el.TryGetProperty("banka_id", out var bi)) f.BankaId = ParseNullableInt(bi);
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) f.IsDeleted = true;
@@ -758,7 +907,11 @@ namespace ErmayMuhasebe.Services
                 ["hesap_no"] = b.HesapNo ?? "",
                 ["iban"] = b.IBAN ?? "",
                 ["bakiye"] = b.Bakiye,
+                ["guncel_bakiye"] = b.GuncelBakiye,
+                ["acilis_bakiyesi"] = b.AcilisBakiyesi,
                 ["para_birimi"] = b.DovizTuru ?? "TRY",
+                ["kart_turu"] = b.KartTuru,
+                ["telefon"] = b.Telefon,
                 ["aciklama"] = aciklama,
                 ["is_active"] = true,
                 ["is_deleted"] = b.IsDeleted
@@ -799,7 +952,11 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("hesap_no", out var hn) && hn.ValueKind == JsonValueKind.String) b.HesapNo = hn.GetString();
             if (el.TryGetProperty("iban", out var ib) && ib.ValueKind == JsonValueKind.String) b.IBAN = ib.GetString();
             if (el.TryGetProperty("bakiye", out var bq)) b.Bakiye = ParseDecimal(bq);
+            if (el.TryGetProperty("guncel_bakiye", out var gbq)) b.GuncelBakiye = ParseDecimal(gbq);
+            if (el.TryGetProperty("acilis_bakiyesi", out var abq)) b.AcilisBakiyesi = ParseDecimal(abq);
             if (el.TryGetProperty("para_birimi", out var pb) && pb.ValueKind == JsonValueKind.String) b.DovizTuru = pb.GetString();
+            if (el.TryGetProperty("telefon", out var tel) && tel.ValueKind == JsonValueKind.String) b.Telefon = tel.GetString();
+            if (el.TryGetProperty("kart_turu", out var kt) && kt.ValueKind == JsonValueKind.String) b.KartTuru = kt.GetString();
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) b.IsDeleted = true;
 
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String)
@@ -814,10 +971,10 @@ namespace ErmayMuhasebe.Services
                 else
                 {
                     b.Yetkili = acStr;
-                    b.KartTuru = "Vadesiz";
+                    if (string.IsNullOrEmpty(b.KartTuru)) b.KartTuru = "Vadesiz";
                 }
             }
-            else
+            else if (string.IsNullOrEmpty(b.KartTuru))
             {
                 b.KartTuru = "Vadesiz";
             }
@@ -902,6 +1059,10 @@ namespace ErmayMuhasebe.Services
             ["durum"] = sp.Durum ?? "Onaylandı",
             ["genel_toplam"] = sp.GenelToplam,
             ["aciklama"] = sp.Aciklama,
+            ["pdf_notlar"] = sp.PdfNotlar,
+            ["odeme_bilgisi"] = sp.OdemeBilgisi,
+            ["oncelik"] = sp.Oncelik,
+            ["baglanti_evrak_no"] = sp.BaglantiEvrakNo,
             ["is_deleted"] = sp.IsDeleted
         };
 
@@ -913,9 +1074,15 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("cari_id", out var ci)) sp.CariId = ParseInt(ci);
             if (el.TryGetProperty("cari_unvan", out var cu) && cu.ValueKind == JsonValueKind.String) sp.CariUnvan = cu.GetString();
             if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var t)) sp.Tarih = t;
+            if (el.TryGetProperty("teslim_tarihi", out var tsl) && tsl.ValueKind == JsonValueKind.String && DateTime.TryParse(tsl.GetString(), out var dtTsl)) sp.TeslimatTarihi = dtTsl;
+            else if (el.TryGetProperty("teslimatTarihi", out var tsl2) && tsl2.ValueKind == JsonValueKind.String && DateTime.TryParse(tsl2.GetString(), out var dtTsl2)) sp.TeslimatTarihi = dtTsl2;
             if (el.TryGetProperty("durum", out var dr) && dr.ValueKind == JsonValueKind.String) sp.Durum = dr.GetString();
             if (el.TryGetProperty("genel_toplam", out var gt)) sp.GenelToplam = ParseDecimal(gt);
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) sp.Aciklama = ac.GetString();
+            if (el.TryGetProperty("pdf_notlar", out var pn) && pn.ValueKind == JsonValueKind.String) sp.PdfNotlar = pn.GetString();
+            if (el.TryGetProperty("odeme_bilgisi", out var ob) && ob.ValueKind == JsonValueKind.String) sp.OdemeBilgisi = ob.GetString();
+            if (el.TryGetProperty("oncelik", out var onc) && onc.ValueKind == JsonValueKind.String) sp.Oncelik = onc.GetString();
+            if (el.TryGetProperty("baglanti_evrak_no", out var ben) && ben.ValueKind == JsonValueKind.String) sp.BaglantiEvrakNo = ben.GetString();
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) sp.IsDeleted = true;
             return sp;
         }
@@ -932,6 +1099,7 @@ namespace ErmayMuhasebe.Services
             ["durum"] = tk.Durum ?? "Gönderildi",
             ["genel_toplam"] = tk.GenelToplam,
             ["aciklama"] = tk.Aciklama,
+            ["odeme_bilgisi"] = tk.OdemeBilgisi,
             ["is_deleted"] = tk.IsDeleted
         };
 
@@ -943,9 +1111,12 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("cari_id", out var ci)) tk.CariId = ParseInt(ci);
             if (el.TryGetProperty("cari_unvan", out var cu) && cu.ValueKind == JsonValueKind.String) tk.CariUnvan = cu.GetString();
             if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var t)) tk.Tarih = t;
+            if (el.TryGetProperty("gecerlilik_tarihi", out var gt) && gt.ValueKind == JsonValueKind.String && DateTime.TryParse(gt.GetString(), out var dtGt)) tk.GecerlilikTarihi = dtGt;
+            else if (el.TryGetProperty("gecerlilikTarihi", out var gt2) && gt2.ValueKind == JsonValueKind.String && DateTime.TryParse(gt2.GetString(), out var dtGt2)) tk.GecerlilikTarihi = dtGt2;
             if (el.TryGetProperty("durum", out var dr) && dr.ValueKind == JsonValueKind.String) tk.Durum = dr.GetString();
-            if (el.TryGetProperty("genel_toplam", out var gt)) tk.GenelToplam = ParseDecimal(gt);
+            if (el.TryGetProperty("genel_toplam", out var gtot)) tk.GenelToplam = ParseDecimal(gtot);
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) tk.Aciklama = ac.GetString();
+            if (el.TryGetProperty("odeme_bilgisi", out var ob) && ob.ValueKind == JsonValueKind.String) tk.OdemeBilgisi = ob.GetString();
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) tk.IsDeleted = true;
             return tk;
         }
@@ -1774,51 +1945,63 @@ namespace ErmayMuhasebe.Services
 
             // Delete rows in reverse dependency order (detail/child tables first, parent tables last)
             // to satisfy foreign key constraints in PostgreSQL.
+            // Note: 'firma_profili' and 'kullanicilar' are preserved to retain system & connection settings.
             var tablesToClear = new[]
             {
+                // 1. Details & dependent transactional items (must be cleared before parent invoices/stocks/caris/banks)
                 "fatura_detaylar",
                 "siparis_detaylar",
                 "teklif_detaylar",
                 "stok_sayim_detaylari",
                 "musteri_takip_detaylar",
-                "cari_hareketler",
-                "stok_hareketler",
-                "banka_hareketler",
-                "kasa_hareketler",
                 "kredi_karti_islemler",
                 "eft_islemler",
                 "cekler",
                 "senetler",
-                "faturalar",
-                "siparisler",
-                "teklifler",
+                "cari_hareketler",
+                "stok_hareketler",
+                "banka_hareketler",
+                "kasa_hareketler",
                 "stok_sayim_fisileri",
                 "musteri_takip_klasorler",
-                "stoklar",
-                "cariler",
-                "bankalar",
-                "kasalar",
-                "doviz_kurlari",
-                "belge_arsiv",
-                "notlar",
                 "gorevler",
                 "personeller",
                 "satis_hedefleri",
                 "haftalik_satis_hedefleri",
                 "yillik_satis_hedefleri",
                 "portfoy_kartlar",
-                "firma_profili",
+                "belge_arsiv",
+                "doviz_kurlari",
+
+                // 2. Parent documents & master cards
+                "faturalar",
+                "siparisler",
+                "teklifler",
+                "stoklar",
+                "cariler",
+                "bankalar",
+                "kasalar",
+                "notlar",
+
+                // 3. Fiscal years
                 "mali_yillar"
             };
 
-            // Multi-pass deletion to ensure any indirect or circular foreign key dependencies are completely cleared
+            // Multi-pass direct deletion to ensure any indirect foreign key dependencies are completely cleared
             for (int pass = 1; pass <= 3; pass++)
             {
                 foreach (var table in tablesToClear)
                 {
                     try
                     {
-                        await DeleteFilteredAsync(table, "id=not.is.null");
+                        string filter = table == "mali_yillar" ? "yil=gte.0" : "id=not.is.null";
+                        using var req = CreateRequest(HttpMethod.Delete, $"{table}?{filter}");
+                        req.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
+                        using var res = await _http.SendAsync(req);
+                        if (!res.IsSuccessStatusCode)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[CloudSync] ClearCloudTable '{table}' (Pass {pass}) returned status {res.StatusCode}");
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1827,7 +2010,7 @@ namespace ErmayMuhasebe.Services
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine("[CloudSync] All cloud tables cleared successfully.");
+            System.Diagnostics.Debug.WriteLine("[CloudSync] All cloud business tables cleared successfully.");
         }
 
         // ==========================================
