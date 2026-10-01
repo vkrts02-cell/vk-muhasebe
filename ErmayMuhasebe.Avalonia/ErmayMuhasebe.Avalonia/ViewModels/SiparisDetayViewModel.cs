@@ -364,7 +364,7 @@ public partial class SiparisDetayViewModel : ViewModelBase, IHandleBack
             {
                 StokId = i.Stok.Id,
                 StokAdi = i.Ad,
-                Miktar = (double)(i.Miktar ?? 0),
+                Miktar = (decimal)(i.Miktar ?? 0),
                 Birim = i.Birim,
                 BirimFiyat = i.BirimFiyat ?? 0,
                 Tutar = i.Tutar,

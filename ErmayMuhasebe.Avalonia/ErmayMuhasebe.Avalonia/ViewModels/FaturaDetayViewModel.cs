@@ -121,7 +121,7 @@ public partial class FaturaDetayViewModel : ErmayMuhasebe.Shared.ViewModels.Fatu
             { 
                 StokKodu = i.Stok?.StokKodu,
                 StokAdi = i.Ad, 
-                Miktar = (double)(i.Miktar ?? 0), 
+                Miktar = (decimal)(i.Miktar ?? 0), 
                 Birim = i.Birim,
                 BirimFiyat = i.BirimFiyat ?? 0,
                 KDVOrani = (int)(i.KdvOrani ?? 0),

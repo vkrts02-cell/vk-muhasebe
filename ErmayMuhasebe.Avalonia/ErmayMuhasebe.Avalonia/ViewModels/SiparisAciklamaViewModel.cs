@@ -17,8 +17,8 @@ public partial class SiparisAciklamaItemViewModel : ObservableObject
     public string StokAdi { get; set; } = "";
     
     // We need to keep other properties to preserve them when saving back!
-    public double Miktar { get; set; }
-    public double TopMiktari { get; set; }
+    public decimal Miktar { get; set; }
+    public decimal TopMiktari { get; set; }
     public string? Birim { get; set; }
     public decimal BirimFiyat { get; set; }
     public decimal Tutar { get; set; }

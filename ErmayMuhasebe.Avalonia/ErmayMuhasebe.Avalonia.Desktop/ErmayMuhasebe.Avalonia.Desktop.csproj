@@ -13,6 +13,7 @@
     <Title>VK</Title>
     <AssemblyTitle>VK</AssemblyTitle>
     <Description>VK Ön Muhasebe</Description>
+    <UseAppHost>true</UseAppHost>
   </PropertyGroup>
 
   <PropertyGroup>
