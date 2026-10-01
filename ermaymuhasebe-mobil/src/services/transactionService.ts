@@ -11,6 +11,7 @@
  */
 import { writeData, deleteData, readData } from './firebase';
 import { generateInt32Id } from '../utils/IdGenerator';
+import { sendToInbox } from './inboxService';
 
 export type IslemTuru = 'Tahsilat' | 'Ödeme' | 'Alacak Dekontu' | 'Borç Dekontu';
 export type OdemeYontemi = 'Nakit' | 'Kredi Kartı' | 'Havale/EFT' | 'Havale / EFT' | 'Çek' | 'Banka';
@@ -248,6 +249,27 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
       await mustWrite(`${hesapTable}/${hesapKey}`, ciroPayload);
       written.push(`${hesapTable}/${hesapKey}`);
       if (prevHesap) rollback.push(async () => { await writeData(`${hesapTable}/${hesapKey}`, prevHesap); });
+    }
+
+    // Also forward to Desktop Authority Mobil Gelen Kutusu for official desktop processing & synchronization
+    try {
+      await sendToInbox({
+        islemTuru: isOdeme ? 'Odeme' : 'Tahsilat',
+        payload: {
+          cariId: req.cari.id,
+          cariUnvan: req.cari.unvan,
+          amount: req.amount,
+          method: req.method,
+          description: req.description,
+          date: req.date,
+          selectedHesapId: req.selectedHesap?.id,
+          bankaAdi: req.bankaAdi,
+          kartHesapNo: req.kartHesapNo,
+          yonlendirilenTedarikciId: req.directedSupplier?.id
+        }
+      });
+    } catch (inboxErr) {
+      console.warn('[transactionService] Mobil gelen kutusuna iletme uyarısı:', inboxErr);
     }
 
     return true;
