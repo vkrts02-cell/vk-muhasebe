@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons';
-import { readData, writeData } from '../services/firebase';
+import { ArrowLeft, Save, Check } from 'lucide-react-native';
+import { readData, writeData } from '../services/supabase';
 
 export default function FaturaTasarimScreen() {
   const navigation = useNavigation();
@@ -60,11 +60,11 @@ export default function FaturaTasarimScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={24} color="#F8FAFC" />
+          <ArrowLeft size={24} color="#F8FAFC" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Fatura Tasarımı</Text>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="check" size={24} color="#F8FAFC" />}
+          {saving ? <ActivityIndicator size="small" color="#FFF" /> : <Check size={24} color="#F8FAFC" />}
         </TouchableOpacity>
       </View>
 
