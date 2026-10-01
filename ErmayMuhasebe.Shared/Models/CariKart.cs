@@ -16,6 +16,8 @@ namespace ErmayMuhasebe.Models
 
         public long Version { get; set; } = 1;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
 
         private int _id;
         [PrimaryKey]

@@ -61,6 +61,8 @@ namespace ErmayMuhasebe.Services
         public event Action<FirmaProfili>? OnFirmaProfiliChanged;
 
         public CloudSyncService SyncService => _sync;
+        private MobilGelenKutusuService? _inboxService;
+        public MobilGelenKutusuService InboxService => _inboxService ??= new MobilGelenKutusuService(this, _sync, _yearContext);
 
         public string DbPath => _dbPath;
 
@@ -412,7 +414,8 @@ namespace ErmayMuhasebe.Services
                         typeof(KrediKartiIslem), typeof(EftIslem), typeof(HaftalikSatisHedefi), typeof(YillikSatisHedefi),
                         typeof(FirmaProfili), typeof(FaturaTasarimi), typeof(BelgeArsiv), typeof(Note), typeof(CariDosya), typeof(SyncQueueItem),
                         typeof(RecycleBinRecord), typeof(CronJobRecord), typeof(StokGrupDef),
-                        typeof(MusteriTakipKlasor), typeof(MusteriTakipDetay)
+                        typeof(MusteriTakipKlasor), typeof(MusteriTakipDetay),
+                        typeof(MobilGelenKutusu)
                     };
 
                     foreach (var table in tables)
@@ -5518,6 +5521,20 @@ namespace ErmayMuhasebe.Services
             await EnsureInitializedAsync();
             await CleanupLocalDuplicatesAsync();
             bool hasAnyChanges = false;
+
+            // 0. Mobil Gelen Kutusu (Inbox) Bekleyen İşlemleri Çek ve Doğrula/İşle
+            try
+            {
+                var inboxResult = await InboxService.ProcessPendingInboxAsync();
+                if (inboxResult.ProcessedCount > 0)
+                {
+                    hasAnyChanges = true;
+                }
+            }
+            catch (Exception inboxEx)
+            {
+                Console.WriteLine($"[Mobil Gelen Kutusu Hatası]: {inboxEx.Message}");
+            }
 
             // 1. Pull Cariler from Cloud
             var cloudCariler = await _sync.PullCarilerAsync();

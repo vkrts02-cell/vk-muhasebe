@@ -3,11 +3,15 @@ using System;
 
 namespace ErmayMuhasebe.Models
 {
-    public class BankaKart : ITenantEntity
+    public class BankaKart : ITenantEntity, IBaseEntity
     {
         [PrimaryKey]
         public int Id { get; set; }
         public string TenantId { get; set; } = "default";
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
         public string? BankaAdi { get; set; }
         public string? SubeAdi { get; set; }
         public string? SubeKodu { get; set; } // Missing

@@ -11,6 +11,8 @@ namespace ErmayMuhasebe.Models
         public string TenantId { get; set; } = "default";
         public long Version { get; set; } = 1;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
         public string? FaturaNo { get; set; }
         public DateTime Tarih { get; set; } = DateTime.Now;
         public DateTime VadeTarihi { get; set; } = DateTime.Now;

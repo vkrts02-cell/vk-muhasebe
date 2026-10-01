@@ -4,11 +4,15 @@ using System.Collections.Generic;
 
 namespace ErmayMuhasebe.Models
 {
-    public class Teklif : ITenantEntity
+    public class Teklif : ITenantEntity, IBaseEntity
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
         public string TenantId { get; set; } = "default";
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
         public string? TeklifNo { get; set; }
         public int CariId { get; set; }
         public string? CariUnvan { get; set; }
@@ -22,10 +26,15 @@ namespace ErmayMuhasebe.Models
         public bool IsDeleted { get; set; }
     }
 
-    public class TeklifDetay
+    public class TeklifDetay : IBaseEntity
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
+        public bool IsDeleted { get; set; }
         public int TeklifId { get; set; }
         public int StokId { get; set; }
         public string? StokAdi { get; set; }
@@ -40,11 +49,15 @@ namespace ErmayMuhasebe.Models
         public string? ParaBirimi { get; set; }
     }
 
-    public class Siparis : ITenantEntity
+    public class Siparis : ITenantEntity, IBaseEntity
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
         public string TenantId { get; set; } = "default";
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
         public string? SiparisNo { get; set; }
         public int CariId { get; set; }
         public string? CariUnvan { get; set; }
@@ -61,10 +74,15 @@ namespace ErmayMuhasebe.Models
         public bool IsDeleted { get; set; }
     }
 
-    public class SiparisDetay
+    public class SiparisDetay : IBaseEntity
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
+        public bool IsDeleted { get; set; }
         public int SiparisId { get; set; }
         public int StokId { get; set; }
         public string? StokAdi { get; set; }

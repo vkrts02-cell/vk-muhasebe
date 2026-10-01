@@ -3,11 +3,16 @@ using System;
 
 namespace ErmayMuhasebe.Models
 {
-    public class BankaHareket : ITenantEntity
+    public class BankaHareket : ITenantEntity, IBaseEntity
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
         public string TenantId { get; set; } = "default";
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
+        public bool IsDeleted { get; set; }
         [Indexed]
         public int BankaId { get; set; }
         public string? BankaAdi { get; set; } 

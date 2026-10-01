@@ -19,6 +19,8 @@ namespace ErmayMuhasebe.Models
         public string TenantId { get => _tenantId; set { _tenantId = value; OnPropertyChanged(); } }
 
         public long Version { get; set; } = 1;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
 
         private string _ad = "";
         public string Ad { get => _ad; set { _ad = value; OnPropertyChanged(); } }

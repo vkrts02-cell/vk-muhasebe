@@ -2124,5 +2124,91 @@ namespace ErmayMuhasebe.Services
                 }
             });
         }
+
+        // ==========================================
+        // MOBIL GELEN KUTUSU (INBOX)
+        // ==========================================
+        public async Task<List<MobilGelenKutusu>> PullPendingInboxItemsAsync(int maliYil)
+        {
+            var list = new List<MobilGelenKutusu>();
+            if (!IsConnected) return list;
+
+            try
+            {
+                using var doc = await GetJsonAsync("mobil_gelen_kutusu", $"durum=eq.Bekliyor&mali_yil=eq.{maliYil}&order=created_at.asc");
+                if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return list;
+
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    var item = new MobilGelenKutusu();
+                    if (el.TryGetProperty("id", out var idProp)) item.Id = idProp.GetString() ?? "";
+                    if (el.TryGetProperty("islem_turu", out var it)) item.IslemTuru = it.GetString() ?? "";
+                    if (el.TryGetProperty("kaynak_cihaz", out var kc)) item.KaynakCihaz = kc.GetString();
+                    if (el.TryGetProperty("payload", out var pld)) item.Payload = pld.GetRawText();
+                    if (el.TryGetProperty("durum", out var drm)) item.Durum = drm.GetString() ?? "Bekliyor";
+                    if (el.TryGetProperty("hata_mesaji", out var hm)) item.HataMesaji = hm.GetString();
+                    if (el.TryGetProperty("resmi_evrak_no", out var re)) item.ResmiEvrakNo = re.GetString();
+                    if (el.TryGetProperty("mali_yil", out var my)) item.MaliYil = ParseInt(my, maliYil);
+                    if (el.TryGetProperty("created_at", out var ca) && DateTime.TryParse(ca.GetString(), out var dtCa)) item.CreatedAt = dtCa;
+                    if (el.TryGetProperty("islenme_tarihi", out var ite) && DateTime.TryParse(ite.GetString(), out var dtIte)) item.IslenmeTarihi = dtIte;
+
+                    list.Add(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Inbox Pull Error]: {ex.Message}");
+            }
+
+            return list;
+        }
+
+        public async Task<bool> UpdateInboxItemStatusAsync(string id, string durum, string? resmiEvrakNo = null, string? hataMesaji = null)
+        {
+            if (!IsConnected || string.IsNullOrEmpty(id)) return false;
+
+            try
+            {
+                var payload = new Dictionary<string, object?>
+                {
+                    ["durum"] = durum,
+                    ["resmi_evrak_no"] = resmiEvrakNo,
+                    ["hata_mesaji"] = hataMesaji,
+                    ["islenme_tarihi"] = DateTime.UtcNow.ToString("o")
+                };
+
+                using var req = CreateRequest(HttpMethod.Patch, $"mobil_gelen_kutusu?id=eq.{id}");
+                string json = JsonSerializer.Serialize(payload, _jsonOpts);
+                req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                using var res = await _http.SendAsync(req);
+                return res.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Inbox Update Error]: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> PushInboxItemAsync(MobilGelenKutusu item)
+        {
+            if (!IsConnected || item == null) return false;
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["id"] = item.Id,
+                ["islem_turu"] = item.IslemTuru,
+                ["kaynak_cihaz"] = item.KaynakCihaz,
+                ["payload"] = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(item.Payload) ? "{}" : item.Payload),
+                ["durum"] = item.Durum,
+                ["hata_mesaji"] = item.HataMesaji,
+                ["resmi_evrak_no"] = item.ResmiEvrakNo,
+                ["mali_yil"] = item.MaliYil,
+                ["created_at"] = item.CreatedAt.ToString("o"),
+                ["islenme_tarihi"] = item.IslenmeTarihi?.ToString("o")
+            };
+
+            return await UpsertPayloadAsync("mobil_gelen_kutusu", payload);
+        }
     }
 }

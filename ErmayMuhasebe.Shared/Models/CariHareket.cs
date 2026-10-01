@@ -5,11 +5,17 @@ using System.Runtime.CompilerServices;
 
 namespace ErmayMuhasebe.Models
 {
-    public class CariHareket : ITenantEntity, INotifyPropertyChanged
+    public class CariHareket : ITenantEntity, INotifyPropertyChanged, IBaseEntity
     {
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
+        public bool IsDeleted { get; set; }
 
         private int _id;
         [PrimaryKey, AutoIncrement]

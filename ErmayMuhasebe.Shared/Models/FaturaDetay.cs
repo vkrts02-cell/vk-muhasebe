@@ -3,10 +3,15 @@ using System;
 
 namespace ErmayMuhasebe.Models
 {
-    public class FaturaDetay
+    public class FaturaDetay : IBaseEntity
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
+        public long Version { get; set; } = 1;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        [Indexed]
+        public string Uuid { get; set; } = Guid.NewGuid().ToString();
+        public bool IsDeleted { get; set; }
         
         [Indexed]
         public int FaturaId { get; set; }
