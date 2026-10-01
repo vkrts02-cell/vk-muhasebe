@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 import AsyncStorage from './storage';
 import { generateMobileRecordId } from '../utils/IdGenerator';
+import * as crypto from 'expo-crypto';
 
 export interface SupabaseConfig {
   url: string;
@@ -424,6 +425,11 @@ export const fetchWithTimeout = async (url: string, opts?: any, timeoutMs?: numb
 export const getAuthParam = (config?: any): string => '';
 
 // --- Table Schema Sanitization & Normalization ---
+export const toDec = (val: any): number => {
+  const num = Number(val) || 0;
+  return Math.round(num * 100) / 100; // SQLite Decimal precision fix for Mobile
+};
+
 export const sanitizePayloadForTable = (table: string, data: any): any => {
   if (!data || typeof data !== 'object') return data;
   const t = table.toLowerCase();
@@ -798,6 +804,28 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       ...r,
       id: 1,
       firmaAdi: row.unvan || r.unvan || '',
+      eposta: row.email || r.email || '',
+      webSitesi: row.web_sitesi || r.webSitesi || ''
+    };
+  }
+
+  // Sayısal alanları decimal hassasiyetle sabitle
+  if (r.bakiye !== undefined) r.bakiye = toDec(r.bakiye);
+  if (r.tutar !== undefined) r.tutar = toDec(r.tutar);
+  if (r.genelToplam !== undefined) r.genelToplam = toDec(r.genelToplam);
+  if (r.araToplam !== undefined) r.araToplam = toDec(r.araToplam);
+  if (r.kdvToplam !== undefined) r.kdvToplam = toDec(r.kdvToplam);
+  if (r.miktar !== undefined) r.miktar = toDec(r.miktar);
+  if (r.birimFiyat !== undefined) r.birimFiyat = toDec(r.birimFiyat);
+  if (r.borc !== undefined) r.borc = toDec(r.borc);
+  if (r.alacak !== undefined) r.alacak = toDec(r.alacak);
+  if (r.giren !== undefined) r.giren = toDec(r.giren);
+  if (r.cikan !== undefined) r.cikan = toDec(r.cikan);
+  
+  if (t === 'cariler') {
+    return {
+      ...r,
+      tcNo: row.tc_kimlik_no || r.tcKimlikNo || '',
       unvan: row.unvan || r.unvan || '',
       vergiDairesi: row.vergi_dairesi || r.vergiDairesi || '',
       vergiNo: row.vergi_no || r.vergiNo || '',
@@ -1307,6 +1335,31 @@ export const writeData = async (path: string, data: any): Promise<boolean> => {
     }
 
     const sanitizedData = sanitizePayloadForTable(table, payload);
+
+    // INBOX SYNC MODEL (Masaüstü Otorite Modeli)
+    // Tahsilat, gider, taslak fatura, yeni cari talebi vb. işlemleri mobil_gelen_kutusu'na yazıyoruz.
+    const inboxTables = ['cari_hareketler', 'kasa_hareketler', 'banka_hareketler', 'faturalar', 'fatura_detaylar', 'siparisler', 'teklifler', 'cariler'];
+    if (inboxTables.includes(table)) {
+      const inboxPayload = {
+        id: crypto.randomUUID(), // UUID for mobile inbox
+        table_name: table,
+        action: (sanitizedData.id || id) ? 'UPDATE' : 'CREATE',
+        payload: sanitizedData,
+        created_at: new Date().toISOString(),
+        status: 'PENDING'
+      };
+      
+      const { error: inboxError } = await supabase
+        .from('mobil_gelen_kutusu')
+        .insert(inboxPayload);
+        
+      if (inboxError) {
+        console.error(`[Supabase] Inbox write error on ${table}:`, inboxError.message);
+        return false;
+      }
+      return true;
+    }
+
     const { error } = await supabase
       .from(table)
       .upsert(sanitizedData, { onConflict: 'id' });

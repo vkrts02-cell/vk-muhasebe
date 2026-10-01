@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Share, Image, Switch } from 'react-native';
 import { Settings, Globe, Key, Calendar, Wifi, Save, Database, User, MapPin, Phone, Building, Lock, MonitorSmartphone, ArrowLeft, Trash2, Image as ImageIcon, UploadCloud, CheckSquare, Square, ArrowRight, Sparkles, RefreshCw, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '../services/storage';
 import { saveFirebaseConfig, saveSupabaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil } from '../services/firebase';
 import { getLockSettings, savePin, setLockEnabled, clearLock, setLockTimeout, DEFAULT_LOCK_MINUTES } from '../services/lockService';
 import { resetPdfServiceCache, cleanBase64Logo } from '../services/pdfService';
 
 export default function AyarlarScreen() {
+  const navigation = useNavigation<any>();
   const [dbUrl, setDbUrl] = useState('');
   const [secret, setSecret] = useState('');
   const [activeYear, setActiveYear] = useState('');
@@ -218,6 +220,10 @@ export default function AyarlarScreen() {
   };
 
   const handleSelectCategory = async (catId: string) => {
+    if (catId === 'fatura') {
+      navigation.navigate('FaturaTasarim');
+      return;
+    }
     setCurrentCategory(catId);
     if (catId === 'cloud') {
       await reloadCloudSettings();
@@ -893,6 +899,7 @@ export default function AyarlarScreen() {
     { id: 'profile', title: 'Firma Profili', description: 'Firma ünvanı, iletişim ve logo ayarları.', icon: Building, color: '#8B5CF6' },
     { id: 'security', title: 'Güvenlik ve Kilit', description: 'Oturum kilidi, PIN ve şifre ayarları.', icon: Lock, color: '#EF4444' },
     { id: 'backup', title: 'Yedekleme ve Bakım', description: 'Tüm veritabanını yedekleyin veya geri yükleyin.', icon: Database, color: '#10B981' },
+    { id: 'fatura', title: 'Fatura Tasarımı', description: 'Görünüm, boyut ve belge metinleri.', icon: FileText, color: '#ec4899' },
     { id: 'devir', title: 'Mali Yıl & Devir Sihirbazı', description: 'Aktif çalışma yılı ve bakiyeleri yeni yıla devretme.', icon: Calendar, color: '#3B82F6' },
     { id: 'cleanup', title: 'Veri Temizlik', description: 'Silinmiş çöp kayıtları ve yerel önbelleği temizleyin.', icon: Trash2, color: '#64748B' }
   ];

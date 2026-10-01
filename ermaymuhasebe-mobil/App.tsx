@@ -8,6 +8,7 @@ import LockScreen from './src/screens/LockScreen';
 import { loadConfigFromStorage, getFirebaseConfig, addConfigListener, getLoggedUser } from './src/services/firebase';
 import { recordBackground, shouldLock, clearBackgroundRecord } from './src/services/lockService';
 import { loadFirmaProfili } from './src/services/pdfService';
+import { initNotifications } from './src/services/alertService';
 
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, errorText: string }> {
@@ -62,6 +63,7 @@ export default function App() {
 
       // Şirket profilini ve logosunu arka planda önbelleğe al
       loadFirmaProfili().catch(() => {});
+      initNotifications().catch(() => {});
     } catch (e) {
       console.warn("Error in checkConfigAndUser:", e);
     } finally {

@@ -28,6 +28,8 @@ import TeklifFormScreen from '../screens/TeklifFormScreen';
 import MusteriTakipScreen from '../screens/MusteriTakipScreen';
 import MusteriTakipDetayScreen from '../screens/MusteriTakipDetayScreen';
 
+import FaturaTasarimScreen from '../screens/FaturaTasarimScreen';
+
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -58,6 +60,7 @@ function MoreStack() {
       <Stack.Screen name="RaporDetay" component={RaporDetayScreen} />
       <Stack.Screen name="Ayarlar" component={AyarlarScreen} />
       <Stack.Screen name="StokGrup" component={StokGrupScreen} />
+      <Stack.Screen name="FaturaTasarim" component={FaturaTasarimScreen} />
     </Stack.Navigator>
   );
 }

@@ -413,6 +413,73 @@ export default function DashboardScreen() {
       </View>
     );
   };
+
+  const renderHeatmap = () => {
+    const days = [];
+    for(let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    
+    const activeFaturalar = faturalar.filter(f => !f.isDeleted);
+    const activeKasa = kasaHareketler.filter(k => !k.isDeleted);
+    
+    let maxAbs = 1;
+    const dayValues = days.map(d => {
+      const dk = getSafeIsoDateStr(d);
+      const satis = activeFaturalar.filter(f => (f.tur === 'Satış' || f.tur === 'Satis' || f.Tur === 'Satış') && getSafeIsoDateStr(f.tarih || f.Tarih) === dk).reduce((s, f) => s + (f.genelToplam || f.GenelToplam || 0), 0);
+      const alis = activeFaturalar.filter(f => (f.tur === 'Alış' || f.tur === 'Alis' || f.Tur === 'Alış') && getSafeIsoDateStr(f.tarih || f.Tarih) === dk).reduce((s, f) => s + (f.genelToplam || f.GenelToplam || 0), 0);
+      const kasaIn = activeKasa.filter(k => getSafeIsoDateStr(k.tarih || k.Tarih) === dk).reduce((s, k) => s + (k.giren || k.gelir || k.Giren || 0), 0);
+      const kasaOut = activeKasa.filter(k => getSafeIsoDateStr(k.tarih || k.Tarih) === dk).reduce((s, k) => s + (k.cikan || k.gider || k.Cikan || 0), 0);
+      
+      const net = satis - alis + kasaIn - kasaOut;
+      if (Math.abs(net) > maxAbs) maxAbs = Math.abs(net);
+      return { date: d, net };
+    });
+
+    const boxSize = 14;
+    
+    return (
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>Finansal Isı Haritası (Nakit Akışı)</Text>
+        <Text style={{color: '#64748B', fontSize: 10, marginBottom: 12}}>Son 30 günün net nakit durumu</Text>
+        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignSelf: 'center', width: (boxSize + 4) * 10 }}>
+          {dayValues.map((dv, i) => {
+            let color = '#2A2A2A';
+            if (dv.net > 0) {
+              const intensity = Math.min(1, 0.3 + (dv.net / maxAbs) * 0.7);
+              color = `rgba(0, 255, 135, ${intensity})`;
+            } else if (dv.net < 0) {
+              const intensity = Math.min(1, 0.3 + (Math.abs(dv.net) / maxAbs) * 0.7);
+              color = `rgba(255, 65, 108, ${intensity})`;
+            }
+            
+            return (
+              <View key={i} style={{
+                width: boxSize, height: boxSize, borderRadius: 3,
+                backgroundColor: color, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)'
+              }} />
+            )
+          })}
+        </View>
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendIndicator, { backgroundColor: '#FF416C' }]} />
+            <Text style={styles.legendText}>Gider</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendIndicator, { backgroundColor: '#2A2A2A' }]} />
+            <Text style={styles.legendText}>Durağan</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendIndicator, { backgroundColor: '#00FF87' }]} />
+            <Text style={styles.legendText}>Gelir</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -488,6 +555,9 @@ export default function DashboardScreen() {
 
             {/* SVG Ciro Hedef Grafiği */}
             {renderGoalChart()}
+
+            {/* Finansal Isı Haritası */}
+            {renderHeatmap()}
 
             {/* Dynamic Lists */}
             <View style={styles.sectionCard}>

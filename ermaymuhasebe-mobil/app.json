@@ -12,7 +12,14 @@
       "bundleIdentifier": "com.vk.muhasebe",
       "infoPlist": {
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "192.168.1.103": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
         },
         "NSCameraUsageDescription": "Fatura ve evrak fotoğrafları eklemek için kamera erişimi gereklidir.",
         "NSPhotoLibraryUsageDescription": "Fatura, dekont ve logo yüklemek için galeri erişimi gereklidir.",
@@ -21,6 +28,7 @@
       }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
