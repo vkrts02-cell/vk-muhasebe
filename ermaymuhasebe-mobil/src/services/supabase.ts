@@ -505,22 +505,17 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     if (data.vergiNo !== undefined || data.vergi_no !== undefined) p.vergi_no = data.vergiNo ?? data.vergi_no;
     if (data.tcNo !== undefined || data.tcKimlikNo !== undefined || data.tc_kimlik_no !== undefined) p.tc_kimlik_no = data.tcNo ?? data.tcKimlikNo ?? data.tc_kimlik_no;
     if (data.adres !== undefined) p.adres = data.adres;
-    if (data.sevkAdresi !== undefined || data.sevk_adresi !== undefined) p.sevk_adresi = data.sevkAdresi ?? data.sevk_adresi;
     p.sehir = data.sehir || data.il || '';
     p.il = p.sehir;
     if (data.ilce !== undefined) p.ilce = data.ilce;
-    if (data.postaKodu !== undefined || data.posta_kodu !== undefined) p.posta_kodu = data.postaKodu ?? data.posta_kodu;
-    if (data.ulke !== undefined) p.ulke = data.ulke;
     if (data.telefon !== undefined) p.telefon = data.telefon;
     if (data.telefon2 !== undefined || data.cepTelefon !== undefined || data.cep_telefon !== undefined) p.telefon2 = data.telefon2 ?? data.cepTelefon ?? data.cep_telefon;
     p.yetkili_kisi = data.yetkiliKisi || data.yetkili || data.yetkili_kisi || '';
     p.email = data.email || data.eposta || '';
     p.eposta = p.email;
     p.web_sitesi = data.webSitesi || data.webAdresi || data.web_sitesi || '';
-    if (data.iban !== undefined) p.iban = data.iban;
     if (data.notlar !== undefined || data.aciklama !== undefined) {
       p.notlar = data.notlar ?? data.aciklama;
-      p.aciklama = p.notlar;
     }
     p.bakiye = Number(data.bakiye) || 0;
     p.borc_tutari = Number(data.borcTutari ?? data.borc ?? data.borc_tutari) || 0;
@@ -528,31 +523,13 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     p.borc = p.borc_tutari;
     p.alacak = p.alacak_tutari;
     if (data.krediLimiti !== undefined || data.riskLimiti !== undefined || data.risk_limiti !== undefined || data.kredi_limiti !== undefined) {
-      const rl = Number(data.riskLimiti ?? data.krediLimiti ?? data.risk_limiti ?? data.kredi_limiti) || 0;
-      p.kredi_limiti = rl;
-      p.risk_limiti = rl;
+      p.kredi_limiti = Number(data.riskLimiti ?? data.krediLimiti ?? data.risk_limiti ?? data.kredi_limiti) || 0;
     }
     if (data.vadeGun !== undefined || data.vadeGunu !== undefined || data.vade_gun !== undefined || data.vade_gunu !== undefined) {
-      const vg = Number(data.vadeGunu ?? data.vadeGun ?? data.vade_gunu ?? data.vade_gun) || 0;
-      p.vade_gun = vg;
-      p.vade_gunu = vg;
+      p.vade_gun = Number(data.vadeGunu ?? data.vadeGun ?? data.vade_gunu ?? data.vade_gun) || 0;
     }
-    if (data.odemePlani !== undefined || data.odeme_plani !== undefined) p.odeme_plani = data.odemePlani ?? data.odeme_plani;
-    if (data.ticaretSicilNo !== undefined || data.ticaret_sicil_no !== undefined) p.ticaret_sicil_no = data.ticaretSicilNo ?? data.ticaret_sicil_no;
-    if (data.lat !== undefined || data.latitude !== undefined) {
-      p.lat = data.lat ?? data.latitude;
-      p.latitude = p.lat;
-    }
-    if (data.lng !== undefined || data.longitude !== undefined) {
-      p.lng = data.lng ?? data.longitude;
-      p.longitude = p.lng;
-    }
-    if (data.riskTakibiYapilsin !== undefined || data.risk_takibi_yapilsin !== undefined) p.risk_takibi_yapilsin = !!(data.riskTakibiYapilsin ?? data.risk_takibi_yapilsin);
-    if (data.vadeGecmisteEngelle !== undefined || data.vade_gecmiste_engelle !== undefined) p.vade_gecmiste_engelle = !!(data.vadeGecmisteEngelle ?? data.vade_gecmiste_engelle);
-    if (data.faturadaRiskKontrolu !== undefined || data.faturada_risk_kontrolu !== undefined) p.faturada_risk_kontrolu = (data.faturadaRiskKontrolu ?? data.faturada_risk_kontrolu) !== false;
     if (data.iskontoOrani !== undefined || data.iskonto_orani !== undefined) p.iskonto_orani = Number(data.iskontoOrani ?? data.iskonto_orani) || 0;
     if (data.grup !== undefined) p.grup = data.grup;
-    if (data.tur !== undefined) p.tur = data.tur;
     if (data.sektor !== undefined) p.sektor = data.sektor;
     p.is_active = data.isActive !== false && data.is_active !== false && data.aktifMi !== false;
     p.is_deleted = data.isDeleted === true || data.is_deleted === true;
@@ -570,9 +547,7 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     p.grup = p.grup_adi;
     p.birim = data.birim || 'Adet';
     p.alis_fiyati = Number(data.alisFiyati ?? data.alis_fiyati) || 0;
-    p.ortalama_alis_fiyati = Number(data.ortalamaAlisFiyati ?? data.ortalama_alis_fiyati) || 0;
     p.satis_fiyati = Number(data.satisFiyati ?? data.satis_fiyati) || 0;
-    p.ortalama_satis_fiyati = Number(data.ortalamaSatisFiyati ?? data.ortalama_satis_fiyati) || 0;
     p.kdv_orani = Number(data.kdvOrani ?? data.kdv ?? data.kdv_orani) || 20;
     p.mevcut_miktar = Number(data.mevcutMiktar ?? data.miktar ?? data.mevcut_miktar) || 0;
     p.miktar = p.mevcut_miktar;
@@ -594,21 +569,12 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     p.cari_id = Number(data.cariId ?? data.cari_id) || null;
     p.cari_unvan = data.cariUnvan || data.cari_unvan || '';
     p.tarih = data.tarih || new Date().toISOString();
-    p.vade_tarihi = data.vadeTarihi || data.vade_tarihi || p.tarih;
+    if (data.vadeTarihi || data.vade_tarihi) p.vade_tarihi = data.vadeTarihi || data.vade_tarihi;
     p.ara_toplam = Number(data.araToplam ?? data.ara_toplam) || 0;
     p.kdv_toplam = Number(data.kdvToplam ?? data.toplamKdv ?? data.kdv_toplam) || 0;
     p.iskonto_toplam = Number(data.iskontoToplam ?? data.iskonto_toplam) || 0;
     p.genel_toplam = Number(data.genelToplam ?? data.genel_toplam) || 0;
     if (data.aciklama !== undefined) p.aciklama = data.aciklama;
-    p.doviz_turu = data.dovizTuru ?? data.doviz_turu ?? 'TRY';
-    p.doviz_kuru = Number(data.dovizKuru ?? data.doviz_kuru) || 1;
-    p.odeme_sekli = data.odemeSekli ?? data.odeme_sekli ?? 'Açık Hesap';
-    p.is_earsiv = data.isEArsiv === true || data.is_earsiv === true;
-    if (data.vergiDairesi !== undefined || data.vergi_dairesi !== undefined) p.vergi_dairesi = data.vergiDairesi ?? data.vergi_dairesi;
-    if (data.vergiNo !== undefined || data.vergi_no !== undefined) p.vergi_no = data.vergiNo ?? data.vergi_no;
-    if (data.adres !== undefined) p.adres = data.adres;
-    if (data.baglantiEvrakNo !== undefined || data.baglanti_evrak_no !== undefined) p.baglanti_evrak_no = data.baglantiEvrakNo ?? data.baglanti_evrak_no;
-    p.iptal_mi = data.iptalMi === true || data.iptal_mi === true;
     p.is_kapali = data.isKapali === true || data.is_kapali === true || (Number(p.genel_toplam) > 0 && Number(data.odenen) >= Number(p.genel_toplam));
     if (data.kasaId !== undefined || data.kasa_id !== undefined) p.kasa_id = Number(data.kasaId ?? data.kasa_id) || null;
     if (data.bankaId !== undefined || data.banka_id !== undefined) p.banka_id = Number(data.bankaId ?? data.banka_id) || null;
@@ -1362,14 +1328,17 @@ export const writeData = async (path: string, data: any): Promise<boolean> => {
 
     if (isDetail && foreignKey && id) {
       if (Array.isArray(data)) {
-        await supabase.from(table).delete().eq(foreignKey, id);
+        await supabase.from(table).delete().eq(foreignKey, Number(id) || id);
         if (data.length > 0) {
           const items = data.map((item: any) => ({
             ...sanitizePayloadForTable(table, item),
-            [foreignKey]: id
+            [foreignKey]: Number(id) || id
           }));
           const { error } = await supabase.from(table).insert(items);
-          if (error) throw error;
+          if (error) {
+            console.error(`[Supabase] Detail insert error on ${table}:`, error.message);
+            return false;
+          }
         }
         return true;
       }
@@ -1396,30 +1365,6 @@ export const writeData = async (path: string, data: any): Promise<boolean> => {
     }
 
     const sanitizedData = sanitizePayloadForTable(table, payload);
-
-    // INBOX SYNC MODEL (Masaüstü Otorite Modeli)
-    // Tahsilat, gider, taslak fatura, yeni cari talebi vb. işlemleri mobil_gelen_kutusu'na yazıyoruz.
-    const inboxTables = ['cari_hareketler', 'kasa_hareketler', 'banka_hareketler', 'faturalar', 'fatura_detaylar', 'siparisler', 'teklifler', 'cariler'];
-    if (inboxTables.includes(table)) {
-      const inboxPayload = {
-        id: crypto.randomUUID(), // UUID for mobile inbox
-        table_name: table,
-        action: (sanitizedData.id || id) ? 'UPDATE' : 'CREATE',
-        payload: sanitizedData,
-        created_at: new Date().toISOString(),
-        status: 'PENDING'
-      };
-      
-      const { error: inboxError } = await supabase
-        .from('mobil_gelen_kutusu')
-        .insert(inboxPayload);
-        
-      if (inboxError) {
-        console.error(`[Supabase] Inbox write error on ${table}:`, inboxError.message);
-        return false;
-      }
-      return true;
-    }
 
     const { error } = await supabase
       .from(table)
