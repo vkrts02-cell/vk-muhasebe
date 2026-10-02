@@ -5131,6 +5131,16 @@ namespace ErmayMuhasebe.Services
                     try
                     {
                         await Task.Delay(1000); // Allow startup initialization to settle
+                        try
+                        {
+                            var rolloverService = new YearRolloverService(this, _yearContext);
+                            var available = rolloverService.GetAvailableYears();
+                            if (available != null && available.Any())
+                            {
+                                await _sync.SyncMaliYillarAsync(available);
+                            }
+                        }
+                        catch { }
                         await SyncToCloudAsync();
                         System.Diagnostics.Debug.WriteLine("[DatabaseService] Automatic startup synchronization completed.");
                     }

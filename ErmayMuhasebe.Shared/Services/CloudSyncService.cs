@@ -514,10 +514,7 @@ namespace ErmayMuhasebe.Services
             ["il"] = c.Il,
             ["ilce"] = c.Ilce,
             ["is_active"] = c.AktifMi,
-            ["is_deleted"] = c.IsDeleted,
-            ["uuid"] = string.IsNullOrWhiteSpace(c.Uuid) ? Guid.NewGuid().ToString() : c.Uuid,
-            ["version"] = c.Version,
-            ["updated_at"] = c.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            ["is_deleted"] = c.IsDeleted
         };
 
         private static CariKart MapPayloadToCari(JsonElement el)
@@ -571,10 +568,7 @@ namespace ErmayMuhasebe.Services
             ["kritik_stok"] = (decimal)s.MinSeviye,
             ["grup"] = s.Kategori ?? s.Grup,
             ["is_active"] = true,
-            ["is_deleted"] = s.IsDeleted,
-            ["uuid"] = string.IsNullOrWhiteSpace(s.Uuid) ? Guid.NewGuid().ToString() : s.Uuid,
-            ["version"] = s.Version,
-            ["updated_at"] = s.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            ["is_deleted"] = s.IsDeleted
         };
 
         private static StokKart MapPayloadToStok(JsonElement el)
@@ -617,10 +611,7 @@ namespace ErmayMuhasebe.Services
             ["kalan_tutar"] = f.Kalan,
             ["durum"] = f.IptalMi ? "İptal" : (f.Kalan <= 0 ? "Ödendi" : (f.Odenen > 0 ? "Kısmi Ödendi" : "Açık")),
             ["aciklama"] = f.Aciklama,
-            ["is_deleted"] = f.IsDeleted,
-            ["uuid"] = string.IsNullOrWhiteSpace(f.Uuid) ? Guid.NewGuid().ToString() : f.Uuid,
-            ["version"] = f.Version,
-            ["updated_at"] = f.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            ["is_deleted"] = f.IsDeleted
         };
 
         private static Fatura MapPayloadToFatura(JsonElement el)
@@ -703,10 +694,7 @@ namespace ErmayMuhasebe.Services
             ["aciklama"] = h.Aciklama ?? "",
             ["fatura_id"] = h.FaturaId > 0 ? h.FaturaId.ToString() : null,
             ["tarih"] = h.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["is_deleted"] = h.IsDeleted,
-            ["uuid"] = string.IsNullOrWhiteSpace(h.Uuid) ? Guid.NewGuid().ToString() : h.Uuid,
-            ["version"] = h.Version,
-            ["updated_at"] = h.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            ["is_deleted"] = h.IsDeleted
         };
 
         private static CariHareket? MapPayloadToCariHareket(JsonElement el)
@@ -749,10 +737,7 @@ namespace ErmayMuhasebe.Services
                 ["aciklama"] = sh.Aciklama ?? "",
                 ["fatura_id"] = sh.FaturaId > 0 ? sh.FaturaId.ToString() : null,
                 ["tarih"] = sh.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                ["is_deleted"] = sh.IsDeleted,
-                ["uuid"] = string.IsNullOrWhiteSpace(sh.Uuid) ? Guid.NewGuid().ToString() : sh.Uuid,
-                ["version"] = sh.Version,
-                ["updated_at"] = sh.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                ["is_deleted"] = sh.IsDeleted
             };
         }
 
@@ -785,16 +770,6 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapBankaToPayload(BankaKart b)
         {
-            string? aciklama = null;
-            if (b.KartTuru == "Kasa")
-            {
-                aciklama = "[KASA]" + (string.IsNullOrWhiteSpace(b.Yetkili) ? "" : $"|{b.Yetkili}");
-            }
-            else if (!string.IsNullOrWhiteSpace(b.Yetkili))
-            {
-                aciklama = b.Yetkili;
-            }
-
             return new Dictionary<string, object?>
             {
                 ["id"] = b.Id.ToString(),
@@ -803,17 +778,9 @@ namespace ErmayMuhasebe.Services
                 ["hesap_no"] = b.HesapNo ?? "",
                 ["iban"] = b.IBAN ?? "",
                 ["bakiye"] = b.Bakiye,
-                ["guncel_bakiye"] = b.GuncelBakiye,
-                ["acilis_bakiyesi"] = b.AcilisBakiyesi,
                 ["para_birimi"] = b.DovizTuru ?? "TRY",
-                ["kart_turu"] = b.KartTuru,
-                ["telefon"] = b.Telefon,
-                ["aciklama"] = aciklama,
                 ["is_active"] = true,
-                ["is_deleted"] = b.IsDeleted,
-                ["updated_at"] = b.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                ["uuid"] = b.Uuid,
-                ["version"] = b.Version
+                ["is_deleted"] = b.IsDeleted
             };
         }
 

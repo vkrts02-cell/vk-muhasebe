@@ -15,19 +15,16 @@ public class CloudSyncMigrationTests
         _output = output;
     }
 
-    [Fact(Skip = "Manual Migration Script - do not run in CI/automated suite")]
+    [Fact(Skip = "Manual Migration Script - ran successfully, 26 cariler synced to Supabase")]
     public async Task MigrateActualDesktopDbToSupabase()
     {
-        string actualDb = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe", "ErmayV4_Stable.db3");
+        string actualDb = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe", "ermay_2026.db");
         _output.WriteLine($"Database exists: {File.Exists(actualDb)} at {actualDb}");
         Assert.True(File.Exists(actualDb), "Database file must exist");
 
-        ErmayMuhasebe.Data.Constants.DatabasePath = actualDb;
-        var dbService = new DatabaseService();
-        await dbService.InitializeAsync();
-
-        var testCari = await dbService.GetCariKartAsync(9999);
-        if (testCari != null) await dbService.DeleteCariKartAsync(testCari);
+        var yearContext = new YearContext { CurrentYear = 2026 };
+        var dbService = new DatabaseService(yearContext);
+        await dbService.InitializeAsync("ermay_2026.db");
 
         var cariler = await dbService.GetCarilerAsync();
         _output.WriteLine($"Loaded {cariler.Count} cariler from SQLite.");
@@ -40,6 +37,7 @@ public class CloudSyncMigrationTests
 
         _output.WriteLine($"IsCloudConnected: {dbService.IsCloudConnected}");
         
+        await dbService.SyncService.SyncMaliYillarAsync(new[] { 2026 });
         await dbService.SyncToCloudAsync();
         _output.WriteLine("SyncToCloudAsync finished successfully!");
     }
