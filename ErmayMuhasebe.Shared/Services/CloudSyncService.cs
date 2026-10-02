@@ -503,66 +503,29 @@ namespace ErmayMuhasebe.Services
         private static Dictionary<string, object?> MapCariToPayload(CariKart c) => new()
         {
             ["id"] = c.Id.ToString(),
-            ["cari_kodu"] = c.CariKod ?? "",
             ["kod"] = c.CariKod ?? "",
             ["unvan"] = c.Unvan ?? "",
+            ["bakiye"] = c.Bakiye,
             ["vergi_dairesi"] = c.VergiDairesi,
             ["vergi_no"] = c.VergiNo,
-            ["tc_kimlik_no"] = c.TCNo,
-            ["tc_no"] = c.TCNo,
+            ["telefon"] = string.IsNullOrWhiteSpace(c.Telefon) ? c.CepTelefon : c.Telefon,
+            ["eposta"] = c.Email,
             ["adres"] = c.Adres,
-            ["sevk_adresi"] = c.SevkAdresi,
-            ["sehir"] = c.Il,
             ["il"] = c.Il,
             ["ilce"] = c.Ilce,
-            ["posta_kodu"] = c.PostaKodu,
-            ["ulke"] = c.Ulke,
-            ["telefon"] = c.Telefon,
-            ["telefon2"] = c.CepTelefon,
-            ["cep_telefon"] = c.CepTelefon,
-            ["yetkili_kisi"] = c.Yetkili,
-            ["yetkili"] = c.Yetkili,
-            ["email"] = c.Email,
-            ["eposta"] = c.Email,
-            ["web_sitesi"] = c.WebAdresi,
-            ["web_adresi"] = c.WebAdresi,
-            ["iban"] = c.IBAN,
-            ["aciklama"] = c.Aciklama,
-            ["notlar"] = c.Aciklama,
-            ["bakiye"] = c.Bakiye,
-            ["borc_tutari"] = c.Borc,
-            ["alacak_tutari"] = c.Alacak,
-            ["borc"] = c.Borc,
-            ["alacak"] = c.Alacak,
-            ["kredi_limiti"] = c.RiskLimiti,
-            ["risk_limiti"] = c.RiskLimiti,
-            ["vade_gun"] = c.VadeGunu,
-            ["vade_gunu"] = c.VadeGunu,
-            ["odeme_plani"] = c.OdemePlani,
-            ["ticaret_sicil_no"] = c.TicaretSicilNo,
-            ["tur"] = c.Tur,
-            ["grup"] = c.Grup,
-            ["latitude"] = c.Latitude,
-            ["lat"] = c.Latitude,
-            ["longitude"] = c.Longitude,
-            ["lng"] = c.Longitude,
-            ["risk_takibi_yapilsin"] = c.RiskTakibiYapilsin,
-            ["vade_gecmiste_engelle"] = c.VadeGecmisteEngelle,
-            ["faturada_risk_kontrolu"] = c.FaturadaRiskKontrolu,
             ["is_active"] = c.AktifMi,
             ["is_deleted"] = c.IsDeleted,
-            ["guncelleme_tarihi"] = c.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["updated_at"] = c.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = c.Uuid,
-            ["version"] = c.Version
+            ["uuid"] = string.IsNullOrWhiteSpace(c.Uuid) ? Guid.NewGuid().ToString() : c.Uuid,
+            ["version"] = c.Version,
+            ["updated_at"] = c.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static CariKart MapPayloadToCari(JsonElement el)
         {
             var c = new CariKart();
             if (el.TryGetProperty("id", out var id)) c.Id = ParseInt(id);
-            if (el.TryGetProperty("cari_kodu", out var ck) && ck.ValueKind == JsonValueKind.String) c.CariKod = ck.GetString();
-            else if (el.TryGetProperty("kod", out var k) && k.ValueKind == JsonValueKind.String) c.CariKod = k.GetString();
+            if (el.TryGetProperty("kod", out var k) && k.ValueKind == JsonValueKind.String) c.CariKod = k.GetString();
+            else if (el.TryGetProperty("cari_kodu", out var ck) && ck.ValueKind == JsonValueKind.String) c.CariKod = ck.GetString();
             else if (el.TryGetProperty("cariKod", out var ckCamel) && ckCamel.ValueKind == JsonValueKind.String) c.CariKod = ckCamel.GetString();
 
             if (el.TryGetProperty("unvan", out var u) && u.ValueKind == JsonValueKind.String) c.Unvan = u.GetString();
@@ -572,90 +535,24 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("vergi_no", out var vn) && vn.ValueKind == JsonValueKind.String) c.VergiNo = vn.GetString();
             else if (el.TryGetProperty("vergiNo", out var vnCamel) && vnCamel.ValueKind == JsonValueKind.String) c.VergiNo = vnCamel.GetString();
 
-            if (el.TryGetProperty("tc_kimlik_no", out var tc) && tc.ValueKind == JsonValueKind.String) c.TCNo = tc.GetString();
-            else if (el.TryGetProperty("tc_no", out var tcn) && tcn.ValueKind == JsonValueKind.String) c.TCNo = tcn.GetString();
-            else if (el.TryGetProperty("tcNo", out var tcCamel) && tcCamel.ValueKind == JsonValueKind.String) c.TCNo = tcCamel.GetString();
-            else if (el.TryGetProperty("tcKimlikNo", out var tcKCamel) && tcKCamel.ValueKind == JsonValueKind.String) c.TCNo = tcKCamel.GetString();
-
             if (el.TryGetProperty("adres", out var adr) && adr.ValueKind == JsonValueKind.String) c.Adres = adr.GetString();
-            if (el.TryGetProperty("sevk_adresi", out var sadr) && sadr.ValueKind == JsonValueKind.String) c.SevkAdresi = sadr.GetString();
-            else if (el.TryGetProperty("sevkAdresi", out var sadrCamel) && sadrCamel.ValueKind == JsonValueKind.String) c.SevkAdresi = sadrCamel.GetString();
-
-            if (el.TryGetProperty("sehir", out var sh) && sh.ValueKind == JsonValueKind.String) c.Il = sh.GetString();
-            else if (el.TryGetProperty("il", out var il) && il.ValueKind == JsonValueKind.String) c.Il = il.GetString();
-
+            if (el.TryGetProperty("il", out var il) && il.ValueKind == JsonValueKind.String) c.Il = il.GetString();
+            else if (el.TryGetProperty("sehir", out var sh) && sh.ValueKind == JsonValueKind.String) c.Il = sh.GetString();
             if (el.TryGetProperty("ilce", out var ilc) && ilc.ValueKind == JsonValueKind.String) c.Ilce = ilc.GetString();
-            if (el.TryGetProperty("posta_kodu", out var pk) && pk.ValueKind == JsonValueKind.String) c.PostaKodu = pk.GetString();
-            else if (el.TryGetProperty("postaKodu", out var pkCamel) && pkCamel.ValueKind == JsonValueKind.String) c.PostaKodu = pkCamel.GetString();
-
-            if (el.TryGetProperty("ulke", out var ulk) && ulk.ValueKind == JsonValueKind.String) c.Ulke = ulk.GetString();
 
             if (el.TryGetProperty("telefon", out var tel) && tel.ValueKind == JsonValueKind.String) c.Telefon = tel.GetString();
-            if (el.TryGetProperty("telefon2", out var tel2) && tel2.ValueKind == JsonValueKind.String) c.CepTelefon = tel2.GetString();
-            else if (el.TryGetProperty("cep_telefon", out var ctel) && ctel.ValueKind == JsonValueKind.String) c.CepTelefon = ctel.GetString();
-            else if (el.TryGetProperty("cepTelefon", out var ctelCamel) && ctelCamel.ValueKind == JsonValueKind.String) c.CepTelefon = ctelCamel.GetString();
+            if (el.TryGetProperty("eposta", out var ep) && ep.ValueKind == JsonValueKind.String) c.Email = ep.GetString();
+            else if (el.TryGetProperty("email", out var em) && em.ValueKind == JsonValueKind.String) c.Email = em.GetString();
 
-            if (el.TryGetProperty("yetkili_kisi", out var yk) && yk.ValueKind == JsonValueKind.String) c.Yetkili = yk.GetString();
-            else if (el.TryGetProperty("yetkili", out var yt) && yt.ValueKind == JsonValueKind.String) c.Yetkili = yt.GetString();
-            else if (el.TryGetProperty("yetkiliKisi", out var ykCamel) && ykCamel.ValueKind == JsonValueKind.String) c.Yetkili = ykCamel.GetString();
-
-            if (el.TryGetProperty("email", out var em) && em.ValueKind == JsonValueKind.String) c.Email = em.GetString();
-            else if (el.TryGetProperty("eposta", out var ep) && ep.ValueKind == JsonValueKind.String) c.Email = ep.GetString();
-
-            if (el.TryGetProperty("web_sitesi", out var ws) && ws.ValueKind == JsonValueKind.String) c.WebAdresi = ws.GetString();
-            else if (el.TryGetProperty("web_adresi", out var wa) && wa.ValueKind == JsonValueKind.String) c.WebAdresi = wa.GetString();
-            else if (el.TryGetProperty("webAdresi", out var waCamel) && waCamel.ValueKind == JsonValueKind.String) c.WebAdresi = waCamel.GetString();
-
-            if (el.TryGetProperty("iban", out var ib) && ib.ValueKind == JsonValueKind.String) c.IBAN = ib.GetString();
-            if (el.TryGetProperty("aciklama", out var ack) && ack.ValueKind == JsonValueKind.String) c.Aciklama = ack.GetString();
-            else if (el.TryGetProperty("notlar", out var ntl) && ntl.ValueKind == JsonValueKind.String) c.Aciklama = ntl.GetString();
-
-            if (el.TryGetProperty("borc_tutari", out var bt)) c.Borc = ParseDecimal(bt);
-            else if (el.TryGetProperty("borc", out var brc)) c.Borc = ParseDecimal(brc);
-
-            if (el.TryGetProperty("alacak_tutari", out var at)) c.Alacak = ParseDecimal(at);
-            else if (el.TryGetProperty("alacak", out var alc)) c.Alacak = ParseDecimal(alc);
-
-            if (el.TryGetProperty("vade_gun", out var vg)) c.VadeGunu = ParseInt(vg);
-            else if (el.TryGetProperty("vade_gunu", out var vgu)) c.VadeGunu = ParseInt(vgu);
-            else if (el.TryGetProperty("vadeGunu", out var vguCamel)) c.VadeGunu = ParseInt(vguCamel);
-            else if (el.TryGetProperty("vadeGun", out var vgCamel)) c.VadeGunu = ParseInt(vgCamel);
-
-            if (el.TryGetProperty("kredi_limiti", out var kl)) c.RiskLimiti = ParseDecimal(kl);
-            else if (el.TryGetProperty("risk_limiti", out var rl)) c.RiskLimiti = ParseDecimal(rl);
-            else if (el.TryGetProperty("riskLimiti", out var rlCamel)) c.RiskLimiti = ParseDecimal(rlCamel);
-            else if (el.TryGetProperty("krediLimiti", out var klCamel)) c.RiskLimiti = ParseDecimal(klCamel);
-
-            if (el.TryGetProperty("odeme_plani", out var op) && op.ValueKind == JsonValueKind.String) c.OdemePlani = op.GetString();
-            else if (el.TryGetProperty("odemePlani", out var opCamel) && opCamel.ValueKind == JsonValueKind.String) c.OdemePlani = opCamel.GetString();
-
-            if (el.TryGetProperty("ticaret_sicil_no", out var tsn) && tsn.ValueKind == JsonValueKind.String) c.TicaretSicilNo = tsn.GetString();
-            else if (el.TryGetProperty("ticaretSicilNo", out var tsnCamel) && tsnCamel.ValueKind == JsonValueKind.String) c.TicaretSicilNo = tsnCamel.GetString();
-
-            if (el.TryGetProperty("tur", out var tr) && tr.ValueKind == JsonValueKind.String) c.Tur = tr.GetString();
-            if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) c.Grup = grp.GetString();
-
-            if (el.TryGetProperty("latitude", out var latEl)) c.Latitude = ParseDouble(latEl);
-            else if (el.TryGetProperty("lat", out var latEl2)) c.Latitude = ParseDouble(latEl2);
-
-            if (el.TryGetProperty("longitude", out var lngEl)) c.Longitude = ParseDouble(lngEl);
-            else if (el.TryGetProperty("lng", out var lngEl2)) c.Longitude = ParseDouble(lngEl2);
-
-            if (el.TryGetProperty("risk_takibi_yapilsin", out var rty)) c.RiskTakibiYapilsin = rty.ValueKind == JsonValueKind.True;
-            else if (el.TryGetProperty("riskTakibiYapilsin", out var rtyCamel)) c.RiskTakibiYapilsin = rtyCamel.ValueKind == JsonValueKind.True;
-
-            if (el.TryGetProperty("vade_gecmiste_engelle", out var vge)) c.VadeGecmisteEngelle = vge.ValueKind == JsonValueKind.True;
-            else if (el.TryGetProperty("vadeGecmisteEngelle", out var vgeCamel)) c.VadeGecmisteEngelle = vgeCamel.ValueKind == JsonValueKind.True;
-
-            if (el.TryGetProperty("faturada_risk_kontrolu", out var frk)) c.FaturadaRiskKontrolu = frk.ValueKind != JsonValueKind.False;
-            else if (el.TryGetProperty("faturadaRiskKontrolu", out var frkCamel)) c.FaturadaRiskKontrolu = frkCamel.ValueKind != JsonValueKind.False;
-
+            if (el.TryGetProperty("bakiye", out var bq))
+            {
+                var bVal = ParseDecimal(bq);
+                if (bVal >= 0) c.DevirBorc = bVal;
+                else c.DevirAlacak = -bVal;
+            }
             if (el.TryGetProperty("is_active", out var isAct)) c.AktifMi = isAct.ValueKind != JsonValueKind.False;
-            else if (el.TryGetProperty("aktifMi", out var actCamel)) c.AktifMi = actCamel.ValueKind != JsonValueKind.False;
-
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) c.IsDeleted = true;
-            if (el.TryGetProperty("guncelleme_tarihi", out var gt) && gt.ValueKind == JsonValueKind.String && DateTime.TryParse(gt.GetString(), out var dtGt)) c.UpdatedAt = dtGt;
-            else if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) c.UpdatedAt = dtUa;
+            if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) c.UpdatedAt = dtUa;
             if (el.TryGetProperty("version", out var vr)) c.Version = ParseInt(vr, 1);
             if (el.TryGetProperty("uuid", out var uu) && uu.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(uu.GetString())) c.Uuid = uu.GetString()!;
             return c;
@@ -666,27 +563,18 @@ namespace ErmayMuhasebe.Services
             ["id"] = s.Id.ToString(),
             ["stok_kodu"] = s.StokKodu ?? "",
             ["stok_adi"] = s.StokAdi ?? "",
-            ["barkod"] = s.Barkod,
-            ["grup_adi"] = s.Kategori ?? s.Grup,
-            ["grup"] = s.Kategori ?? s.Grup,
             ["birim"] = s.Birim ?? "Adet",
-            ["alis_fiyati"] = s.AlisFiyati,
-            ["ortalama_alis_fiyati"] = s.OrtalamaAlisFiyati,
-            ["satis_fiyati"] = s.SatisFiyati,
-            ["ortalama_satis_fiyati"] = s.OrtalamaSatisFiyati,
             ["kdv_orani"] = s.KDV,
+            ["alis_fiyati"] = s.AlisFiyati,
+            ["satis_fiyati"] = s.SatisFiyati,
             ["mevcut_miktar"] = (decimal)s.Miktar,
-            ["miktar"] = (decimal)s.Miktar,
-            ["kritik_seviye"] = (decimal)s.MinSeviye,
             ["kritik_stok"] = (decimal)s.MinSeviye,
-            ["aciklama"] = s.Aciklama,
-            ["kayit_tarihi"] = s.KayitTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["grup"] = s.Kategori ?? s.Grup,
             ["is_active"] = true,
             ["is_deleted"] = s.IsDeleted,
-            ["guncelleme_tarihi"] = s.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["updated_at"] = s.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = s.Uuid,
-            ["version"] = s.Version
+            ["uuid"] = string.IsNullOrWhiteSpace(s.Uuid) ? Guid.NewGuid().ToString() : s.Uuid,
+            ["version"] = s.Version,
+            ["updated_at"] = s.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static StokKart MapPayloadToStok(JsonElement el)
@@ -696,23 +584,18 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("stok_kodu", out var sk) && sk.ValueKind == JsonValueKind.String) s.StokKodu = sk.GetString();
             if (el.TryGetProperty("stok_adi", out var sa) && sa.ValueKind == JsonValueKind.String) s.StokAdi = sa.GetString();
             if (el.TryGetProperty("barkod", out var bk) && bk.ValueKind == JsonValueKind.String) s.Barkod = bk.GetString();
-            if (el.TryGetProperty("grup_adi", out var ga) && ga.ValueKind == JsonValueKind.String) s.Kategori = ga.GetString();
-            else if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) s.Kategori = grp.GetString();
+            if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) s.Kategori = grp.GetString();
+            else if (el.TryGetProperty("grup_adi", out var ga) && ga.ValueKind == JsonValueKind.String) s.Kategori = ga.GetString();
             if (el.TryGetProperty("birim", out var br) && br.ValueKind == JsonValueKind.String) s.Birim = br.GetString() ?? "Adet";
             if (el.TryGetProperty("alis_fiyati", out var af)) s.AlisFiyati = ParseDecimal(af);
-            if (el.TryGetProperty("ortalama_alis_fiyati", out var oaf)) s.OrtalamaAlisFiyati = ParseDecimal(oaf);
             if (el.TryGetProperty("satis_fiyati", out var sf)) s.SatisFiyati = ParseDecimal(sf);
-            if (el.TryGetProperty("ortalama_satis_fiyati", out var osf)) s.OrtalamaSatisFiyati = ParseDecimal(osf);
             if (el.TryGetProperty("kdv_orani", out var ko)) s.KDV = ParseInt(ko, 20);
             if (el.TryGetProperty("mevcut_miktar", out var mm)) s.Miktar = ParseDecimal(mm);
             else if (el.TryGetProperty("miktar", out var mq)) s.Miktar = ParseDecimal(mq);
-            if (el.TryGetProperty("kritik_seviye", out var ks)) s.MinSeviye = ParseDecimal(ks);
-            else if (el.TryGetProperty("kritik_stok", out var kst)) s.MinSeviye = ParseDecimal(kst);
-            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) s.Aciklama = ac.GetString();
-            if (el.TryGetProperty("kayit_tarihi", out var kt) && kt.ValueKind == JsonValueKind.String && DateTime.TryParse(kt.GetString(), out var dtKt)) s.KayitTarihi = dtKt;
+            if (el.TryGetProperty("kritik_stok", out var kst)) s.MinSeviye = ParseDecimal(kst);
+            else if (el.TryGetProperty("kritik_seviye", out var ks)) s.MinSeviye = ParseDecimal(ks);
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) s.IsDeleted = true;
-            if (el.TryGetProperty("guncelleme_tarihi", out var gt) && gt.ValueKind == JsonValueKind.String && DateTime.TryParse(gt.GetString(), out var dtGt)) s.UpdatedAt = dtGt;
-            else if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) s.UpdatedAt = dtUa;
+            if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) s.UpdatedAt = dtUa;
             if (el.TryGetProperty("version", out var vr)) s.Version = ParseInt(vr, 1);
             if (el.TryGetProperty("uuid", out var uu) && uu.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(uu.GetString())) s.Uuid = uu.GetString()!;
             return s;
@@ -731,23 +614,13 @@ namespace ErmayMuhasebe.Services
             ["kdv_toplam"] = f.KdvToplam,
             ["iskonto_toplam"] = 0m,
             ["genel_toplam"] = f.GenelToplam,
+            ["kalan_tutar"] = f.Kalan,
+            ["durum"] = f.IptalMi ? "İptal" : (f.Kalan <= 0 ? "Ödendi" : (f.Odenen > 0 ? "Kısmi Ödendi" : "Açık")),
             ["aciklama"] = f.Aciklama,
-            ["doviz_turu"] = f.DovizTuru ?? "TRY",
-            ["doviz_kuru"] = f.DovizKuru,
-            ["odeme_sekli"] = f.OdemeSekli,
-            ["is_earsiv"] = f.IsEArsiv,
-            ["vergi_dairesi"] = f.VergiDairesi,
-            ["vergi_no"] = f.VergiNo,
-            ["adres"] = f.Adres,
-            ["baglanti_evrak_no"] = f.BaglantiEvrakNo,
-            ["kasa_id"] = f.KasaId?.ToString(),
-            ["banka_id"] = f.BankaId?.ToString(),
-            ["iptal_mi"] = f.IptalMi,
             ["is_deleted"] = f.IsDeleted,
-            ["guncelleme_tarihi"] = f.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["updated_at"] = f.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = f.Uuid,
-            ["version"] = f.Version
+            ["uuid"] = string.IsNullOrWhiteSpace(f.Uuid) ? Guid.NewGuid().ToString() : f.Uuid,
+            ["version"] = f.Version,
+            ["updated_at"] = f.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static Fatura MapPayloadToFatura(JsonElement el)
@@ -794,16 +667,11 @@ namespace ErmayMuhasebe.Services
             ["birim"] = d.Birim ?? "Adet",
             ["miktar"] = (decimal)d.Miktar,
             ["birim_fiyat"] = d.BirimFiyat,
-            ["kdv_orani"] = d.KDVOrani,
+            ["kdv_orani"] = (decimal)d.KDVOrani,
             ["kdv_tutari"] = d.KdvTutari,
-            ["iskonto_orani"] = 0m,
-            ["iskonto_tutari"] = 0m,
             ["toplam_tutar"] = d.ToplamTutar,
-            ["aciklama"] = d.Aciklama,
-            ["uuid"] = d.Uuid,
-            ["version"] = d.Version,
-            ["updated_at"] = d.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["is_deleted"] = d.IsDeleted
+            ["iskonto_orani"] = 0m,
+            ["iskonto_tutari"] = 0m
         };
 
         private static FaturaDetay MapPayloadToFaturaDetay(JsonElement el)
@@ -820,11 +688,6 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("kdv_orani", out var ko)) d.KDVOrani = ParseInt(ko);
             if (el.TryGetProperty("kdv_tutari", out var kt)) d.KdvTutari = ParseDecimal(kt);
             if (el.TryGetProperty("toplam_tutar", out var tt)) d.ToplamTutar = ParseDecimal(tt);
-            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) d.Aciklama = ac.GetString();
-            if (el.TryGetProperty("uuid", out var uu) && uu.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(uu.GetString())) d.Uuid = uu.GetString()!;
-            if (el.TryGetProperty("version", out var vr)) d.Version = ParseInt(vr, 1);
-            if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) d.UpdatedAt = dtUa;
-            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) d.IsDeleted = true;
             return d;
         }
 
@@ -832,19 +695,18 @@ namespace ErmayMuhasebe.Services
         {
             ["id"] = h.Id.ToString(),
             ["cari_id"] = h.CariId.ToString(),
-            ["tarih"] = h.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["islem_turu"] = h.IslemTuru ?? "",
             ["evrak_no"] = h.EvrakNo ?? "",
-            ["aciklama"] = h.Aciklama ?? "",
+            ["islem_turu"] = h.IslemTuru ?? "",
             ["borc"] = h.Borc,
             ["alacak"] = h.Alacak,
             ["bakiye"] = h.KalanBakiye,
-            ["fatura_id"] = h.FaturaId?.ToString(),
+            ["aciklama"] = h.Aciklama ?? "",
+            ["fatura_id"] = h.FaturaId > 0 ? h.FaturaId.ToString() : null,
+            ["tarih"] = h.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["is_deleted"] = h.IsDeleted,
-            ["updated_at"] = h.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["guncelleme_tarihi"] = h.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = h.Uuid,
-            ["version"] = h.Version
+            ["uuid"] = string.IsNullOrWhiteSpace(h.Uuid) ? Guid.NewGuid().ToString() : h.Uuid,
+            ["version"] = h.Version,
+            ["updated_at"] = h.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static CariHareket? MapPayloadToCariHareket(JsonElement el)
@@ -861,8 +723,8 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) h.Aciklama = ac.GetString();
             if (el.TryGetProperty("borc", out var b)) h.Borc = ParseDecimal(b);
             if (el.TryGetProperty("alacak", out var a)) h.Alacak = ParseDecimal(a);
+            if (el.TryGetProperty("bakiye", out var bq)) h.KalanBakiye = ParseDecimal(bq);
             if (el.TryGetProperty("fatura_id", out var fi)) h.FaturaId = ParseNullableInt(fi);
-            if (el.TryGetProperty("vade_tarihi", out var vt) && vt.ValueKind == JsonValueKind.String && DateTime.TryParse(vt.GetString(), out var v)) h.Vade = v;
             if (el.TryGetProperty("uuid", out var uu) && uu.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(uu.GetString())) h.Uuid = uu.GetString()!;
             if (el.TryGetProperty("version", out var vr)) h.Version = ParseInt(vr, 1);
             if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) h.UpdatedAt = dtUa;
@@ -877,20 +739,20 @@ namespace ErmayMuhasebe.Services
             {
                 ["id"] = sh.Id.ToString(),
                 ["stok_id"] = sh.StokId.ToString(),
-                ["tarih"] = sh.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                ["hareket_turu"] = sh.IslemTuru ?? (sh.Giren > 0 ? "GİRİŞ" : "ÇIKIŞ"),
-                ["hareket_tipi"] = sh.IslemTuru ?? (sh.Giren > 0 ? "GİRİŞ" : "ÇIKIŞ"),
                 ["evrak_no"] = sh.EvrakNo ?? "",
+                ["hareket_tipi"] = sh.IslemTuru ?? sh.EvrakTuru ?? (sh.Giren > 0 ? "Giris" : "Cikis"),
                 ["miktar"] = miktar,
                 ["birim_fiyat"] = sh.Fiyat,
+                ["kdv_orani"] = 0m,
+                ["kdv_tutari"] = 0m,
                 ["toplam_tutar"] = toplam,
-                ["fatura_id"] = sh.FaturaId?.ToString(),
                 ["aciklama"] = sh.Aciklama ?? "",
+                ["fatura_id"] = sh.FaturaId > 0 ? sh.FaturaId.ToString() : null,
+                ["tarih"] = sh.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                 ["is_deleted"] = sh.IsDeleted,
-                ["updated_at"] = sh.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                ["guncelleme_tarihi"] = sh.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                ["uuid"] = sh.Uuid,
-                ["version"] = sh.Version
+                ["uuid"] = string.IsNullOrWhiteSpace(sh.Uuid) ? Guid.NewGuid().ToString() : sh.Uuid,
+                ["version"] = sh.Version,
+                ["updated_at"] = sh.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
             };
         }
 
@@ -1032,10 +894,7 @@ namespace ErmayMuhasebe.Services
             ["yatan"] = bh.Giren,
             ["ceken"] = bh.Cikan,
             ["cari_id"] = bh.CariId?.ToString(),
-            ["is_deleted"] = bh.IsDeleted,
-            ["updated_at"] = bh.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = bh.Uuid,
-            ["version"] = bh.Version
+            ["is_deleted"] = bh.IsDeleted
         };
 
         private static BankaHareket? MapPayloadToBankaHareket(JsonElement el)
@@ -1071,10 +930,7 @@ namespace ErmayMuhasebe.Services
             ["gelir"] = kh.Giren,
             ["gider"] = kh.Cikan,
             ["cari_id"] = kh.CariId?.ToString(),
-            ["is_deleted"] = kh.IsDeleted,
-            ["updated_at"] = kh.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = kh.Uuid,
-            ["version"] = kh.Version
+            ["is_deleted"] = kh.IsDeleted
         };
 
         private static KasaHareket? MapPayloadToKasaHareket(JsonElement el)
@@ -1101,24 +957,19 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapSiparisToPayload(Siparis sp) => new()
         {
-            ["id"] = sp.Id,
+            ["id"] = sp.Id.ToString(),
             ["siparis_no"] = sp.SiparisNo ?? "",
             ["siparis_turu"] = "Standart",
-            ["cari_id"] = sp.CariId,
+            ["cari_id"] = sp.CariId.ToString(),
             ["cari_unvan"] = sp.CariUnvan ?? "",
             ["tarih"] = sp.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["teslim_tarihi"] = sp.TeslimatTarihi?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["durum"] = sp.Durum ?? "Onaylandı",
+            ["ara_toplam"] = sp.GenelToplam,
+            ["kdv_toplam"] = 0m,
             ["genel_toplam"] = sp.GenelToplam,
-            ["aciklama"] = sp.Aciklama,
-            ["pdf_notlar"] = sp.PdfNotlar,
-            ["odeme_bilgisi"] = sp.OdemeBilgisi,
-            ["oncelik"] = sp.Oncelik,
-            ["baglanti_evrak_no"] = sp.BaglantiEvrakNo,
-            ["is_deleted"] = sp.IsDeleted,
-            ["updated_at"] = sp.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = sp.Uuid,
-            ["version"] = sp.Version
+            ["durum"] = sp.Durum ?? "Onaylandı",
+            ["aciklama"] = sp.Aciklama ?? "",
+            ["is_deleted"] = sp.IsDeleted
         };
 
         private static Siparis MapPayloadToSiparis(JsonElement el)
@@ -1147,21 +998,19 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapTeklifToPayload(Teklif tk) => new()
         {
-            ["id"] = tk.Id,
+            ["id"] = tk.Id.ToString(),
             ["teklif_no"] = tk.TeklifNo ?? "",
             ["teklif_turu"] = "Standart",
-            ["cari_id"] = tk.CariId,
+            ["cari_id"] = tk.CariId.ToString(),
             ["cari_unvan"] = tk.CariUnvan ?? "",
             ["tarih"] = tk.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["gecerlilik_tarihi"] = tk.GecerlilikTarihi?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["durum"] = tk.Durum ?? "Gönderildi",
+            ["ara_toplam"] = tk.GenelToplam,
+            ["kdv_toplam"] = 0m,
             ["genel_toplam"] = tk.GenelToplam,
-            ["aciklama"] = tk.Aciklama,
-            ["odeme_bilgisi"] = tk.OdemeBilgisi,
-            ["is_deleted"] = tk.IsDeleted,
-            ["updated_at"] = tk.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["uuid"] = tk.Uuid,
-            ["version"] = tk.Version
+            ["durum"] = tk.Durum ?? "Gönderildi",
+            ["aciklama"] = tk.Aciklama ?? "",
+            ["is_deleted"] = tk.IsDeleted
         };
 
         private static Teklif MapPayloadToTeklif(JsonElement el)
@@ -1649,51 +1498,147 @@ namespace ErmayMuhasebe.Services
         public async Task SyncMaliYilAsync(int year)
         {
             if (year <= 0) return;
-            var payload = new Dictionary<string, object?>
+            try
             {
-                ["yil"] = year,
-                ["is_active"] = true,
-                ["is_deleted"] = false,
-                ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
-            };
-            await UpsertPayloadAsync("mali_yillar", payload);
+                var payload = new Dictionary<string, object?>
+                {
+                    ["yil"] = year,
+                    ["is_active"] = true,
+                    ["is_deleted"] = false,
+                    ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                };
+                await UpsertPayloadAsync("mali_yillar", payload);
+            }
+            catch { }
+
+            // Mirror to notlar table for guaranteed cross-device and mobile support
+            try
+            {
+                var existingYears = await PullMaliYillarAsync() ?? new List<int>();
+                if (!existingYears.Contains(year))
+                {
+                    existingYears.Add(year);
+                    existingYears.Sort();
+                }
+                var notePayload = new Dictionary<string, object?>
+                {
+                    ["id"] = "999998",
+                    ["baslik"] = "__MALI_YILLAR__",
+                    ["icerik"] = System.Text.Json.JsonSerializer.Serialize(existingYears),
+                    ["renk"] = "#0061FF",
+                    ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["is_deleted"] = false
+                };
+                await UpsertPayloadAsync("notlar", notePayload);
+            }
+            catch { }
         }
 
         public async Task SyncMaliYillarAsync(IEnumerable<int> years)
         {
             if (!IsConnected || years == null || !years.Any()) return;
-            var payloads = years.Where(y => y > 0).Distinct().Select(y => (object)new Dictionary<string, object?>
+            var cleanYears = years.Where(y => y > 0).Distinct().OrderBy(y => y).ToList();
+            if (!cleanYears.Any()) return;
+
+            try
             {
-                ["yil"] = y,
-                ["is_active"] = true,
-                ["is_deleted"] = false,
-                ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
-            }).ToList();
-            if (payloads.Any())
-            {
+                var payloads = cleanYears.Select(y => (object)new Dictionary<string, object?>
+                {
+                    ["yil"] = y,
+                    ["is_active"] = true,
+                    ["is_deleted"] = false,
+                    ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                }).ToList();
                 await UpsertBatchPayloadAsync("mali_yillar", payloads);
             }
+            catch { }
+
+            // Always write to notlar table (id: 999998, baslik: "__MALI_YILLAR__")
+            try
+            {
+                var notePayload = new Dictionary<string, object?>
+                {
+                    ["id"] = "999998",
+                    ["baslik"] = "__MALI_YILLAR__",
+                    ["icerik"] = System.Text.Json.JsonSerializer.Serialize(cleanYears),
+                    ["renk"] = "#0061FF",
+                    ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["is_deleted"] = false
+                };
+                await UpsertPayloadAsync("notlar", notePayload);
+            }
+            catch { }
         }
 
         public async Task DeleteMaliYilAsync(int year)
         {
             if (!IsConnected || year <= 0) return;
-            await DeleteFilteredAsync("mali_yillar", $"yil=eq.{year}");
+            try
+            {
+                await DeleteFilteredAsync("mali_yillar", $"yil=eq.{year}");
+            }
+            catch { }
+            try
+            {
+                var existingYears = await PullMaliYillarAsync() ?? new List<int>();
+                existingYears.Remove(year);
+                var notePayload = new Dictionary<string, object?>
+                {
+                    ["id"] = "999998",
+                    ["baslik"] = "__MALI_YILLAR__",
+                    ["icerik"] = System.Text.Json.JsonSerializer.Serialize(existingYears),
+                    ["renk"] = "#0061FF",
+                    ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["is_deleted"] = false
+                };
+                await UpsertPayloadAsync("notlar", notePayload);
+            }
+            catch { }
         }
 
         public async Task<List<int>?> PullMaliYillarAsync()
         {
-            using var doc = await GetJsonAsync("mali_yillar", "or=(is_deleted.is.null,is_deleted.eq.false)");
-            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
-            var list = new List<int>();
-            foreach (var el in doc.RootElement.EnumerateArray())
+            var list = new HashSet<int>();
+            try
             {
-                if (el.TryGetProperty("yil", out var y))
+                using var doc = await GetJsonAsync("mali_yillar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+                if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
                 {
-                    int val = ParseInt(y);
-                    if (val > 0) list.Add(val);
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        if (el.TryGetProperty("yil", out var y))
+                        {
+                            int val = ParseInt(y);
+                            if (val > 0) list.Add(val);
+                        }
+                    }
                 }
             }
+            catch { }
+
+            // Fallback / mirror: check notlar id 999998
+            try
+            {
+                using var noteDoc = await GetJsonAsync("notlar", "id=eq.999998");
+                if (noteDoc != null && noteDoc.RootElement.ValueKind == JsonValueKind.Array && noteDoc.RootElement.GetArrayLength() > 0)
+                {
+                    var item = noteDoc.RootElement[0];
+                    if (item.TryGetProperty("icerik", out var icerikEl) && icerikEl.ValueKind == JsonValueKind.String)
+                    {
+                        var json = icerikEl.GetString();
+                        if (!string.IsNullOrWhiteSpace(json))
+                        {
+                            var parsed = System.Text.Json.JsonSerializer.Deserialize<List<int>>(json);
+                            if (parsed != null)
+                            {
+                                foreach (var py in parsed) if (py > 0) list.Add(py);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
             return list.OrderBy(y => y).ToList();
         }
 
@@ -1702,13 +1647,10 @@ namespace ErmayMuhasebe.Services
             var payload = new Dictionary<string, object?>
             {
                 ["id"] = note.Id.ToString(),
-                ["title"] = note.Title ?? "",
                 ["baslik"] = note.Title ?? "",
-                ["content"] = note.Content ?? "",
                 ["icerik"] = note.Content ?? "",
-                ["color"] = note.Color ?? "#0061FF",
                 ["renk"] = note.Color ?? "#0061FF",
-                ["is_pinned"] = note.IsPinned,
+                ["tarih"] = note.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                 ["is_deleted"] = note.IsDeleted
             };
             await UpsertPayloadAsync("notlar", payload);
@@ -2177,12 +2119,14 @@ namespace ErmayMuhasebe.Services
                 }
                 if (notes?.Any() == true)
                 {
-                    var payloads = notes.Select(n => (object)new
+                    var payloads = notes.Select(n => (object)new Dictionary<string, object?>
                     {
-                        id = n.Id,
-                        baslik = n.Title ?? "",
-                        icerik = n.Content ?? "",
-                        renk = n.Color ?? "#0061FF"
+                        ["id"] = n.Id.ToString(),
+                        ["baslik"] = n.Title ?? "",
+                        ["icerik"] = n.Content ?? "",
+                        ["renk"] = n.Color ?? "#0061FF",
+                        ["tarih"] = n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                        ["is_deleted"] = n.IsDeleted
                     }).ToList();
                     await UpsertBatchPayloadAsync("notlar", payloads);
                 }

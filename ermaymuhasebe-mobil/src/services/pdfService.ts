@@ -87,10 +87,10 @@ export const loadFirmaProfili = async (): Promise<any | null> => {
       }
     }
 
-    // 3. Hala profil yoksa doğrudan REST URL ile Firebase'den çek
     if (!node) {
       try {
-        const config = getFirebaseConfig() || await loadConfigFromStorage();
+        await loadConfigFromStorage();
+        const config = getFirebaseConfig();
         if (config?.url) {
           const cleanUrl = config.url.replace(/\/$/, '');
           const authParam = getAuthParam(config);

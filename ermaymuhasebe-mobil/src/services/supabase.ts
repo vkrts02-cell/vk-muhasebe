@@ -29,23 +29,25 @@ export interface ExtendedFirebaseConfig extends FirebaseConfig {
 export const DEFAULT_SUPABASE_URL = 'https://fqgbdymffknglqeqoogt.supabase.co';
 export const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxZ2JkeW1mZmtuZ2xxZXFvb2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODUzMDEsImV4cCI6MjEwNTE2MTMwMX0.pBeE2ivWpbkAd8KSN1y2pXNZPIr_1mGMLXXHYPzjTDg';
 
+let isExplicitlyConfigured = false;
+
 let cachedConfig: SupabaseConfig = {
-  url: DEFAULT_SUPABASE_URL,
-  anonKey: DEFAULT_SUPABASE_KEY,
+  url: '',
+  anonKey: '',
   tenantId: 'default'
 };
 
 let cachedExtendedConfig: ExtendedFirebaseConfig = {
-  url: DEFAULT_SUPABASE_URL,
-  secret: DEFAULT_SUPABASE_KEY,
+  url: '',
+  secret: '',
   tenantId: 'default'
 };
 
 let cachedYear: string = new Date().getFullYear().toString();
 let cachedSessionUser: any = null;
 let supabase: SupabaseClient = createClient(
-  cachedConfig.url || 'https://placeholder.supabase.co',
-  cachedConfig.anonKey || 'placeholder-key'
+  DEFAULT_SUPABASE_URL,
+  DEFAULT_SUPABASE_KEY
 );
 
 let configListeners: (() => void)[] = [];
@@ -177,21 +179,42 @@ export const cleanSupabaseUrl = (rawUrl?: string): string => {
   return clean;
 };
 
-export const loadConfigFromStorage = async () => {
+export const isConfiguredInStorage = async (): Promise<boolean> => {
+  try {
+    const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
+    const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
+    const hasConfig = !!(rawUrl && rawUrl.trim() && key && key.trim());
+    isExplicitlyConfigured = hasConfig;
+    return hasConfig;
+  } catch {
+    return false;
+  }
+};
+
+export const getIsExplicitlyConfigured = () => isExplicitlyConfigured;
+
+export const loadConfigFromStorage = async (): Promise<boolean> => {
   try {
     const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
     const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
     const yr = await AsyncStorage.getItem('ermay_active_year');
-    if (rawUrl && key) {
+    if (rawUrl && key && rawUrl.trim() && key.trim()) {
       const url = cleanSupabaseUrl(rawUrl);
       const cleanKey = key.trim();
       cachedConfig = { url, anonKey: cleanKey, tenantId: 'default' };
       cachedExtendedConfig = { url, secret: cleanKey, tenantId: 'default' };
       supabase = createClient(url, cleanKey);
+      if (yr) cachedYear = yr;
+      isExplicitlyConfigured = true;
+      return true;
+    } else {
+      isExplicitlyConfigured = false;
+      return false;
     }
-    if (yr) cachedYear = yr;
   } catch (e) {
     console.log('[Supabase] loadConfigFromStorage error:', e);
+    isExplicitlyConfigured = false;
+    return false;
   }
 };
 
@@ -201,6 +224,7 @@ export const saveSupabaseConfig = async (rawUrl: string, anonKey: string) => {
   cachedConfig = { url, anonKey: cleanKey, tenantId: 'default' };
   cachedExtendedConfig = { url, secret: cleanKey, tenantId: 'default' };
   supabase = createClient(url, cleanKey);
+  isExplicitlyConfigured = true;
   await AsyncStorage.setItem('ermay_supabase_url', url);
   await AsyncStorage.setItem('ermay_supabase_key', cleanKey);
   await AsyncStorage.setItem('ermay_firebase_url', url);
@@ -228,11 +252,14 @@ export const notifyConfigListeners = () => {
 };
 
 // --- Compatibility Aliases for screens ---
-export const getFirebaseConfig = (): FirebaseConfig | null => ({
-  url: cachedConfig.url,
-  secret: cachedConfig.anonKey,
-  tenantId: cachedConfig.tenantId
-});
+export const getFirebaseConfig = (): FirebaseConfig | null => {
+  if (!isExplicitlyConfigured) return null;
+  return {
+    url: cachedConfig.url,
+    secret: cachedConfig.anonKey,
+    tenantId: cachedConfig.tenantId
+  };
+};
 
 export const getExtendedConfig = (): ExtendedFirebaseConfig | null => cachedExtendedConfig;
 
@@ -255,25 +282,44 @@ export const saveFirebaseConfig = async (
 
 export const fetchAvailableYears = async (): Promise<string[]> => {
   try {
-    // 1. Doğrudan mali_yillar tablosunu sorgula
-    const { data, error } = await supabase
-      .from('mali_yillar')
-      .select('yil')
-      .or('is_deleted.is.null,is_deleted.eq.false')
-      .order('yil', { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      const years = data
-        .map((r: any) => String(r.yil))
-        .filter((y: string) => /^\d{4}$/.test(y));
-      if (years.length > 0) {
-        return Array.from(new Set(years)).sort();
-      }
-    }
-
-    // 2. Tablo yoksa veya henüz kayıt girilmemişse hareketler ve faturalardaki tarihlerden distinct yılları bul
     const distinctYears = new Set<string>();
 
+    // 1. notlar tablosundaki __MALI_YILLAR__ kaydını sorgula (Masaüstü doğrudan buraya senkronize ediyor)
+    try {
+      const { data: noteData } = await supabase
+        .from('notlar')
+        .select('icerik')
+        .eq('id', '999998')
+        .maybeSingle();
+
+      if (noteData && noteData.icerik) {
+        const parsed = typeof noteData.icerik === 'string' ? JSON.parse(noteData.icerik) : noteData.icerik;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          parsed.forEach((y: any) => {
+            const strY = String(y);
+            if (/^\d{4}$/.test(strY)) distinctYears.add(strY);
+          });
+        }
+      }
+    } catch {}
+
+    // 2. Doğrudan mali_yillar tablosunu sorgula (varsa)
+    try {
+      const { data, error } = await supabase
+        .from('mali_yillar')
+        .select('yil')
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('yil', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        data.forEach((r: any) => {
+          const y = String(r.yil);
+          if (/^\d{4}$/.test(y)) distinctYears.add(y);
+        });
+      }
+    } catch {}
+
+    // 3. Tablo yoksa hareketler ve faturalardaki tarihlerden distinct yılları bul
     try {
       const { data: faturaData } = await supabase
         .from('faturalar')
@@ -308,12 +354,27 @@ export const fetchAvailableYears = async (): Promise<string[]> => {
       }
     } catch {}
 
+    try {
+      const { data: shData } = await supabase
+        .from('stok_hareketler')
+        .select('tarih')
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .limit(200);
+
+      if (shData) {
+        shData.forEach((h: any) => {
+          if (h.tarih) {
+            const yr = new Date(h.tarih).getFullYear();
+            if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
+          }
+        });
+      }
+    } catch {}
+
     if (distinctYears.size > 0) {
       return Array.from(distinctYears).sort();
     }
 
-    // 3. Veritabanı tamamen boşsa: Kesinlikle uydurma 3 yıl dönme!
-    // Boş liste dön ki kullanıcı masaüstündeki gibi "Yıl Oluştur" panelini görsün.
     return [];
   } catch (err) {
     console.warn('[Supabase] fetchAvailableYears error:', err);

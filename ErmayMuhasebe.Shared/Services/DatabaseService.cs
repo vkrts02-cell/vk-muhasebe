@@ -514,18 +514,9 @@ namespace ErmayMuhasebe.Services
 
                     await MigrateMissingDataFromGlobalDbAsync();
 
-                    // TEMİZ KURULUM: Bulut eşitlemeyi atla (eski verilerin çekilmesini önle)
-                    // setup_initial_user.json Installer tarafından oluşturulur ve LoadSavedCredentials tarafından silinir
-                    if (!isCleanInstall)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[DatabaseService] Normal başlangıç - bulut dinleyicileri başlatılıyor");
-                        StartCloudListeners();
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[DatabaseService] TEMİZ KURULUM tespit edildi - bulut eşitlemesi ATLANIYOR (eski veriler çekilmeyecek)");
-                        // Clean install: sadece kullanıcı ayarları yüklenecek, veritabanı tamamen boş kalacak
-                    }
+                    // Bulut dinleyicilerini ve başlangıç senkronizasyonunu başlat
+                    System.Diagnostics.Debug.WriteLine("[DatabaseService] Başlangıç - bulut dinleyicileri başlatılıyor");
+                    StartCloudListeners();
 
                     _ = Task.Run(async () =>
                     {

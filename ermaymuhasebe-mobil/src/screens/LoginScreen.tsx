@@ -12,21 +12,9 @@ interface LoginScreenProps {
 export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'config' }: LoginScreenProps) {
   const [mode, setMode] = useState<'config' | 'user' | 'year_selection'>(initialMode);
   
-  // Config Mode States (Supabase Bulut ve E-Posta)
-  const [activeConfigTab, setActiveConfigTab] = useState<'cloud' | 'smtp'>('cloud');
+  // Config Mode States (Sadece Supabase URL ve Key)
   const [url, setUrl] = useState('https://fqgbdymffknglqeqoogt.supabase.co');
   const [secret, setSecret] = useState('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxZ2JkeW1mZmtuZ2xxZXFvb2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODUzMDEsImV4cCI6MjEwNTE2MTMwMX0.pBeE2ivWpbkAd8KSN1y2pXNZPIr_1mGMLXXHYPzjTDg');
-  
-  // Kurulumda Belirlenecek Yönetici Hesabı
-  const [configUsername, setConfigUsername] = useState('');
-  const [configPassword, setConfigPassword] = useState('');
-
-  // SMTP / Gmail States
-  const [smtpEmail, setSmtpEmail] = useState('');
-  const [smtpPass, setSmtpPass] = useState('');
-
-  // Çalışma Yılı
-  const [year, setYear] = useState(new Date().getFullYear().toString());
 
   // User Mode States
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -34,10 +22,9 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
   const [rememberMe, setRememberMe] = useState(true);
 
   // Year Selection Mode States
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState<string>('');
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [loggedInUser, setLoggedInUser] = useState<any>(null);
-  const [showCustomInput, setShowCustomInput] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,15 +39,8 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
       try {
         const savedUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
         const savedSecret = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
-        const savedSmtpEmail = await AsyncStorage.getItem('ermay_smtp_email');
-        const savedSmtpPass = await AsyncStorage.getItem('ermay_smtp_pass');
-        const savedYear = await AsyncStorage.getItem('ermay_active_year');
-
         if (savedUrl) setUrl(savedUrl);
         if (savedSecret) setSecret(savedSecret);
-        if (savedSmtpEmail) setSmtpEmail(savedSmtpEmail);
-        if (savedSmtpPass) setSmtpPass(savedSmtpPass);
-        if (savedYear) setYear(savedYear);
 
         const savedUsername = await AsyncStorage.getItem('ermay_saved_username');
         const savedPassword = await AsyncStorage.getItem('ermay_saved_password');
@@ -145,44 +125,18 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
       setError('Lütfen Supabase Anon / API Anahtarını girin.');
       return;
     }
-    if (!configUsername.trim()) {
-      setError('Lütfen bir yönetici kullanıcı adı belirleyin.');
-      return;
-    }
-    if (!configPassword.trim()) {
-      setError('Lütfen bir yönetici şifresi belirleyin.');
-      return;
-    }
-    if (!year.trim()) {
-      setError('Lütfen çalışılacak mali yılı girin (Örn: 2026).');
-      return;
-    }
 
     setLoading(true);
     setError('');
 
     try {
-      await saveFirebaseConfig(url.trim(), secret.trim(), 'default', {
-        smtpEmail: smtpEmail.trim(),
-        smtpPass: smtpPass.trim(),
-      });
-      await saveActiveYear(year.trim());
+      await saveFirebaseConfig(url.trim(), secret.trim(), 'default');
       await AsyncStorage.setItem('ermay_supabase_url', url.trim());
       await AsyncStorage.setItem('ermay_supabase_key', secret.trim());
       await AsyncStorage.setItem('ermay_firebase_url', url.trim());
       await AsyncStorage.setItem('ermay_firebase_secret', secret.trim());
-      if (smtpEmail.trim()) await AsyncStorage.setItem('ermay_smtp_email', smtpEmail.trim());
-      if (smtpPass.trim()) await AsyncStorage.setItem('ermay_smtp_pass', smtpPass.trim());
 
-      // Belirlenen Yönetici Hesabını Kaydet
-      await registerInitialUser(configUsername.trim(), configPassword.trim(), smtpEmail.trim());
-
-      // Giriş ekranı bilgilerini doldur
-      setUsernameOrEmail(configUsername.trim());
-      setPassword(configPassword.trim());
-      setRememberMe(true);
-
-      // Kurulum tamamlandı -> Doğrudan kullanıcı giriş ekranına geç
+      // 1. Adım Tamamlandı -> 2. Adıma (Kullanıcı Adı ve Şifre Ekranı) Geç
       setMode('user');
       checkAuthStatus();
     } catch (err: any) {
@@ -238,7 +192,7 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
 
   const handleYearConfirm = async () => {
     if (!selectedYear || !/^\d{4}$/.test(selectedYear.trim())) {
-      setError('Lütfen geçerli 4 haneli bir mali yıl girin (Örn: 2026).');
+      setError('Lütfen listeden geçerli bir çalışma yılı seçiniz.');
       return;
     }
 
@@ -247,7 +201,6 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
 
     try {
       const yr = selectedYear.trim();
-      await createNewMaliYil(yr);
       await saveActiveYear(yr);
       onLoginSuccess();
     } catch (err) {
@@ -280,16 +233,17 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                   <History color="#3B82F6" size={44} />
                 </View>
                 <Text style={styles.title}>Çalışma Yılı Seçimi</Text>
-                <Text style={styles.subtitle}>Devam etmek için aşağıdaki listeden bir yıl seçiniz</Text>
+                <Text style={styles.subtitle}>Masaüstünde oluşturulan çalışma yılını seçip giriş yapın</Text>
+              </View>
+            ) : mode === 'config' ? (
+              <View style={styles.header}>
+                <Text style={styles.title}>VK Kurulum</Text>
+                <Text style={styles.subtitle}>İlk kurulum için Supabase bağlantı bilgilerinizi giriniz</Text>
               </View>
             ) : (
               <View style={styles.header}>
                 <Text style={styles.title}>VK</Text>
-                <Text style={styles.subtitle}>
-                  {mode === 'config' 
-                    ? 'Sistem veritabanı bağlantı ayarlarını yapılandırın' 
-                    : 'Kullanıcı hesabı bilgilerinizle giriş yapın'}
-                </Text>
+                <Text style={styles.subtitle}>Kullanıcı hesabı bilgilerinizle giriş yapın</Text>
               </View>
             )}
 
@@ -300,88 +254,37 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
             ) : null}
 
             {mode === 'config' ? (
-              /* CONFIG MODE FORM (Supabase Bulut Kurulumu) */
+              /* CONFIG MODE FORM (İlk Kurulum: Sadece Supabase Bilgileri) */
               <View>
-                {/* SUPABASE BULUT VE KULLANICI BİLGİLERİ */}
-                <View>
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Link color="#64748B" size={16} />
-                        <Text style={styles.label}>Supabase Proje URL *</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="https://projeniz.supabase.co"
-                        placeholderTextColor="#64748B"
-                        value={url}
-                        onChangeText={setUrl}
-                        autoCapitalize="none"
-                        keyboardType="url"
-                      />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Key color="#64748B" size={16} />
-                        <Text style={styles.label}>Supabase Anon / API Anahtarı *</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="eyJhbGciOi..."
-                        placeholderTextColor="#64748B"
-                        value={secret}
-                        onChangeText={setSecret}
-                        secureTextEntry
-                        autoCapitalize="none"
-                      />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <User color="#64748B" size={16} />
-                        <Text style={styles.label}>Yönetici Kullanıcı Adı *</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Kullanıcı adınızı belirleyin"
-                        placeholderTextColor="#64748B"
-                        value={configUsername}
-                        onChangeText={setConfigUsername}
-                        autoCapitalize="none"
-                      />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Key color="#64748B" size={16} />
-                        <Text style={styles.label}>Yönetici Giriş Şifresi *</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Şifrenizi belirleyin"
-                        placeholderTextColor="#64748B"
-                        value={configPassword}
-                        onChangeText={setConfigPassword}
-                        secureTextEntry
-                        autoCapitalize="none"
-                      />
-                    </View>
-                  </View>
-
-                {/* HER ZAMAN GÖRÜNEN: ÇALIŞMA YILI & KAYDET */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Calendar color="#64748B" size={16} />
-                    <Text style={styles.label}>Varsayılan Çalışma Yılı *</Text>
+                    <Link color="#64748B" size={16} />
+                    <Text style={styles.label}>Supabase Proje URL *</Text>
                   </View>
                   <TextInput
                     style={styles.input}
-                    placeholder="Örn: 2026"
+                    placeholder="https://projeniz.supabase.co"
                     placeholderTextColor="#64748B"
-                    value={year}
-                    onChangeText={setYear}
-                    keyboardType="numeric"
-                    maxLength={4}
+                    value={url}
+                    onChangeText={setUrl}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Key color="#64748B" size={16} />
+                    <Text style={styles.label}>Supabase Anon / API Anahtarı *</Text>
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="eyJhbGciOi..."
+                    placeholderTextColor="#64748B"
+                    value={secret}
+                    onChangeText={setSecret}
+                    secureTextEntry
+                    autoCapitalize="none"
                   />
                 </View>
 
@@ -395,7 +298,7 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                   ) : (
                     <>
                       <Settings color="#FFF" size={18} style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>Kurulumu Tamamla ve Girişe Geç</Text>
+                      <Text style={styles.buttonText}>Bağlan ve Girişe Geç</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -492,28 +395,17 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                     <View style={{ padding: 20, alignItems: 'center' }}>
                       <Calendar color="#3B82F6" size={40} style={{ marginBottom: 12 }} />
                       <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
-                        Kayıtlı Mali Yıl Bulunamadı
+                        Masaüstünde Tanımlı Mali Yıl Bulunamadı
                       </Text>
                       <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
-                        Sistemde henüz bir çalışma yılı tanımlanmamış. Başlamak için lütfen ilk mali yılınızı oluşturun:
+                        Masaüstü uygulamasında oluşturulan çalışma yılı henüz eşitlenmedi. Lütfen masaüstü uygulamanızdan mali yıl seçimi yapıp tekrar kontrol ediniz.
                       </Text>
-                      <View style={{ width: '100%', marginBottom: 12 }}>
-                        <TextInput
-                          style={[styles.input, { textAlign: 'center', fontSize: 22, fontWeight: 'bold', letterSpacing: 2 }]}
-                          placeholder={new Date().getFullYear().toString()}
-                          placeholderTextColor="#64748B"
-                          value={selectedYear}
-                          onChangeText={setSelectedYear}
-                          keyboardType="numeric"
-                          maxLength={4}
-                        />
-                      </View>
                       <TouchableOpacity 
-                        style={[styles.startAppButton, { width: '100%', marginTop: 0 }]} 
-                        onPress={handleYearConfirm}
+                        style={[styles.button, { width: '100%', marginTop: 8 }]} 
+                        onPress={loadYearSelectionData}
                         disabled={loading}
                       >
-                        <Text style={styles.startAppButtonText}>Mali Yılı Oluştur ve Başlat</Text>
+                        <Text style={styles.buttonText}>Yılları Yeniden Kontrol Et</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -536,40 +428,21 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                   )}
                 </View>
 
-                {/* Custom Year Option Toggle & Primary Button (Listedeki yıllar varken) */}
+                {/* Sadece Listeden Yıl Seçip Giriş Yap Butonu */}
                 {availableYears.length > 0 && (
-                  <>
-                    {!showCustomInput ? (
-                      <TouchableOpacity style={styles.customYearToggle} onPress={() => setShowCustomInput(true)}>
-                        <Text style={styles.customYearToggleText}>+ Listede olmayan farklı bir yıl yazın</Text>
-                      </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.startAppButton, (!selectedYear || loading) && styles.buttonDisabled]} 
+                    onPress={handleYearConfirm}
+                    disabled={!selectedYear || loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFF" />
                     ) : (
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Özel Mali Yıl Girin</Text>
-                        <TextInput
-                          style={[styles.input, { marginTop: 6 }]}
-                          placeholder="Örn: 2026"
-                          placeholderTextColor="#64748B"
-                          value={selectedYear}
-                          onChangeText={setSelectedYear}
-                          keyboardType="numeric"
-                          maxLength={4}
-                        />
-                      </View>
+                      <Text style={styles.startAppButtonText}>
+                        {selectedYear ? `${selectedYear} Yılı ile Giriş Yap` : 'Lütfen Bir Yıl Seçiniz'}
+                      </Text>
                     )}
-
-                    <TouchableOpacity 
-                      style={[styles.startAppButton, loading && styles.buttonDisabled]} 
-                      onPress={handleYearConfirm}
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color="#FFF" />
-                      ) : (
-                        <Text style={styles.startAppButtonText}>Uygulamayı Başlat</Text>
-                      )}
-                    </TouchableOpacity>
-                  </>
+                  </TouchableOpacity>
                 )}
 
                 {/* Footer Note */}

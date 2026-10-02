@@ -5,7 +5,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import LoginScreen from './src/screens/LoginScreen';
 import AsyncStorage from './src/services/storage';
 import LockScreen from './src/screens/LockScreen';
-import { loadConfigFromStorage, getFirebaseConfig, addConfigListener, getLoggedUser } from './src/services/firebase';
+import { loadConfigFromStorage, getFirebaseConfig, addConfigListener, getLoggedUser, isConfiguredInStorage } from './src/services/firebase';
 import { recordBackground, shouldLock, clearBackgroundRecord } from './src/services/lockService';
 import { loadFirmaProfili } from './src/services/pdfService';
 import { initNotifications } from './src/services/alertService';
@@ -54,16 +54,20 @@ export default function App() {
 
   const checkConfigAndUser = async () => {
     try {
-      await loadConfigFromStorage();
-      const config = getFirebaseConfig();
-      setIsConfigured(!!(config && config.url));
-      
-      const user = await getLoggedUser();
-      setLoggedUser(user);
+      const configured = await isConfiguredInStorage();
+      setIsConfigured(configured);
 
-      // Şirket profilini ve logosunu arka planda önbelleğe al
-      loadFirmaProfili().catch(() => {});
-      initNotifications().catch(() => {});
+      if (configured) {
+        await loadConfigFromStorage();
+        const user = await getLoggedUser();
+        setLoggedUser(user);
+
+        // Şirket profilini ve logosunu arka planda önbelleğe al
+        loadFirmaProfili().catch(() => {});
+        initNotifications().catch(() => {});
+      } else {
+        setLoggedUser(null);
+      }
     } catch (e) {
       console.warn("Error in checkConfigAndUser:", e);
     } finally {
@@ -75,10 +79,12 @@ export default function App() {
     checkConfigAndUser();
 
     const unsubscribe = addConfigListener(async () => {
-      const config = getFirebaseConfig();
-      setIsConfigured(!!(config && config.url));
-      const user = await getLoggedUser();
-      setLoggedUser(user);
+      const configured = await isConfiguredInStorage();
+      setIsConfigured(configured);
+      if (configured) {
+        const user = await getLoggedUser();
+        setLoggedUser(user);
+      }
     });
 
     const appStateSub = AppState.addEventListener('change', async (nextState) => {
@@ -112,9 +118,9 @@ export default function App() {
     }
     console.log('[APP] getLoggedUser sonucu:', user ? JSON.stringify(user) : 'NULL');
     setLoggedUser(user);
-    const config = getFirebaseConfig();
-    console.log('[APP] isConfigured:', !!(config && config.url));
-    setIsConfigured(!!(config && config.url));
+    const configured = await isConfiguredInStorage();
+    console.log('[APP] isConfigured:', configured);
+    setIsConfigured(configured);
     clearBackgroundRecord();
     console.log('[APP] handleLoginSuccess tamamlandı');
   };
