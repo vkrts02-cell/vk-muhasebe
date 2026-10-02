@@ -206,8 +206,9 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
             var currentStok = await db.Table<StokKart>().FirstOrDefaultAsync(s => s.Id == sId);
             if (currentStok != null)
             {
-                var sumGiren = await db.ExecuteScalarAsync<decimal>("SELECT IFNULL(SUM(CASE WHEN Giren > 0 THEN Giren WHEN Miktar > 0 AND (IslemTuru LIKE '%Giriş%' OR IslemTuru LIKE '%Alış%' OR IslemTuru LIKE '%Açılış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
-                var sumCikan = await db.ExecuteScalarAsync<decimal>("SELECT IFNULL(SUM(CASE WHEN Cikan > 0 THEN Cikan WHEN Miktar > 0 AND (IslemTuru LIKE '%Çıkış%' OR IslemTuru LIKE '%Satış%') THEN Miktar ELSE 0 END), 0) FROM StokHareket WHERE StokId = ?", sId);
+                var movements = await db.Table<StokHareket>().Where(h => h.StokId == sId).ToListAsync();
+                decimal sumGiren = movements.Sum(h => h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Giren > 0 ? h.Giren : h.Cikan)) : 0);
+                decimal sumCikan = movements.Sum(h => !h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Cikan > 0 ? h.Cikan : h.Giren)) : 0);
                 currentStok.Miktar = sumGiren - sumCikan;
                 await db.UpdateAsync(currentStok);
                 await _syncService.SyncStokAsync(currentStok);
@@ -779,33 +780,20 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
 
         foreach (var m in movements)
         {
-            // Primary check: numeric flags Giren/Cikan
-            bool isGiris = m.Giren > 0;
-            bool isCikis = m.Cikan > 0;
-
-            // Secondary check: Fallback to string matching if numeric fields are zero/empty
-            if (!isGiris && !isCikis)
-            {
-                string tur = (m.IslemTuru ?? "").ToUpper(System.Globalization.CultureInfo.InvariantCulture);
-                isGiris = (tur.Contains("GİRİŞ") || tur.Contains("ALIS") || tur.Contains("ALIŞ") || tur.Contains("ACILIS") || tur.Contains("AÇILIŞ") || tur.Contains("GİREN"));
-                isCikis = (tur.Contains("ÇIKIŞ") || tur.Contains("CIKIS") || tur.Contains("SATIS") || tur.Contains("SATIŞ") || tur.Contains("ÇIKAN"));
-                
-                // Extra safety for Turkish characters with OrdinalIgnoreCase
-                if (!isGiris && !isCikis)
-                {
-                    string t = m.IslemTuru ?? "";
-                    isGiris = t.Contains("Giriş", StringComparison.OrdinalIgnoreCase) || t.Contains("Alış", StringComparison.OrdinalIgnoreCase) || t.Contains("Açılış", StringComparison.OrdinalIgnoreCase);
-                    isCikis = t.Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || t.Contains("Satış", StringComparison.OrdinalIgnoreCase);
-                }
-            }
+            bool isGiris = m.IsGiris;
+            decimal qty = m.Miktar > 0 ? m.Miktar : (isGiris ? (m.Giren > 0 ? m.Giren : m.Cikan) : (m.Cikan > 0 ? m.Cikan : m.Giren));
 
             if (isGiris) 
             {
-                decimal qty = m.Miktar > 0 ? m.Miktar : (m.Giren > 0 ? m.Giren : 0);
                 decimal price = m.Fiyat;
 
                 if (qty > 0)
                 {
+                    if (currentQuantity <= 0)
+                    {
+                        currentTotalValue = 0;
+                    }
+
                     currentTotalValue += (qty * price);
                     currentQuantity += qty;
                     
@@ -813,15 +801,13 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
                         averagePrice = currentTotalValue / currentQuantity;
                     else
                     {
-                         averagePrice = price; 
-                         currentTotalValue = 0;
+                        averagePrice = price; 
+                        currentTotalValue = 0;
                     }
                 }
             }
-            else if (isCikis)
+            else
             {
-                decimal qty = m.Miktar > 0 ? m.Miktar : (m.Cikan > 0 ? m.Cikan : 0);
-                
                 if (qty > 0)
                 {
                     currentTotalValue -= (qty * averagePrice);
@@ -837,15 +823,8 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
             }
         }
 
-        var lastPurchase = movements.Where(x => {
-             var t = (x.IslemTuru ?? "").ToUpperInvariant();
-             return t.Contains("GİRİŞ") || t.Contains("ALIS") || t.Contains("ALIŞ") || t.Contains("ACILIS") || t.Contains("AÇILIŞ");
-        }).LastOrDefault();
-
-        var lastSale = movements.Where(x => {
-             var t = (x.IslemTuru ?? "").ToUpperInvariant();
-             return t.Contains("ÇIKIŞ") || t.Contains("CIKIS") || t.Contains("SATIS") || t.Contains("SATIŞ");
-        }).LastOrDefault();
+        var lastPurchase = movements.Where(x => x.IsGiris).LastOrDefault();
+        var lastSale = movements.Where(x => !x.IsGiris).LastOrDefault();
 
         if (!movements.Any())
         {
@@ -857,6 +836,9 @@ public class FaturaRepository : BaseRepository<Fatura>, IFaturaRepository
         }
         else
         {
+            decimal sumGiren = movements.Sum(h => h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Giren > 0 ? h.Giren : h.Cikan)) : 0);
+            decimal sumCikan = movements.Sum(h => !h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Cikan > 0 ? h.Cikan : h.Giren)) : 0);
+            stok.Miktar = sumGiren - sumCikan;
             stok.OrtalamaAlisFiyati = averagePrice;
             stok.OrtalamaSatisFiyati = averageSalesPrice;
             if (lastPurchase != null) stok.AlisFiyati = lastPurchase.Fiyat;

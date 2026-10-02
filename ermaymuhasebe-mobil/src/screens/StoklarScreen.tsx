@@ -43,7 +43,7 @@ import {
   CornerDownRight
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { subscribeToPath, writeData, deleteData, readData } from '../services/firebase';
+import { subscribeToPath, writeData, deleteData, readData, isStockInflowMovement } from '../services/firebase';
 import { IOSGlassCalendar } from '../components/IOSGlassCalendar';
 import { OfflineNetworkBar } from '../components/OfflineNetworkBar';
 import { AppleListRow } from '../components/AppleGroupedList';
@@ -150,6 +150,9 @@ export default function StoklarScreen() {
 
   // Normalization Helper for StokHareket
   const normalizeHareket = (raw: any, key: string) => {
+    const islemTuru = raw.islemTuru ?? raw.IslemTuru ?? raw.hareketTuru ?? raw.hareket_turu ?? 'GİRİŞ';
+    const miktar = Number(raw.miktar ?? raw.Miktar ?? 0);
+    const isGiris = isStockInflowMovement(islemTuru) || (Number(raw.giren ?? raw.Giren ?? 0) > 0 && Number(raw.cikan ?? raw.Cikan ?? 0) <= 0);
     return {
       firebaseKey: key,
       id: raw.id ?? raw.Id ?? (isNaN(Number(key)) ? generateInt32Id() : Number(key)),
@@ -157,12 +160,14 @@ export default function StoklarScreen() {
       stokKodu: raw.stokKodu ?? raw.StokKodu ?? '',
       stokAdi: raw.stokAdi ?? raw.StokAdi ?? '',
       tarih: raw.tarih ?? raw.Tarih ?? new Date().toISOString(),
-      islemTuru: raw.islemTuru ?? raw.IslemTuru ?? 'GİRİŞ',
-      miktar: Number(raw.miktar ?? raw.Miktar ?? 0),
+      islemTuru,
+      hareketTuru: islemTuru,
+      miktar,
       fiyat: Number(raw.fiyat ?? raw.Fiyat ?? 0),
       aciklama: raw.aciklama ?? raw.Aciklama ?? '',
-      giren: Number(raw.giren ?? raw.Giren ?? 0),
-      cikan: Number(raw.cikan ?? raw.Cikan ?? 0),
+      giren: isGiris ? miktar : 0,
+      cikan: !isGiris ? miktar : 0,
+      isGiris,
       isDeleted: raw.isDeleted === true || raw.IsDeleted === true
     };
   };
@@ -285,24 +290,19 @@ export default function StoklarScreen() {
 
   let runningBalance = 0;
   const processedHareketler = chronologicalHareketler.map(h => {
-    let giren = Number(h.giren || 0);
-    let cikan = Number(h.cikan || 0);
-    const miktar = Number(h.miktar || 0);
+    const islemTuru = h.hareketTuru || h.islemTuru || '';
+    const isGiris = isStockInflowMovement(islemTuru) || (Number(h.giren) > 0 && Number(h.cikan) <= 0);
+    const miktar = Number(h.miktar || (isGiris ? h.giren : h.cikan) || 0);
+    const giren = isGiris ? miktar : 0;
+    const cikan = !isGiris ? miktar : 0;
 
-    if (giren === 0 && cikan === 0) {
-      const tur = (h.islemTuru || '').toUpperCase();
-      if (tur.includes('GİRİŞ') || tur.includes('ALIŞ') || tur.includes('ALIS') || tur.includes('AÇILIŞ') || tur.includes('GİREN')) {
-        giren = miktar;
-      }
-      if (tur.includes('ÇIKIŞ') || tur.includes('CIKIS') || tur.includes('SATIŞ') || tur.includes('SATIS') || tur.includes('ÇIKAN')) {
-        cikan = miktar;
-      }
+    if (isGiris) {
+      runningBalance += miktar;
+    } else {
+      runningBalance -= miktar;
     }
 
-    runningBalance += giren;
-    runningBalance -= cikan;
-
-    return { ...h, giren, cikan, kalanMiktar: runningBalance };
+    return { ...h, islemTuru, hareketTuru: islemTuru, giren, cikan, isGiris, kalanMiktar: runningBalance };
   }).reverse();
 
   // --- FORM HELPERS ---

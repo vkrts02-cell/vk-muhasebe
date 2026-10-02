@@ -298,20 +298,11 @@ public abstract partial class StokListViewModel : ViewModelBase
             decimal runningBalance = 0;
             foreach (var h in chronological)
             {
-                // Prioritize numeric flags over fragile string matching
-                bool isGiris = h.Giren > 0;
-                bool isCikis = h.Cikan > 0;
+                bool isGiris = h.IsGiris;
+                decimal qty = h.Miktar > 0 ? h.Miktar : (isGiris ? (h.Giren > 0 ? h.Giren : h.Cikan) : (h.Cikan > 0 ? h.Cikan : h.Giren));
 
-                // Fallback for older manual entries that might not have Giren/Cikan set
-                if (!isGiris && !isCikis)
-                {
-                    string tur = (h.IslemTuru ?? "").ToUpperInvariant();
-                    isGiris = tur.Contains("GİRİŞ") || tur.Contains("ALIS") || tur.Contains("ALIŞ") || tur.Contains("ACILIS") || tur.Contains("AÇILIŞ") || tur.Contains("GİREN");
-                    isCikis = tur.Contains("ÇIKIŞ") || tur.Contains("CIKIS") || tur.Contains("SATIS") || tur.Contains("SATIŞ") || tur.Contains("ÇIKAN");
-                }
-
-                if (isGiris) runningBalance += h.Miktar;
-                else if (isCikis) runningBalance -= h.Miktar;
+                if (isGiris) runningBalance += qty;
+                else runningBalance -= qty;
                 
                 h.KalanMiktar = runningBalance;
             }

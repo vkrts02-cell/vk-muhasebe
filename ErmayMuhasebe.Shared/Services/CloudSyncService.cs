@@ -723,12 +723,14 @@ namespace ErmayMuhasebe.Services
         {
             decimal miktar = sh.Miktar != 0 ? sh.Miktar : (sh.Giren > 0 ? sh.Giren : sh.Cikan);
             decimal toplam = miktar * sh.Fiyat;
+            string tur = sh.IslemTuru ?? sh.EvrakTuru ?? (sh.Giren > 0 ? "Giriş" : "Çıkış");
             return new()
             {
                 ["id"] = sh.Id.ToString(),
                 ["stok_id"] = sh.StokId.ToString(),
                 ["evrak_no"] = sh.EvrakNo ?? "",
-                ["hareket_tipi"] = sh.IslemTuru ?? sh.EvrakTuru ?? (sh.Giren > 0 ? "Giris" : "Cikis"),
+                ["hareket_tipi"] = tur,
+                ["hareket_turu"] = tur,
                 ["miktar"] = miktar,
                 ["birim_fiyat"] = sh.Fiyat,
                 ["kdv_orani"] = 0m,
@@ -756,8 +758,17 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("miktar", out var m))
             {
                 sh.Miktar = ParseDecimal(m);
-                if (sh.IslemTuru?.Contains("GİRİŞ") == true || sh.IslemTuru?.Contains("Giris") == true) sh.Giren = sh.Miktar;
-                else sh.Cikan = sh.Miktar;
+                bool isGiris = StokHareket.IsStockInflow(sh.IslemTuru);
+                if (isGiris)
+                {
+                    sh.Giren = sh.Miktar;
+                    sh.Cikan = 0;
+                }
+                else
+                {
+                    sh.Cikan = sh.Miktar;
+                    sh.Giren = 0;
+                }
             }
             if (el.TryGetProperty("birim_fiyat", out var bf)) sh.Fiyat = ParseDecimal(bf);
             if (el.TryGetProperty("fatura_id", out var fi)) sh.FaturaId = ParseNullableInt(fi);

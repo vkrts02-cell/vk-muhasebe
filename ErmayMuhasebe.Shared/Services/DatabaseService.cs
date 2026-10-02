@@ -443,6 +443,50 @@ namespace ErmayMuhasebe.Services
                     {
                         System.Diagnostics.Debug.WriteLine($"[DatabaseService] Index Creation Warning: {idxEx.Message}");
                     }
+                    // --- FIX LEGACY REVERSED STOCK MOVEMENTS ---
+                    try
+                    {
+                        var malformedMovements = syncDb.Query<StokHareket>("SELECT * FROM StokHareket WHERE IslemTuru IS NOT NULL");
+                        bool anyFixed = false;
+                        var affectedStoks = new HashSet<int>();
+                        foreach (var sm in malformedMovements)
+                        {
+                            bool inflow = StokHareket.IsStockInflow(sm.IslemTuru);
+                            decimal qty = sm.Miktar > 0 ? sm.Miktar : (inflow ? (sm.Giren > 0 ? sm.Giren : sm.Cikan) : (sm.Cikan > 0 ? sm.Cikan : sm.Giren));
+                            decimal expectedGiren = inflow ? qty : 0;
+                            decimal expectedCikan = !inflow ? qty : 0;
+
+                            if (sm.Giren != expectedGiren || sm.Cikan != expectedCikan)
+                            {
+                                sm.Giren = expectedGiren;
+                                sm.Cikan = expectedCikan;
+                                sm.Miktar = qty;
+                                syncDb.Update(sm);
+                                anyFixed = true;
+                                affectedStoks.Add(sm.StokId);
+                            }
+                        }
+
+                        if (anyFixed)
+                        {
+                            foreach (var stkId in affectedStoks)
+                            {
+                                var stk = syncDb.Find<StokKart>(stkId);
+                                if (stk != null)
+                                {
+                                    var mvms = syncDb.Table<StokHareket>().Where(x => x.StokId == stkId).ToList();
+                                    decimal sumG = mvms.Sum(h => h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Giren > 0 ? h.Giren : h.Cikan)) : 0);
+                                    decimal sumC = mvms.Sum(h => !h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Cikan > 0 ? h.Cikan : h.Giren)) : 0);
+                                    stk.Miktar = sumG - sumC;
+                                    syncDb.Update(stk);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception exFix)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DatabaseService] Movement fix warning: {exFix.Message}");
+                    }
                 }
                 catch (Exception schemaEx)
                 {

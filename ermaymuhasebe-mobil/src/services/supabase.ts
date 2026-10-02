@@ -54,6 +54,32 @@ let configListeners: (() => void)[] = [];
 
 export const getSupabaseClient = () => supabase;
 
+export function isStockInflowMovement(islemTuru?: string): boolean {
+  if (!islemTuru || typeof islemTuru !== 'string') return false;
+  const t = islemTuru.trim().toUpperCase();
+  if (t.includes('SATIS IADE') || t.includes('SATIŞ İADE') || t.includes('SATIS_IADE') || t.includes('SATIŞ_İADE')) {
+    return true;
+  }
+  if (t.includes('ALIS IADE') || t.includes('ALIŞ İADE') || t.includes('ALIS_IADE') || t.includes('ALIŞ_İADE')) {
+    return false;
+  }
+  if (
+    t.includes('GİRİŞ') || t.includes('GIRIS') || t.includes('GİREN') || t.includes('GIREN') ||
+    t.includes('ALIŞ') || t.includes('ALIS') || t.includes('AÇILIŞ') || t.includes('ACILIS') ||
+    t.includes('DEVİR') || t.includes('DEVIR') || t.includes('SAYIM FAZLASI') || t.includes('SAYIM_FAZLASI')
+  ) {
+    return true;
+  }
+  if (
+    t.includes('ÇIKIŞ') || t.includes('CIKIS') || t.includes('ÇIKAN') || t.includes('CIKAN') ||
+    t.includes('SATIŞ') || t.includes('SATIS') || t.includes('FİRE') || t.includes('FIRE') ||
+    t.includes('ZAYİ') || t.includes('ZAYI') || t.includes('SAYIM EKSİĞİ') || t.includes('SAYIM_EKSIĞI') || t.includes('SAYIM_EKSIYI')
+  ) {
+    return false;
+  }
+  return false;
+}
+
 // --- Helper Case Conversion ---
 export const toSnakeCase = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -623,9 +649,12 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     if (data.id !== undefined) p.id = Number(data.id) || data.id;
     p.stok_id = Number(data.stokId ?? data.stok_id) || 0;
     p.tarih = data.tarih || new Date().toISOString();
-    p.hareket_turu = data.hareketTuru || data.islemTuru || data.hareket_turu || (Number(data.giren) > 0 ? 'GİRİŞ' : 'ÇIKIŞ');
+    const islemTuru = data.islemTuru || data.islem_turu || data.hareketTuru || data.hareket_turu || '';
+    const isGiris = isStockInflowMovement(islemTuru) || (Number(data.giren) > 0 && Number(data.cikan) <= 0);
+    p.hareket_turu = islemTuru || (isGiris ? 'GİRİŞ' : 'ÇIKIŞ');
+    p.hareket_tipi = isGiris ? 'GİRİŞ' : 'ÇIKIŞ';
     p.evrak_no = data.evrakNo || data.evrak_no || '';
-    p.miktar = Number(data.miktar ?? (Number(data.giren) > 0 ? data.giren : data.cikan)) || 0;
+    p.miktar = Number(data.miktar ?? (isGiris ? (Number(data.giren) > 0 ? data.giren : data.cikan) : (Number(data.cikan) > 0 ? data.cikan : data.giren))) || 0;
     p.birim_fiyat = Number(data.birimFiyat ?? data.fiyat ?? data.birim_fiyat) || 0;
     p.toplam_tutar = Number(data.toplamTutar ?? (p.miktar * p.birim_fiyat)) || 0;
     p.kdv_orani = Number(data.kdvOrani ?? data.kdv_orani) || 0;
@@ -633,6 +662,7 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
     if (data.faturaId !== undefined || data.fatura_id !== undefined) p.fatura_id = Number(data.faturaId ?? data.fatura_id) || null;
     if (data.cariId !== undefined || data.cari_id !== undefined) p.cari_id = Number(data.cariId ?? data.cari_id) || null;
     if (data.aciklama !== undefined) p.aciklama = data.aciklama;
+    p.is_deleted = data.isDeleted === true || data.is_deleted === true;
     return p;
   }
 
@@ -1065,9 +1095,9 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
   }
 
   if (t === 'stok_hareketler') {
-    const islemTuru = row.hareket_turu || r.hareketTuru || r.islemTuru || '';
+    const islemTuru = row.hareket_turu || row.islem_turu || r.hareketTuru || r.islemTuru || '';
     const miktar = Number(row.miktar ?? r.miktar) || 0;
-    const isGiris = islemTuru.includes('GİRİŞ') || islemTuru.includes('Giris');
+    const isGiris = isStockInflowMovement(islemTuru) || (Number(row.giren ?? r.giren) > 0 && Number(row.cikan ?? r.cikan) <= 0);
     return {
       ...r,
       islemTuru,
@@ -1075,6 +1105,7 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       miktar,
       giren: isGiris ? miktar : 0,
       cikan: !isGiris ? miktar : 0,
+      isGiris,
       fiyat: Number(row.birim_fiyat ?? r.birimFiyat ?? r.fiyat) || 0,
       birimFiyat: Number(row.birim_fiyat ?? r.birimFiyat ?? r.fiyat) || 0
     };

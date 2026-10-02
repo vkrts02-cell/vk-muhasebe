@@ -763,10 +763,13 @@ export default function FaturaFormScreen({ route, navigation }: any) {
         };
 
         if (tur === 'Alış') {
-          const eskiToplamDeger = currentMiktar * (parseFloat(baseStok.alisFiyati || baseStok.ortAlisFiyati) || 0);
-          const yeniGirisDeger = (parseFloat(item.miktar) || 0) * (parseFloat(item.birimFiyat) || 0);
-          const yeniOrtAlisFiyati = yeniMiktar > 0 ? (eskiToplamDeger + yeniGirisDeger) / yeniMiktar : (parseFloat(item.birimFiyat) || 0);
-          guncellenecekStok.alisFiyati = parseFloat(item.birimFiyat) || guncellenecekStok.alisFiyati || 0;
+          const girisMiktar = parseFloat(item.miktar) || 0;
+          const birimFiyat = parseFloat(item.birimFiyat) || 0;
+          const eskiMiktar = currentMiktar > 0 ? currentMiktar : 0;
+          const eskiToplamDeger = eskiMiktar * (parseFloat(baseStok.alisFiyati || baseStok.ortAlisFiyati) || 0);
+          const yeniGirisDeger = girisMiktar * birimFiyat;
+          const yeniOrtAlisFiyati = (eskiMiktar + girisMiktar) > 0 ? (eskiToplamDeger + yeniGirisDeger) / (eskiMiktar + girisMiktar) : birimFiyat;
+          guncellenecekStok.alisFiyati = birimFiyat || guncellenecekStok.alisFiyati || 0;
           guncellenecekStok.ortAlisFiyati = yeniOrtAlisFiyati;
           guncellenecekStok.satisFiyati = guncellenecekStok.satisFiyati || 0;
         } else {

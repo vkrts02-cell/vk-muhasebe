@@ -168,8 +168,8 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
             }
             else
             {
-                decimal sumGiren = remainingMovements.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
-                decimal sumCikan = remainingMovements.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
+                decimal sumGiren = remainingMovements.Sum(h => h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Giren > 0 ? h.Giren : h.Cikan)) : 0);
+                decimal sumCikan = remainingMovements.Sum(h => !h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Cikan > 0 ? h.Cikan : h.Giren)) : 0);
                 currentStok.Miktar = sumGiren - sumCikan;
             }
             await db.UpdateAsync(currentStok);
@@ -229,42 +229,18 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
 
             foreach (var m in movements)
             {
-                // Enhanced movement identification logic
-                bool isGiris = false;
-                bool isCikis = false;
-
-                // Prioritize numeric flags if available
-                if (m.Giren > 0) isGiris = true;
-                else if (m.Cikan > 0) isCikis = true;
-                // Fallback to string matching if numeric fields are zero/empty
-                else
-                {
-                    string tur = (m.IslemTuru ?? "").ToUpper(System.Globalization.CultureInfo.InvariantCulture);
-                    if (tur.Contains("GİRİŞ") || tur.Contains("ALIS") || tur.Contains("ALIŞ") || tur.Contains("ACILIS") || tur.Contains("AÇILIŞ") || tur.Contains("GİREN"))
-                        isGiris = true;
-                    else if (tur.Contains("ÇIKIŞ") || tur.Contains("CIKIS") || tur.Contains("SATIS") || tur.Contains("SATIŞ") || tur.Contains("ÇIKAN"))
-                        isCikis = true;
-
-                    // Extra safety for Turkish characters with OrdinalIgnoreCase
-                    if (!isGiris && !isCikis)
-                    {
-                        string t = m.IslemTuru ?? "";
-                        isGiris = t.Contains("Giriş", StringComparison.OrdinalIgnoreCase) || t.Contains("Alış", StringComparison.OrdinalIgnoreCase) || t.Contains("Açılış", StringComparison.OrdinalIgnoreCase);
-                        isCikis = t.Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || t.Contains("Satış", StringComparison.OrdinalIgnoreCase);
-                    }
-                }
+                bool isGiris = m.IsGiris;
+                decimal qty = m.Miktar > 0 ? m.Miktar : (isGiris ? (m.Giren > 0 ? m.Giren : m.Cikan) : (m.Cikan > 0 ? m.Cikan : m.Giren));
 
                 if (isGiris) 
                 {
-                    decimal qty = m.Miktar > 0 ? m.Miktar : (m.Giren > 0 ? m.Giren : 0);
                     decimal price = m.Fiyat;
 
                     if (qty > 0)
                     {
-                        // If current quantity is negative or zero, this purchase starts a new basis for cost
+                        // Cost basis: if we had negative or 0 quantity, reset value basis but preserve physical negative quantity
                         if (currentQuantity <= 0)
                         {
-                            currentQuantity = 0;
                             currentTotalValue = 0;
                         }
 
@@ -275,12 +251,14 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
                         {
                             averagePrice = currentTotalValue / currentQuantity;
                         }
+                        else
+                        {
+                            averagePrice = price;
+                        }
                     }
                 }
-                else if (isCikis)
+                else
                 {
-                    decimal qty = m.Miktar > 0 ? m.Miktar : (m.Cikan > 0 ? m.Cikan : 0);
-                    
                     if (qty > 0)
                     {
                         currentTotalValue -= (qty * averagePrice);
@@ -300,16 +278,10 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
             bool changed = false;
             decimal lastPurchasePrice = 0;
             decimal lastSalesPrice = 0;
-            var lastPurchase = movements.Where(x => {
-                 var t = (x.IslemTuru ?? "").ToUpperInvariant();
-                 return t.Contains("GİRİŞ") || t.Contains("ALIS") || t.Contains("ALIŞ") || t.Contains("ACILIS") || t.Contains("AÇILIŞ");
-            }).LastOrDefault();
+            var lastPurchase = movements.Where(x => x.IsGiris).LastOrDefault();
             if (lastPurchase != null) lastPurchasePrice = lastPurchase.Fiyat;
 
-            var lastSale = movements.Where(x => {
-                 var t = (x.IslemTuru ?? "").ToUpperInvariant();
-                 return t.Contains("ÇIKIŞ") || t.Contains("CIKIS") || t.Contains("SATIS") || t.Contains("SATIŞ");
-            }).LastOrDefault();
+            var lastSale = movements.Where(x => !x.IsGiris).LastOrDefault();
             if (lastSale != null) lastSalesPrice = lastSale.Fiyat;
 
             // If no movements exist, reset quantity and average prices completely
@@ -343,8 +315,8 @@ public class StokRepository : BaseRepository<StokKart>, IStokRepository
             }
             else
             {
-                decimal sumGiren = movements.Sum(h => h.Giren > 0 ? h.Giren : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Giriş", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Alış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Açılış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
-                decimal sumCikan = movements.Sum(h => h.Cikan > 0 ? h.Cikan : (h.Miktar > 0 && ((h.IslemTuru ?? "").Contains("Çıkış", StringComparison.OrdinalIgnoreCase) || (h.IslemTuru ?? "").Contains("Satış", StringComparison.OrdinalIgnoreCase)) ? h.Miktar : 0));
+                decimal sumGiren = movements.Sum(h => h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Giren > 0 ? h.Giren : h.Cikan)) : 0);
+                decimal sumCikan = movements.Sum(h => !h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Cikan > 0 ? h.Cikan : h.Giren)) : 0);
                 decimal computedMiktar = sumGiren - sumCikan;
                 if (Math.Abs(stok.Miktar - computedMiktar) > 0.0001m)
                 {

@@ -50,6 +50,47 @@ namespace ErmayMuhasebe.Models
         public int? FaturaId { get; set; }
 
         [Ignore]
-        public int StokKartId { get => StokId; set => StokId = value; } 
+        public int StokKartId { get => StokId; set => StokId = value; }
+
+        [Ignore]
+        public bool IsGiris
+        {
+            get
+            {
+                if (Giren > 0 && Cikan == 0) return true;
+                if (Cikan > 0 && Giren == 0) return false;
+                return IsStockInflow(IslemTuru);
+            }
+        }
+
+        public static bool IsStockInflow(string? islemTuru)
+        {
+            if (string.IsNullOrWhiteSpace(islemTuru)) return false;
+            string tur = islemTuru.Trim();
+
+            if (tur.Contains("Satış İade", StringComparison.OrdinalIgnoreCase) || 
+                tur.Contains("Satis Iade", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (tur.Contains("Alış İade", StringComparison.OrdinalIgnoreCase) || 
+                tur.Contains("Alis Iade", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (tur.Contains("Alış", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Alis", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Giriş", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Giris", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("GİREN", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Açılış", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Acilis", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Devir", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Sayım Fazlası", StringComparison.OrdinalIgnoreCase) ||
+                tur.Contains("Sayim Fazlasi", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 }
