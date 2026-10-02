@@ -1463,7 +1463,7 @@ export default function FaturaFormScreen({ route, navigation }: any) {
                     style={styles.overlaySearchInput}
                     placeholder="Stok adı veya kodu ile ara..."
                     placeholderTextColor="#94A3B8"
-                    autoFocus
+                    autoFocus={false}
                     value={stokSearch}
                     onChangeText={setStokSearch}
                   />

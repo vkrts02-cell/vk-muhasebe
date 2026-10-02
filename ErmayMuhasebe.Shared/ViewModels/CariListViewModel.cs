@@ -312,7 +312,47 @@ public abstract partial class CariListViewModel : ViewModelBase
             
             await InvokeOnUIThreadAsync(() => 
             {
-                Cariler = new ObservableCollection<CariKart>(pagedList);
+                // In-place update if silent reload to avoid resetting DataGrid and jumping to top
+                if (isSilent && Cariler != null && Cariler.Count > 0 && Cariler.Count == pagedList.Count)
+                {
+                    bool sameIds = true;
+                    for (int i = 0; i < pagedList.Count; i++)
+                    {
+                        if (Cariler[i].Id != pagedList[i].Id)
+                        {
+                            sameIds = false;
+                            break;
+                        }
+                    }
+
+                    if (sameIds)
+                    {
+                        for (int i = 0; i < pagedList.Count; i++)
+                        {
+                            var target = Cariler[i];
+                            var src = pagedList[i];
+                            if (target.Borc != src.Borc) target.Borc = src.Borc;
+                            if (target.Alacak != src.Alacak) target.Alacak = src.Alacak;
+                            if (target.Unvan != src.Unvan) target.Unvan = src.Unvan;
+                            if (target.CariKod != src.CariKod) target.CariKod = src.CariKod;
+                            if (target.Telefon != src.Telefon) target.Telefon = src.Telefon;
+                            if (target.CepTelefon != src.CepTelefon) target.CepTelefon = src.CepTelefon;
+                            if (target.Grup != src.Grup) target.Grup = src.Grup;
+                            if (target.Il != src.Il) target.Il = src.Il;
+                            if (target.Ilce != src.Ilce) target.Ilce = src.Ilce;
+                            if (target.VergiNo != src.VergiNo) target.VergiNo = src.VergiNo;
+                            if (target.VergiDairesi != src.VergiDairesi) target.VergiDairesi = src.VergiDairesi;
+                        }
+                    }
+                    else
+                    {
+                        Cariler = new ObservableCollection<CariKart>(pagedList);
+                    }
+                }
+                else
+                {
+                    Cariler = new ObservableCollection<CariKart>(pagedList);
+                }
                 
                 // Pager logic
                 int totalPages = (int)Math.Ceiling((double)TotalCount / PageSize);

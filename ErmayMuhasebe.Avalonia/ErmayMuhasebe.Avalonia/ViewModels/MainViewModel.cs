@@ -490,12 +490,13 @@ public partial class MainViewModel : ViewModelBase
 
     private async System.Threading.Tasks.Task StartAutoSync()
     {
+        bool isInitialSync = true;
         while(true)
         {
             if (ErmayMuhasebe.Services.DatabaseService.IsResetting)
             {
                 SyncStatusText = "Fabrika Ayarlarına Dönülüyor...";
-                await System.Threading.Tasks.Task.Delay(1000);
+                await System.Threading.Tasks.Task.Delay(2000);
                 continue;
             }
 
@@ -503,7 +504,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 SyncStatusText = !IsAuthenticated ? "" : "Bulut Devre Dışı";
                 IsOffline = false;
-                await System.Threading.Tasks.Task.Delay(2000);
+                await System.Threading.Tasks.Task.Delay(5000);
                 continue;
             }
 
@@ -511,9 +512,14 @@ public partial class MainViewModel : ViewModelBase
             {
                 if (_lastInternetStatus)
                 {
-                    SyncStatusText = "Bulut Eşitleniyor...";
+                    if (isInitialSync)
+                    {
+                        SyncStatusText = "Bulut Eşitleniyor...";
+                    }
+
                     await _uow.SyncFromCloudAsync();
                     SyncStatusText = "Bulut Eşitlendi";
+                    isInitialSync = false;
                     
                     if (IsOffline)
                     {
@@ -547,7 +553,7 @@ public partial class MainViewModel : ViewModelBase
                 }
             }
             
-            await System.Threading.Tasks.Task.Delay(2000); // Ultra responsive live sync (2 sec)
+            await System.Threading.Tasks.Task.Delay(25000); // 25 saniye aralıkla sakin arka plan senkronizasyonu
         }
     }
 

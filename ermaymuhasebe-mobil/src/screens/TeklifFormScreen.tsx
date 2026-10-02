@@ -663,6 +663,7 @@ export default function TeklifFormScreen({ route, navigation }: any) {
                     style={styles.searchInput}
                     placeholder="Stok ara..."
                     placeholderTextColor="#64748B"
+                    autoFocus={false}
                     value={stokSearch}
                     onChangeText={setStokSearch}
                   />

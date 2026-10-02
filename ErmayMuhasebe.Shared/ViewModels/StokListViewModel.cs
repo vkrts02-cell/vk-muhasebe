@@ -173,7 +173,43 @@ public abstract partial class StokListViewModel : ViewModelBase
 
             await InvokeOnUIThreadAsync(() => 
             {
-                Stoklar = new ObservableCollection<StokKart>(pagedList);
+                if (isSilent && Stoklar != null && Stoklar.Count > 0 && Stoklar.Count == pagedList.Count)
+                {
+                    bool sameIds = true;
+                    for (int i = 0; i < pagedList.Count; i++)
+                    {
+                        if (Stoklar[i].Id != pagedList[i].Id)
+                        {
+                            sameIds = false;
+                            break;
+                        }
+                    }
+
+                    if (sameIds)
+                    {
+                        for (int i = 0; i < pagedList.Count; i++)
+                        {
+                            var target = Stoklar[i];
+                            var src = pagedList[i];
+                            if (target.Miktar != src.Miktar) target.Miktar = src.Miktar;
+                            if (target.OrtalamaAlisFiyati != src.OrtalamaAlisFiyati) target.OrtalamaAlisFiyati = src.OrtalamaAlisFiyati;
+                            if (target.OrtalamaSatisFiyati != src.OrtalamaSatisFiyati) target.OrtalamaSatisFiyati = src.OrtalamaSatisFiyati;
+                            if (target.AlisFiyati != src.AlisFiyati) target.AlisFiyati = src.AlisFiyati;
+                            if (target.SatisFiyati != src.SatisFiyati) target.SatisFiyati = src.SatisFiyati;
+                            if (target.StokAdi != src.StokAdi) target.StokAdi = src.StokAdi;
+                            if (target.StokKodu != src.StokKodu) target.StokKodu = src.StokKodu;
+                            if (target.Kategori != src.Kategori) target.Kategori = src.Kategori;
+                        }
+                    }
+                    else
+                    {
+                        Stoklar = new ObservableCollection<StokKart>(pagedList);
+                    }
+                }
+                else
+                {
+                    Stoklar = new ObservableCollection<StokKart>(pagedList);
+                }
                 
                 var currentSelected = EditKategori;
                 GroupList.Clear();
