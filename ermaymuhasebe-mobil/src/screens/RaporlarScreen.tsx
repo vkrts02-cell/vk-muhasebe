@@ -54,7 +54,7 @@ export default function RaporlarScreen() {
           setter([]);
         } else {
           const list = Array.isArray(data) ? data.filter(Boolean) : Object.keys(data).map(key => ({ ...data[key], firebaseKey: key }));
-          setter(list);
+          setter(list.filter((x: any) => !x || (!x.isDeleted && x.is_deleted !== true && x.is_deleted !== 1)));
         }
       });
     };

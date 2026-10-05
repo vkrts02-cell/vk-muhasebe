@@ -1011,9 +1011,21 @@ export default function FinansScreen({ route, navigation }: any) {
   };
 
   const handleDeleteMovement = (move: any) => {
+    const linked = findLinkedCariHareket(move);
+    const rawFaturaId = move.faturaId || move.FaturaId || linked?.faturaId || linked?.FaturaId;
+    const isFatura = rawFaturaId ||
+      (move.islemTuru && move.islemTuru.includes("Fatura")) ||
+      (move.evrakNo && (String(move.evrakNo).startsWith("FAT") || String(move.evrakNo).startsWith("FTR") || String(move.evrakNo).startsWith("KPL-"))) ||
+      (linked?.islemTuru && linked.islemTuru.includes("Fatura"));
+
+    const confirmTitle = isFatura ? "Faturayı ve Hareketi Sil" : "Finans Hareketini Sil";
+    const confirmMsg = isFatura
+      ? "Bu hareket bir faturaya bağlıdır. Faturayı, stok hareketlerini ve finans hareketini tamamen silmek istediğinize emin misiniz?"
+      : "Bu hareketi silmek istediğinize emin misiniz? Hesap ve cari bakiyeleri geri alınacaktır.";
+
     Alert.alert(
-      "Finans Hareketini Sil",
-      "Bu hareketi silmek istediğinize emin misiniz? Hesap ve cari bakiyeleri geri alınacaktır.",
+      confirmTitle,
+      confirmMsg,
       [
         { text: "İptal", style: "cancel" },
         {
@@ -1021,6 +1033,14 @@ export default function FinansScreen({ route, navigation }: any) {
           style: "destructive",
           onPress: async () => {
             try {
+              if (linked) {
+                const ok = await deleteFinancialTransaction(linked);
+                if (ok) {
+                  Alert.alert("Başarılı", isFatura ? "Fatura ve ilişkili hareketler silindi." : "Finans hareketi başarıyla silindi.");
+                  return;
+                }
+              }
+
               const isKasaMove =
                 move.kasaId !== undefined && move.kasaId !== null;
               const hesapId = isKasaMove ? move.kasaId : move.bankaId;
@@ -1042,38 +1062,6 @@ export default function FinansScreen({ route, navigation }: any) {
                       "Hesap bakiyesi geri alınamadı. (Bağlantı sorunu — bakiye sıraya alındı.)",
                     );
                   }
-                }
-              }
-
-              const linked = findLinkedCariHareket(move);
-              if (linked) {
-                const cariRef = await readData(`Cariler/${linked.cariId}`);
-                if (cariRef) {
-                  const okCari = await writeData(`Cariler/${linked.cariId}`, {
-                    ...cariRef,
-                    borc: Math.max(0, (cariRef.borc || 0) - (linked.borc || 0)),
-                    alacak: Math.max(
-                      0,
-                      (cariRef.alacak || 0) - (linked.alacak || 0),
-                    ),
-                  });
-                  if (!okCari) {
-                    Alert.alert(
-                      "Uyarı",
-                      "Cari bakiye geri alınamadı. (Bağlantı sorunu — bakiye sıraya alındı.)",
-                    );
-                  }
-                }
-                const linkedKey = linked.firebaseKey || linked.id;
-                if (linkedKey) {
-                  try {
-                    await deleteData(`CariHareketler/${linkedKey}`);
-                  } catch {}
-                }
-                if (linked.id && String(linked.id) !== String(linkedKey)) {
-                  try {
-                    await deleteData(`CariHareketler/${linked.id}`);
-                  } catch {}
                 }
               }
 

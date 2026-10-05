@@ -42,6 +42,7 @@ namespace ErmayMuhasebe.Models
         public string? Notlar { get; set; }
         public DateTime KayitTarihi { get; set; } = DateTime.Now;
         public DateTime SonGuncelleme { get; set; } = DateTime.Now;
+        public bool IsDeleted { get; set; }
 
         public static PortfoyKart FromDictionary(IDictionary<string, object> dict)
         {

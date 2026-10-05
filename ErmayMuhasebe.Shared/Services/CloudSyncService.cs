@@ -504,17 +504,45 @@ namespace ErmayMuhasebe.Services
         {
             ["id"] = c.Id.ToString(),
             ["kod"] = c.CariKod ?? "",
+            ["cari_kodu"] = c.CariKod ?? "",
             ["unvan"] = c.Unvan ?? "",
+            ["yetkili_kisi"] = c.Yetkili ?? "",
+            ["tc_kimlik_no"] = c.TCNo ?? "",
             ["bakiye"] = c.Bakiye,
+            ["borc_tutari"] = c.Borc,
+            ["alacak_tutari"] = c.Alacak,
+            ["borc"] = c.Borc,
+            ["alacak"] = c.Alacak,
             ["vergi_dairesi"] = c.VergiDairesi,
             ["vergi_no"] = c.VergiNo,
             ["telefon"] = string.IsNullOrWhiteSpace(c.Telefon) ? c.CepTelefon : c.Telefon,
+            ["telefon2"] = c.CepTelefon,
             ["eposta"] = c.Email,
+            ["email"] = c.Email,
             ["adres"] = c.Adres,
+            ["sevk_adresi"] = c.SevkAdresi,
             ["il"] = c.Il,
+            ["sehir"] = c.Il,
             ["ilce"] = c.Ilce,
+            ["posta_kodu"] = c.PostaKodu,
+            ["ulke"] = c.Ulke ?? "Türkiye",
+            ["web_sitesi"] = c.WebAdresi,
+            ["grup"] = c.Grup,
+            ["tur"] = c.Tur,
+            ["iban"] = c.IBAN,
+            ["vade_gun"] = c.VadeGunu,
+            ["vade_gunu"] = c.VadeGunu,
+            ["kredi_limiti"] = c.RiskLimiti,
+            ["risk_limiti"] = c.RiskLimiti,
+            ["odeme_plani"] = c.OdemePlani,
+            ["ticaret_sicil_no"] = c.TicaretSicilNo,
+            ["notlar"] = c.Aciklama,
+            ["aciklama"] = c.Aciklama,
             ["is_active"] = c.AktifMi,
-            ["is_deleted"] = c.IsDeleted
+            ["is_deleted"] = c.IsDeleted,
+            ["updated_at"] = (c.UpdatedAt != default ? c.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["guncelleme_tarihi"] = (c.UpdatedAt != default ? c.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["version"] = Math.Max(1, c.Version)
         };
 
         private static CariKart MapPayloadToCari(JsonElement el)
@@ -526,6 +554,12 @@ namespace ErmayMuhasebe.Services
             else if (el.TryGetProperty("cariKod", out var ckCamel) && ckCamel.ValueKind == JsonValueKind.String) c.CariKod = ckCamel.GetString();
 
             if (el.TryGetProperty("unvan", out var u) && u.ValueKind == JsonValueKind.String) c.Unvan = u.GetString();
+            if (el.TryGetProperty("yetkili_kisi", out var yk) && yk.ValueKind == JsonValueKind.String) c.Yetkili = yk.GetString();
+            else if (el.TryGetProperty("yetkili", out var yt) && yt.ValueKind == JsonValueKind.String) c.Yetkili = yt.GetString();
+
+            if (el.TryGetProperty("tc_kimlik_no", out var tc) && tc.ValueKind == JsonValueKind.String) c.TCNo = tc.GetString();
+            else if (el.TryGetProperty("tc_no", out var tcn) && tcn.ValueKind == JsonValueKind.String) c.TCNo = tcn.GetString();
+
             if (el.TryGetProperty("vergi_dairesi", out var vd) && vd.ValueKind == JsonValueKind.String) c.VergiDairesi = vd.GetString();
             else if (el.TryGetProperty("vergiDairesi", out var vdCamel) && vdCamel.ValueKind == JsonValueKind.String) c.VergiDairesi = vdCamel.GetString();
 
@@ -533,23 +567,45 @@ namespace ErmayMuhasebe.Services
             else if (el.TryGetProperty("vergiNo", out var vnCamel) && vnCamel.ValueKind == JsonValueKind.String) c.VergiNo = vnCamel.GetString();
 
             if (el.TryGetProperty("adres", out var adr) && adr.ValueKind == JsonValueKind.String) c.Adres = adr.GetString();
+            if (el.TryGetProperty("sevk_adresi", out var sa) && sa.ValueKind == JsonValueKind.String) c.SevkAdresi = sa.GetString();
             if (el.TryGetProperty("il", out var il) && il.ValueKind == JsonValueKind.String) c.Il = il.GetString();
             else if (el.TryGetProperty("sehir", out var sh) && sh.ValueKind == JsonValueKind.String) c.Il = sh.GetString();
             if (el.TryGetProperty("ilce", out var ilc) && ilc.ValueKind == JsonValueKind.String) c.Ilce = ilc.GetString();
+            if (el.TryGetProperty("posta_kodu", out var pk) && pk.ValueKind == JsonValueKind.String) c.PostaKodu = pk.GetString();
+            if (el.TryGetProperty("ulke", out var ulk) && ulk.ValueKind == JsonValueKind.String) c.Ulke = ulk.GetString();
 
             if (el.TryGetProperty("telefon", out var tel) && tel.ValueKind == JsonValueKind.String) c.Telefon = tel.GetString();
+            if (el.TryGetProperty("telefon2", out var tel2) && tel2.ValueKind == JsonValueKind.String) c.CepTelefon = tel2.GetString();
+            else if (el.TryGetProperty("cep_telefon", out var ctel) && ctel.ValueKind == JsonValueKind.String) c.CepTelefon = ctel.GetString();
+
             if (el.TryGetProperty("eposta", out var ep) && ep.ValueKind == JsonValueKind.String) c.Email = ep.GetString();
             else if (el.TryGetProperty("email", out var em) && em.ValueKind == JsonValueKind.String) c.Email = em.GetString();
 
-            if (el.TryGetProperty("bakiye", out var bq))
-            {
-                var bVal = ParseDecimal(bq);
-                if (bVal >= 0) c.DevirBorc = bVal;
-                else c.DevirAlacak = -bVal;
-            }
+            if (el.TryGetProperty("web_sitesi", out var ws) && ws.ValueKind == JsonValueKind.String) c.WebAdresi = ws.GetString();
+            if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) c.Grup = grp.GetString();
+            if (el.TryGetProperty("tur", out var tur) && tur.ValueKind == JsonValueKind.String) c.Tur = tur.GetString();
+            if (el.TryGetProperty("iban", out var ibn) && ibn.ValueKind == JsonValueKind.String) c.IBAN = ibn.GetString();
+            if (el.TryGetProperty("odeme_plani", out var op) && op.ValueKind == JsonValueKind.String) c.OdemePlani = op.GetString();
+            if (el.TryGetProperty("ticaret_sicil_no", out var tsn) && tsn.ValueKind == JsonValueKind.String) c.TicaretSicilNo = tsn.GetString();
+            if (el.TryGetProperty("aciklama", out var ack) && ack.ValueKind == JsonValueKind.String) c.Aciklama = ack.GetString();
+            else if (el.TryGetProperty("notlar", out var ntr) && ntr.ValueKind == JsonValueKind.String) c.Aciklama = ntr.GetString();
+
+            if (el.TryGetProperty("vade_gun", out var vg)) c.VadeGunu = ParseInt(vg);
+            else if (el.TryGetProperty("vade_gunu", out var vgu)) c.VadeGunu = ParseInt(vgu);
+
+            if (el.TryGetProperty("kredi_limiti", out var kl)) c.RiskLimiti = ParseDecimal(kl);
+            else if (el.TryGetProperty("risk_limiti", out var rl)) c.RiskLimiti = ParseDecimal(rl);
+
+            if (el.TryGetProperty("borc_tutari", out var bq1)) c.Borc = ParseDecimal(bq1);
+            else if (el.TryGetProperty("borc", out var bq2)) c.Borc = ParseDecimal(bq2);
+
+            if (el.TryGetProperty("alacak_tutari", out var aq1)) c.Alacak = ParseDecimal(aq1);
+            else if (el.TryGetProperty("alacak", out var aq2)) c.Alacak = ParseDecimal(aq2);
+
             if (el.TryGetProperty("is_active", out var isAct)) c.AktifMi = isAct.ValueKind != JsonValueKind.False;
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) c.IsDeleted = true;
             if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) c.UpdatedAt = dtUa;
+            else if (el.TryGetProperty("guncelleme_tarihi", out var gt) && gt.ValueKind == JsonValueKind.String && DateTime.TryParse(gt.GetString(), out var dtGt)) c.UpdatedAt = dtGt;
             if (el.TryGetProperty("version", out var vr)) c.Version = ParseInt(vr, 1);
             if (el.TryGetProperty("uuid", out var uu) && uu.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(uu.GetString())) c.Uuid = uu.GetString()!;
             return c;
@@ -560,15 +616,20 @@ namespace ErmayMuhasebe.Services
             ["id"] = s.Id.ToString(),
             ["stok_kodu"] = s.StokKodu ?? "",
             ["stok_adi"] = s.StokAdi ?? "",
+            ["barkod"] = s.Barkod ?? "",
             ["birim"] = s.Birim ?? "Adet",
             ["kdv_orani"] = s.KDV,
             ["alis_fiyati"] = s.AlisFiyati,
             ["satis_fiyati"] = s.SatisFiyati,
             ["mevcut_miktar"] = (decimal)s.Miktar,
             ["kritik_stok"] = (decimal)s.MinSeviye,
-            ["grup"] = s.Kategori ?? s.Grup,
+            ["grup"] = s.Kategori ?? s.Grup ?? "",
+            ["kategori"] = s.Kategori ?? s.Grup ?? "",
+            ["aciklama"] = s.Aciklama ?? "",
             ["is_active"] = true,
-            ["is_deleted"] = s.IsDeleted
+            ["is_deleted"] = s.IsDeleted,
+            ["updated_at"] = (s.UpdatedAt != default ? s.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["version"] = Math.Max(1, s.Version)
         };
 
         private static StokKart MapPayloadToStok(JsonElement el)
@@ -579,6 +640,7 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("stok_adi", out var sa) && sa.ValueKind == JsonValueKind.String) s.StokAdi = sa.GetString();
             if (el.TryGetProperty("barkod", out var bk) && bk.ValueKind == JsonValueKind.String) s.Barkod = bk.GetString();
             if (el.TryGetProperty("grup", out var grp) && grp.ValueKind == JsonValueKind.String) s.Kategori = grp.GetString();
+            else if (el.TryGetProperty("kategori", out var kat) && kat.ValueKind == JsonValueKind.String) s.Kategori = kat.GetString();
             else if (el.TryGetProperty("grup_adi", out var ga) && ga.ValueKind == JsonValueKind.String) s.Kategori = ga.GetString();
             if (el.TryGetProperty("birim", out var br) && br.ValueKind == JsonValueKind.String) s.Birim = br.GetString() ?? "Adet";
             if (el.TryGetProperty("alis_fiyati", out var af)) s.AlisFiyati = ParseDecimal(af);
@@ -588,6 +650,7 @@ namespace ErmayMuhasebe.Services
             else if (el.TryGetProperty("miktar", out var mq)) s.Miktar = ParseDecimal(mq);
             if (el.TryGetProperty("kritik_stok", out var kst)) s.MinSeviye = ParseDecimal(kst);
             else if (el.TryGetProperty("kritik_seviye", out var ks)) s.MinSeviye = ParseDecimal(ks);
+            if (el.TryGetProperty("aciklama", out var ack) && ack.ValueKind == JsonValueKind.String) s.Aciklama = ack.GetString();
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) s.IsDeleted = true;
             if (el.TryGetProperty("updated_at", out var ua) && ua.ValueKind == JsonValueKind.String && DateTime.TryParse(ua.GetString(), out var dtUa)) s.UpdatedAt = dtUa;
             if (el.TryGetProperty("version", out var vr)) s.Version = ParseInt(vr, 1);
@@ -600,6 +663,7 @@ namespace ErmayMuhasebe.Services
             ["id"] = f.Id.ToString(),
             ["fatura_no"] = f.FaturaNo ?? "",
             ["fatura_turu"] = string.IsNullOrWhiteSpace(f.Tur) ? "Satis" : f.Tur,
+            ["tur"] = string.IsNullOrWhiteSpace(f.Tur) ? "Satis" : f.Tur,
             ["cari_id"] = f.CariId.ToString(),
             ["cari_unvan"] = f.CariUnvan ?? "",
             ["tarih"] = f.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -611,7 +675,21 @@ namespace ErmayMuhasebe.Services
             ["kalan_tutar"] = f.Kalan,
             ["durum"] = f.IptalMi ? "İptal" : (f.Kalan <= 0 ? "Ödendi" : (f.Odenen > 0 ? "Kısmi Ödendi" : "Açık")),
             ["aciklama"] = f.Aciklama,
-            ["is_deleted"] = f.IsDeleted
+            ["doviz_turu"] = f.DovizTuru ?? "TRY",
+            ["doviz_kuru"] = f.DovizKuru,
+            ["odeme_sekli"] = f.OdemeSekli,
+            ["is_earsiv"] = f.IsEArsiv,
+            ["vergi_dairesi"] = f.VergiDairesi,
+            ["vergi_no"] = f.VergiNo,
+            ["adres"] = f.Adres,
+            ["baglanti_evrak_no"] = f.BaglantiEvrakNo,
+            ["iptal_mi"] = f.IptalMi,
+            ["kasa_id"] = f.KasaId,
+            ["banka_id"] = f.BankaId,
+            ["is_deleted"] = f.IsDeleted,
+            ["updated_at"] = (f.UpdatedAt != default ? f.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["guncelleme_tarihi"] = (f.UpdatedAt != default ? f.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["version"] = Math.Max(1, f.Version)
         };
 
         private static Fatura MapPayloadToFatura(JsonElement el)
@@ -947,7 +1025,12 @@ namespace ErmayMuhasebe.Services
             ["genel_toplam"] = sp.GenelToplam,
             ["durum"] = sp.Durum ?? "Onaylandı",
             ["aciklama"] = sp.Aciklama ?? "",
-            ["is_deleted"] = sp.IsDeleted
+            ["pdf_notlar"] = sp.PdfNotlar ?? "",
+            ["odeme_bilgisi"] = sp.OdemeBilgisi ?? "",
+            ["oncelik"] = sp.Oncelik ?? "Normal",
+            ["baglanti_evrak_no"] = sp.BaglantiEvrakNo ?? "",
+            ["is_deleted"] = sp.IsDeleted,
+            ["updated_at"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static Siparis MapPayloadToSiparis(JsonElement el)
@@ -988,7 +1071,9 @@ namespace ErmayMuhasebe.Services
             ["genel_toplam"] = tk.GenelToplam,
             ["durum"] = tk.Durum ?? "Gönderildi",
             ["aciklama"] = tk.Aciklama ?? "",
-            ["is_deleted"] = tk.IsDeleted
+            ["odeme_bilgisi"] = tk.OdemeBilgisi ?? "",
+            ["is_deleted"] = tk.IsDeleted,
+            ["updated_at"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static Teklif MapPayloadToTeklif(JsonElement el)
@@ -1019,7 +1104,7 @@ namespace ErmayMuhasebe.Services
         public async Task DeleteCariAsync(int id) => await DeleteAsync("cariler", id);
         public async Task<List<CariKart>?> PullCarilerAsync()
         {
-            using var doc = await GetJsonAsync("cariler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("cariler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<CariKart>();
             foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToCari(el));
@@ -1030,7 +1115,7 @@ namespace ErmayMuhasebe.Services
         public async Task DeleteCariHareketAsync(int id) => await DeleteAsync("cari_hareketler", id);
         public async Task<List<CariHareket>?> PullCariHareketlerAsync()
         {
-            using var doc = await GetJsonAsync("cari_hareketler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("cari_hareketler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<CariHareket>();
             foreach (var el in doc.RootElement.EnumerateArray())
@@ -1096,7 +1181,7 @@ namespace ErmayMuhasebe.Services
         public async Task DeleteStokAsync(int id) => await DeleteAsync("stoklar", id);
         public async Task<List<StokKart>?> PullStoklarAsync()
         {
-            using var doc = await GetJsonAsync("stoklar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("stoklar");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<StokKart>();
             foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToStok(el));
@@ -1107,7 +1192,7 @@ namespace ErmayMuhasebe.Services
         public async Task DeleteStokHareketAsync(int id) => await DeleteAsync("stok_hareketler", id);
         public async Task<List<StokHareket>?> PullStokHareketlerAsync()
         {
-            using var doc = await GetJsonAsync("stok_hareketler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("stok_hareketler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<StokHareket>();
             foreach (var el in doc.RootElement.EnumerateArray())
@@ -1140,7 +1225,7 @@ namespace ErmayMuhasebe.Services
         }
         public async Task<List<Fatura>?> PullFaturalarAsync()
         {
-            using var doc = await GetJsonAsync("faturalar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("faturalar");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<Fatura>();
             foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToFatura(el));
@@ -1190,7 +1275,7 @@ namespace ErmayMuhasebe.Services
         }
         public async Task<List<Siparis>?> PullSiparislerAsync()
         {
-            using var doc = await GetJsonAsync("siparisler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("siparisler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<Siparis>();
             foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToSiparis(el));
@@ -1259,7 +1344,7 @@ namespace ErmayMuhasebe.Services
         }
         public async Task<List<Teklif>?> PullTekliflerAsync()
         {
-            using var doc = await GetJsonAsync("teklifler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("teklifler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<Teklif>();
             foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToTeklif(el));
@@ -1327,7 +1412,7 @@ namespace ErmayMuhasebe.Services
         public async Task DeleteKasaHareketAsync(int id) => await DeleteAsync("kasa_hareketler", id);
         public async Task<List<KasaHareket>?> PullKasaHareketlerAsync()
         {
-            using var doc = await GetJsonAsync("kasa_hareketler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("kasa_hareketler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<KasaHareket>();
             foreach (var el in doc.RootElement.EnumerateArray())
@@ -1361,7 +1446,7 @@ namespace ErmayMuhasebe.Services
             // 1. Pull from kasalar table
             try
             {
-                using var docKasa = await GetJsonAsync("kasalar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+                using var docKasa = await GetJsonAsync("kasalar");
                 if (docKasa != null && docKasa.RootElement.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var el in docKasa.RootElement.EnumerateArray())
@@ -1383,7 +1468,7 @@ namespace ErmayMuhasebe.Services
             // 2. Pull from bankalar table
             try
             {
-                using var doc = await GetJsonAsync("bankalar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+                using var doc = await GetJsonAsync("bankalar");
                 if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var el in doc.RootElement.EnumerateArray())
@@ -1417,7 +1502,7 @@ namespace ErmayMuhasebe.Services
         public async Task DeleteBankaHareketAsync(int id) => await DeleteAsync("banka_hareketler", id);
         public async Task<List<BankaHareket>?> PullBankaHareketlerAsync()
         {
-            using var doc = await GetJsonAsync("banka_hareketler", "or=(is_deleted.is.null,is_deleted.eq.false)");
+            using var doc = await GetJsonAsync("banka_hareketler");
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return null;
             var list = new List<BankaHareket>();
             foreach (var el in doc.RootElement.EnumerateArray())
@@ -1735,13 +1820,33 @@ namespace ErmayMuhasebe.Services
             }
         }
 
-        public async Task<List<KrediKartiIslem>> PullKrediKartlariAsync() => new();
-        public async Task<List<EftIslem>> PullEftIslemleriAsync() => new();
-        public async Task<List<Cek>> PullCeklerAsync() => new();
-        public async Task<List<Senet>> PullSenetlerAsync() => new();
-        public async Task<List<MusteriTakipKlasor>> PullMusteriTakipKlasorlerAsync() => new();
-        public async Task<List<MusteriTakipDetay>> PullMusteriTakipDetaylarAsync() => new();
-        public async Task SyncGenericAsync<T>(string table, T item, object? id = null) => await Task.CompletedTask;
+        public async Task SyncGenericAsync<T>(string table, T item, object? id = null)
+        {
+            if (!IsConnected || item == null) return;
+            await SafeRun(async () =>
+            {
+                var json = JsonSerializer.Serialize(item, _jsonOpts);
+                using var doc = JsonDocument.Parse(json);
+                var dict = new Dictionary<string, object?>();
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    dict[prop.Name] = prop.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => prop.Value.GetString(),
+                        JsonValueKind.Number => prop.Value.GetDecimal(),
+                        JsonValueKind.True => true,
+                        JsonValueKind.False => false,
+                        JsonValueKind.Null => null,
+                        _ => prop.Value.ToString()
+                    };
+                }
+                if (id != null && !dict.ContainsKey("id"))
+                {
+                    dict["id"] = id.ToString();
+                }
+                await UpsertPayloadAsync(table.ToLower(), dict);
+            });
+        }
 
         public async Task<List<User>> PullUsersAsync()
         {
@@ -1885,43 +1990,676 @@ namespace ErmayMuhasebe.Services
             }
         }
 
-        public async Task SyncCekAsync(Cek cek) => await Task.CompletedTask;
-        public async Task SyncSenetAsync(Senet senet) => await Task.CompletedTask;
-        public async Task SyncKrediKartiIslemAsync(KrediKartiIslem islem) => await Task.CompletedTask;
-        public async Task SyncEftIslemAsync(EftIslem islem) => await Task.CompletedTask;
-        public async Task SyncStokSayimFisiAsync(StokSayimFisi fis) => await Task.CompletedTask;
-        public async Task SyncStokSayimDetaylarAsync(int fisId, List<StokSayimDetay> detaylar) => await Task.CompletedTask;
-        public async Task DeleteCekAsync(int id) => await Task.CompletedTask;
-        public async Task DeleteSenetAsync(int id) => await Task.CompletedTask;
-        public async Task DeleteKrediKartiIslemAsync(int id) => await Task.CompletedTask;
-        public async Task DeleteEftIslemAsync(int id) => await Task.CompletedTask;
-        public async Task DeleteStokSayimFisiAsync(int id) => await Task.CompletedTask;
+        // ==========================================
+        // ÇEKLER & SENETLER
+        // ==========================================
+        private static Dictionary<string, object?> MapCekToPayload(Cek c) => new()
+        {
+            ["id"] = c.Id.ToString(),
+            ["cek_no"] = c.CekNo ?? "",
+            ["cari_id"] = c.CariId?.ToString(),
+            ["cari_unvan"] = c.CariUnvan ?? "",
+            ["portfoy_no"] = c.PortfoyNo ?? "",
+            ["seri_no"] = c.SeriNo ?? "",
+            ["vade_tarihi"] = c.VadeTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["islem_tarihi"] = c.IslemTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["tutar"] = c.Tutar,
+            ["borclu"] = c.Borclu ?? "",
+            ["banka"] = c.Banka ?? "",
+            ["sube"] = c.Sube ?? "",
+            ["hesap_no"] = c.HesapNo ?? "",
+            ["cek_turu"] = c.CekTuru ?? "",
+            ["durum"] = c.Durum ?? "",
+            ["aciklama"] = c.Aciklama ?? "",
+            ["islem_turu"] = c.IslemTuru ?? "",
+            ["yonlendirilen_cari_id"] = c.YonlendirilenCariId?.ToString(),
+            ["yonlendirilen_cari_unvan"] = c.YonlendirilenCariUnvan ?? "",
+            ["is_deleted"] = c.IsDeleted
+        };
 
-        public async Task SyncGorevAsync(Gorev gorev) => await Task.CompletedTask;
-        public async Task DeleteGorevAsync(int id) => await Task.CompletedTask;
-        public async Task<List<Gorev>> PullGorevlerAsync() => new();
+        private static Cek MapPayloadToCek(JsonElement el)
+        {
+            var c = new Cek();
+            if (el.TryGetProperty("id", out var id)) c.Id = ParseInt(id);
+            if (el.TryGetProperty("cek_no", out var cn) && cn.ValueKind == JsonValueKind.String) c.CekNo = cn.GetString();
+            if (el.TryGetProperty("cari_id", out var ci)) c.CariId = ParseNullableInt(ci);
+            if (el.TryGetProperty("cari_unvan", out var cu) && cu.ValueKind == JsonValueKind.String) c.CariUnvan = cu.GetString();
+            if (el.TryGetProperty("portfoy_no", out var pn) && pn.ValueKind == JsonValueKind.String) c.PortfoyNo = pn.GetString();
+            if (el.TryGetProperty("seri_no", out var sn) && sn.ValueKind == JsonValueKind.String) c.SeriNo = sn.GetString();
+            if (el.TryGetProperty("vade_tarihi", out var vt) && vt.ValueKind == JsonValueKind.String && DateTime.TryParse(vt.GetString(), out var vtd)) c.VadeTarihi = vtd;
+            if (el.TryGetProperty("islem_tarihi", out var it) && it.ValueKind == JsonValueKind.String && DateTime.TryParse(it.GetString(), out var itd)) c.IslemTarihi = itd;
+            if (el.TryGetProperty("tutar", out var tt)) c.Tutar = ParseDecimal(tt);
+            if (el.TryGetProperty("borclu", out var b) && b.ValueKind == JsonValueKind.String) c.Borclu = b.GetString();
+            if (el.TryGetProperty("banka", out var bnk) && bnk.ValueKind == JsonValueKind.String) c.Banka = bnk.GetString();
+            if (el.TryGetProperty("sube", out var sb) && sb.ValueKind == JsonValueKind.String) c.Sube = sb.GetString();
+            if (el.TryGetProperty("hesap_no", out var hn) && hn.ValueKind == JsonValueKind.String) c.HesapNo = hn.GetString();
+            if (el.TryGetProperty("cek_turu", out var ct) && ct.ValueKind == JsonValueKind.String) c.CekTuru = ct.GetString();
+            if (el.TryGetProperty("durum", out var dm) && dm.ValueKind == JsonValueKind.String) c.Durum = dm.GetString();
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) c.Aciklama = ac.GetString();
+            if (el.TryGetProperty("islem_turu", out var ist) && ist.ValueKind == JsonValueKind.String) c.IslemTuru = ist.GetString();
+            if (el.TryGetProperty("yonlendirilen_cari_id", out var yci)) c.YonlendirilenCariId = ParseNullableInt(yci);
+            if (el.TryGetProperty("yonlendirilen_cari_unvan", out var ycu) && ycu.ValueKind == JsonValueKind.String) c.YonlendirilenCariUnvan = ycu.GetString();
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) c.IsDeleted = true;
+            return c;
+        }
 
-        public async Task SyncPersonelAsync(Personel personel) => await Task.CompletedTask;
-        public async Task DeletePersonelAsync(int id) => await Task.CompletedTask;
-        public async Task<List<Personel>> PullPersonellerAsync() => new();
+        public async Task SyncCekAsync(Cek cek) => await UpsertPayloadAsync("cekler", MapCekToPayload(cek));
+        public async Task DeleteCekAsync(int id) => await DeleteAsync("cekler", id);
+        public async Task<List<Cek>> PullCeklerAsync()
+        {
+            using var doc = await GetJsonAsync("cekler");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<Cek>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToCek(el));
+            return list;
+        }
 
-        public async Task SyncSatisHedefiAsync(SatisHedefi hedef) => await Task.CompletedTask;
-        public async Task<List<SatisHedefi>> PullSatisHedefleriAsync() => new();
+        private static Dictionary<string, object?> MapSenetToPayload(Senet s) => new()
+        {
+            ["id"] = s.Id.ToString(),
+            ["senet_no"] = s.SenetNo ?? "",
+            ["cari_id"] = s.CariId?.ToString(),
+            ["cari_unvan"] = s.CariUnvan ?? "",
+            ["portfoy_no"] = s.PortfoyNo ?? "",
+            ["vade_tarihi"] = s.VadeTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["tutar"] = s.Tutar,
+            ["borclu"] = s.Borclu ?? "",
+            ["senet_turu"] = s.SenetTuru ?? "",
+            ["durum"] = s.Durum ?? "",
+            ["aciklama"] = s.Aciklama ?? "",
+            ["is_deleted"] = s.IsDeleted
+        };
 
-        public async Task SyncHaftalikSatisHedefiAsync(HaftalikSatisHedefi hedef) => await Task.CompletedTask;
-        public async Task<List<HaftalikSatisHedefi>> PullHaftalikSatisHedefleriAsync() => new();
+        private static Senet MapPayloadToSenet(JsonElement el)
+        {
+            var s = new Senet();
+            if (el.TryGetProperty("id", out var id)) s.Id = ParseInt(id);
+            if (el.TryGetProperty("senet_no", out var sn) && sn.ValueKind == JsonValueKind.String) s.SenetNo = sn.GetString();
+            if (el.TryGetProperty("cari_id", out var ci)) s.CariId = ParseNullableInt(ci);
+            if (el.TryGetProperty("cari_unvan", out var cu) && cu.ValueKind == JsonValueKind.String) s.CariUnvan = cu.GetString();
+            if (el.TryGetProperty("portfoy_no", out var pn) && pn.ValueKind == JsonValueKind.String) s.PortfoyNo = pn.GetString();
+            if (el.TryGetProperty("vade_tarihi", out var vt) && vt.ValueKind == JsonValueKind.String && DateTime.TryParse(vt.GetString(), out var vtd)) s.VadeTarihi = vtd;
+            if (el.TryGetProperty("tutar", out var tt)) s.Tutar = ParseDecimal(tt);
+            if (el.TryGetProperty("borclu", out var b) && b.ValueKind == JsonValueKind.String) s.Borclu = b.GetString();
+            if (el.TryGetProperty("senet_turu", out var st) && st.ValueKind == JsonValueKind.String) s.SenetTuru = st.GetString();
+            if (el.TryGetProperty("durum", out var dm) && dm.ValueKind == JsonValueKind.String) s.Durum = dm.GetString();
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) s.Aciklama = ac.GetString();
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) s.IsDeleted = true;
+            return s;
+        }
 
-        public async Task SyncYillikSatisHedefiAsync(YillikSatisHedefi hedef) => await Task.CompletedTask;
-        public async Task<List<YillikSatisHedefi>> PullYillikSatisHedefleriAsync() => new();
+        public async Task SyncSenetAsync(Senet senet) => await UpsertPayloadAsync("senetler", MapSenetToPayload(senet));
+        public async Task DeleteSenetAsync(int id) => await DeleteAsync("senetler", id);
+        public async Task<List<Senet>> PullSenetlerAsync()
+        {
+            using var doc = await GetJsonAsync("senetler");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<Senet>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToSenet(el));
+            return list;
+        }
 
-        public async Task SyncPortfoyAsync(PortfoyKart portfoy) => await Task.CompletedTask;
-        public async Task DeletePortfoyAsync(int id) => await Task.CompletedTask;
-        public async Task<List<PortfoyKart>> PullPortfoyAsync() => new();
+        // ==========================================
+        // KREDİ KARTI VE EFT İŞLEMLERİ
+        // ==========================================
+        private static Dictionary<string, object?> MapKrediKartiToPayload(KrediKartiIslem kk) => new()
+        {
+            ["id"] = kk.Id.ToString(),
+            ["musteri_id"] = kk.MusteriId.ToString(),
+            ["musteri_unvan"] = kk.MusteriUnvan ?? "",
+            ["tarih"] = kk.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["vade_tarihi"] = kk.VadeTarihi?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["tutar"] = kk.Tutar,
+            ["banka"] = kk.Banka ?? "",
+            ["kart_no"] = kk.KartNo ?? "",
+            ["onay_kodu"] = kk.OnayKodu ?? "",
+            ["durum"] = kk.Durum ?? "Portföyde",
+            ["yonlendirilen_cari_id"] = kk.YonlendirilenCariId?.ToString(),
+            ["yonlendirilen_cari_unvan"] = kk.YonlendirilenCariUnvan ?? "",
+            ["aciklama"] = kk.Aciklama ?? "",
+            ["islem_turu"] = kk.IslemTuru ?? "",
+            ["is_deleted"] = kk.IsDeleted
+        };
 
-        public async Task<List<StokSayimFisi>> PullStokSayimlarAsync() => new();
-        public async Task<List<StokSayimDetay>> PullStokSayimDetaylarAsync(int fisId) => new();
-        public async Task<List<DovizKur>?> PullDovizKurlariAsync() => new();
-        public async Task<List<BelgeArsiv>?> PullBelgeArsivAsync() => new();
+        private static KrediKartiIslem MapPayloadToKrediKarti(JsonElement el)
+        {
+            var kk = new KrediKartiIslem();
+            if (el.TryGetProperty("id", out var id)) kk.Id = ParseInt(id);
+            if (el.TryGetProperty("musteri_id", out var mi)) kk.MusteriId = ParseInt(mi);
+            if (el.TryGetProperty("musteri_unvan", out var mu) && mu.ValueKind == JsonValueKind.String) kk.MusteriUnvan = mu.GetString();
+            if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var dt)) kk.Tarih = dt;
+            if (el.TryGetProperty("vade_tarihi", out var vt) && vt.ValueKind == JsonValueKind.String && DateTime.TryParse(vt.GetString(), out var vtd)) kk.VadeTarihi = vtd;
+            if (el.TryGetProperty("tutar", out var tt)) kk.Tutar = ParseDecimal(tt);
+            if (el.TryGetProperty("banka", out var b) && b.ValueKind == JsonValueKind.String) kk.Banka = b.GetString();
+            if (el.TryGetProperty("kart_no", out var kn) && kn.ValueKind == JsonValueKind.String) kk.KartNo = kn.GetString();
+            if (el.TryGetProperty("onay_kodu", out var ok) && ok.ValueKind == JsonValueKind.String) kk.OnayKodu = ok.GetString();
+            if (el.TryGetProperty("durum", out var dm) && dm.ValueKind == JsonValueKind.String) kk.Durum = dm.GetString();
+            if (el.TryGetProperty("yonlendirilen_cari_id", out var yci)) kk.YonlendirilenCariId = ParseNullableInt(yci);
+            if (el.TryGetProperty("yonlendirilen_cari_unvan", out var ycu) && ycu.ValueKind == JsonValueKind.String) kk.YonlendirilenCariUnvan = ycu.GetString();
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) kk.Aciklama = ac.GetString();
+            if (el.TryGetProperty("islem_turu", out var it) && it.ValueKind == JsonValueKind.String) kk.IslemTuru = it.GetString();
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) kk.IsDeleted = true;
+            return kk;
+        }
+
+        public async Task SyncKrediKartiIslemAsync(KrediKartiIslem islem) => await UpsertPayloadAsync("kredi_karti_islemler", MapKrediKartiToPayload(islem));
+        public async Task DeleteKrediKartiIslemAsync(int id) => await DeleteAsync("kredi_karti_islemler", id);
+        public async Task<List<KrediKartiIslem>> PullKrediKartlariAsync()
+        {
+            using var doc = await GetJsonAsync("kredi_karti_islemler");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<KrediKartiIslem>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToKrediKarti(el));
+            return list;
+        }
+
+        private static Dictionary<string, object?> MapEftToPayload(EftIslem eft) => new()
+        {
+            ["id"] = eft.Id.ToString(),
+            ["musteri_id"] = eft.MusteriId.ToString(),
+            ["musteri_unvan"] = eft.MusteriUnvan ?? "",
+            ["tarih"] = eft.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["tutar"] = eft.Tutar,
+            ["banka"] = eft.Banka ?? "",
+            ["banka_id"] = eft.BankaId.ToString(),
+            ["hesap_no"] = eft.HesapNo ?? "",
+            ["dekont_no"] = eft.DekontNo ?? "",
+            ["evrak_no"] = eft.EvrakNo ?? "",
+            ["durum"] = eft.Durum ?? "Portföyde",
+            ["yonlendirilen_cari_id"] = eft.YonlendirilenCariId?.ToString(),
+            ["yonlendirilen_cari_unvan"] = eft.YonlendirilenCariUnvan ?? "",
+            ["aciklama"] = eft.Aciklama ?? "",
+            ["islem_turu"] = eft.IslemTuru ?? "",
+            ["is_deleted"] = eft.IsDeleted
+        };
+
+        private static EftIslem MapPayloadToEft(JsonElement el)
+        {
+            var eft = new EftIslem();
+            if (el.TryGetProperty("id", out var id)) eft.Id = ParseInt(id);
+            if (el.TryGetProperty("musteri_id", out var mi)) eft.MusteriId = ParseInt(mi);
+            if (el.TryGetProperty("musteri_unvan", out var mu) && mu.ValueKind == JsonValueKind.String) eft.MusteriUnvan = mu.GetString();
+            if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var dt)) eft.Tarih = dt;
+            if (el.TryGetProperty("tutar", out var tt)) eft.Tutar = ParseDecimal(tt);
+            if (el.TryGetProperty("banka", out var b) && b.ValueKind == JsonValueKind.String) eft.Banka = b.GetString();
+            if (el.TryGetProperty("banka_id", out var bi)) eft.BankaId = ParseInt(bi);
+            if (el.TryGetProperty("hesap_no", out var hn) && hn.ValueKind == JsonValueKind.String) eft.HesapNo = hn.GetString();
+            if (el.TryGetProperty("dekont_no", out var dn) && dn.ValueKind == JsonValueKind.String) eft.DekontNo = dn.GetString();
+            if (el.TryGetProperty("evrak_no", out var en) && en.ValueKind == JsonValueKind.String) eft.EvrakNo = en.GetString() ?? "";
+            if (el.TryGetProperty("durum", out var dm) && dm.ValueKind == JsonValueKind.String) eft.Durum = dm.GetString();
+            if (el.TryGetProperty("yonlendirilen_cari_id", out var yci)) eft.YonlendirilenCariId = ParseNullableInt(yci);
+            if (el.TryGetProperty("yonlendirilen_cari_unvan", out var ycu) && ycu.ValueKind == JsonValueKind.String) eft.YonlendirilenCariUnvan = ycu.GetString();
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) eft.Aciklama = ac.GetString();
+            if (el.TryGetProperty("islem_turu", out var it) && it.ValueKind == JsonValueKind.String) eft.IslemTuru = it.GetString();
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) eft.IsDeleted = true;
+            return eft;
+        }
+
+        public async Task SyncEftIslemAsync(EftIslem islem) => await UpsertPayloadAsync("eft_islemler", MapEftToPayload(islem));
+        public async Task DeleteEftIslemAsync(int id) => await DeleteAsync("eft_islemler", id);
+        public async Task<List<EftIslem>> PullEftIslemleriAsync()
+        {
+            using var doc = await GetJsonAsync("eft_islemler");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<EftIslem>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToEft(el));
+            return list;
+        }
+
+        // ==========================================
+        // GÖREVLER (KANBAN) & PERSONELLER
+        // ==========================================
+        private static Dictionary<string, object?> MapGorevToPayload(Gorev g) => new()
+        {
+            ["id"] = g.Id.ToString(),
+            ["baslik"] = g.Baslik ?? "",
+            ["aciklama"] = g.Aciklama ?? "",
+            ["atanan_personel_id"] = g.AtananPersonelId,
+            ["atanan_personel_ad"] = g.AtananPersonelAd ?? "",
+            ["durum"] = g.Durum ?? "Yapılacak",
+            ["oncelik"] = g.Oncelik ?? "Normal",
+            ["son_tarih"] = g.SonTarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["bitis_tarihi"] = g.BitisTarihi != default ? g.BitisTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ") : null,
+            ["olusturma_tarihi"] = g.OlusturmaTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["is_deleted"] = g.IsDeleted
+        };
+
+        private static Gorev MapPayloadToGorev(JsonElement el)
+        {
+            var g = new Gorev();
+            if (el.TryGetProperty("id", out var id)) g.Id = ParseInt(id);
+            if (el.TryGetProperty("baslik", out var b) && b.ValueKind == JsonValueKind.String) g.Baslik = b.GetString();
+            if (el.TryGetProperty("aciklama", out var a) && a.ValueKind == JsonValueKind.String) g.Aciklama = a.GetString();
+            if (el.TryGetProperty("atanan_personel_id", out var pi)) g.AtananPersonelId = ParseInt(pi);
+            else if (el.TryGetProperty("atananPersonelId", out var pi2)) g.AtananPersonelId = ParseInt(pi2);
+            if (el.TryGetProperty("atanan_personel_ad", out var pa) && pa.ValueKind == JsonValueKind.String) g.AtananPersonelAd = pa.GetString();
+            else if (el.TryGetProperty("atananPersonelAd", out var pa2) && pa2.ValueKind == JsonValueKind.String) g.AtananPersonelAd = pa2.GetString();
+            if (el.TryGetProperty("durum", out var d) && d.ValueKind == JsonValueKind.String) g.Durum = d.GetString();
+            if (el.TryGetProperty("oncelik", out var o) && o.ValueKind == JsonValueKind.String) g.Oncelik = o.GetString();
+            if (el.TryGetProperty("son_tarih", out var st) && st.ValueKind == JsonValueKind.String && DateTime.TryParse(st.GetString(), out var std)) g.SonTarih = std;
+            else if (el.TryGetProperty("sonTarih", out var st2) && st2.ValueKind == JsonValueKind.String && DateTime.TryParse(st2.GetString(), out var std2)) g.SonTarih = std2;
+            if (el.TryGetProperty("bitis_tarihi", out var bt) && bt.ValueKind == JsonValueKind.String && DateTime.TryParse(bt.GetString(), out var btd)) g.BitisTarihi = btd;
+            if (el.TryGetProperty("olusturma_tarihi", out var ot) && ot.ValueKind == JsonValueKind.String && DateTime.TryParse(ot.GetString(), out var otd)) g.OlusturmaTarihi = otd;
+            else if (el.TryGetProperty("olusturmaTarihi", out var ot2) && ot2.ValueKind == JsonValueKind.String && DateTime.TryParse(ot2.GetString(), out var otd2)) g.OlusturmaTarihi = otd2;
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) g.IsDeleted = true;
+            return g;
+        }
+
+        public async Task SyncGorevAsync(Gorev gorev) => await UpsertPayloadAsync("gorevler", MapGorevToPayload(gorev));
+        public async Task DeleteGorevAsync(int id) => await DeleteAsync("gorevler", id);
+        public async Task<List<Gorev>> PullGorevlerAsync()
+        {
+            using var doc = await GetJsonAsync("gorevler");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<Gorev>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToGorev(el));
+            return list;
+        }
+
+        private static Dictionary<string, object?> MapPersonelToPayload(Personel p) => new()
+        {
+            ["id"] = p.Id.ToString(),
+            ["ad"] = p.Ad ?? "",
+            ["soyad"] = p.Soyad ?? "",
+            ["telefon"] = p.Telefon ?? "",
+            ["gorevi"] = p.Gorevi ?? "",
+            ["unvan"] = p.Unvan ?? "",
+            ["email"] = p.Email ?? "",
+            ["maas"] = p.Maas,
+            ["ise_giris_tarihi"] = p.IseGirisTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["is_deleted"] = p.IsDeleted
+        };
+
+        private static Personel MapPayloadToPersonel(JsonElement el)
+        {
+            var p = new Personel();
+            if (el.TryGetProperty("id", out var id)) p.Id = ParseInt(id);
+            if (el.TryGetProperty("ad", out var a) && a.ValueKind == JsonValueKind.String) p.Ad = a.GetString();
+            if (el.TryGetProperty("soyad", out var s) && s.ValueKind == JsonValueKind.String) p.Soyad = s.GetString();
+            if (el.TryGetProperty("telefon", out var t) && t.ValueKind == JsonValueKind.String) p.Telefon = t.GetString();
+            if (el.TryGetProperty("gorevi", out var g) && g.ValueKind == JsonValueKind.String) p.Gorevi = g.GetString();
+            if (el.TryGetProperty("unvan", out var u) && u.ValueKind == JsonValueKind.String) p.Unvan = u.GetString();
+            if (el.TryGetProperty("email", out var e) && e.ValueKind == JsonValueKind.String) p.Email = e.GetString();
+            if (el.TryGetProperty("maas", out var m)) p.Maas = ParseDecimal(m);
+            if (el.TryGetProperty("ise_giris_tarihi", out var ig) && ig.ValueKind == JsonValueKind.String && DateTime.TryParse(ig.GetString(), out var igd)) p.IseGirisTarihi = igd;
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) p.IsDeleted = true;
+            return p;
+        }
+
+        public async Task SyncPersonelAsync(Personel personel) => await UpsertPayloadAsync("personeller", MapPersonelToPayload(personel));
+        public async Task DeletePersonelAsync(int id) => await DeleteAsync("personeller", id);
+        public async Task<List<Personel>> PullPersonellerAsync()
+        {
+            using var doc = await GetJsonAsync("personeller");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<Personel>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToPersonel(el));
+            return list;
+        }
+
+        // ==========================================
+        // SATIŞ HEDEFLERİ
+        // ==========================================
+        public async Task SyncSatisHedefiAsync(SatisHedefi hedef) => await UpsertPayloadAsync("satis_hedefleri", new Dictionary<string, object?>
+        {
+            ["id"] = hedef.Id.ToString(),
+            ["ay"] = hedef.Ay,
+            ["yil"] = hedef.Yil,
+            ["hedef_tutar"] = hedef.HedefTutari
+        });
+
+        public async Task<List<SatisHedefi>> PullSatisHedefleriAsync()
+        {
+            using var doc = await GetJsonAsync("satis_hedefleri");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<SatisHedefi>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var h = new SatisHedefi();
+                if (el.TryGetProperty("id", out var id)) h.Id = ParseInt(id);
+                if (el.TryGetProperty("yil", out var y)) h.Yil = ParseInt(y);
+                if (el.TryGetProperty("ay", out var a)) h.Ay = ParseInt(a);
+                if (el.TryGetProperty("hedef_tutar", out var ht)) h.HedefTutari = ParseDecimal(ht);
+                else if (el.TryGetProperty("hedef_tutari", out var ht2)) h.HedefTutari = ParseDecimal(ht2);
+                list.Add(h);
+            }
+            return list;
+        }
+
+        public async Task SyncHaftalikSatisHedefiAsync(HaftalikSatisHedefi hedef) => await UpsertPayloadAsync("haftalik_satis_hedefleri", new Dictionary<string, object?>
+        {
+            ["id"] = hedef.Id.ToString(),
+            ["yil"] = hedef.Yil,
+            ["hafta"] = hedef.Hafta,
+            ["hafta_no"] = hedef.Hafta,
+            ["hedef_tutar"] = hedef.HedefTutari
+        });
+
+        public async Task<List<HaftalikSatisHedefi>> PullHaftalikSatisHedefleriAsync()
+        {
+            using var doc = await GetJsonAsync("haftalik_satis_hedefleri");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<HaftalikSatisHedefi>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var h = new HaftalikSatisHedefi();
+                if (el.TryGetProperty("id", out var id)) h.Id = ParseInt(id);
+                if (el.TryGetProperty("yil", out var y)) h.Yil = ParseInt(y);
+                if (el.TryGetProperty("hafta", out var hf)) h.Hafta = ParseInt(hf);
+                else if (el.TryGetProperty("hafta_no", out var hn)) h.Hafta = ParseInt(hn);
+                if (el.TryGetProperty("hedef_tutar", out var ht)) h.HedefTutari = ParseDecimal(ht);
+                else if (el.TryGetProperty("hedef_tutari", out var ht2)) h.HedefTutari = ParseDecimal(ht2);
+                list.Add(h);
+            }
+            return list;
+        }
+
+        public async Task SyncYillikSatisHedefiAsync(YillikSatisHedefi hedef) => await UpsertPayloadAsync("yillik_satis_hedefleri", new Dictionary<string, object?>
+        {
+            ["id"] = hedef.Id.ToString(),
+            ["yil"] = hedef.Yil,
+            ["hedef_tutar"] = hedef.HedefTutari,
+            ["aciklama"] = hedef.Aciklama ?? ""
+        });
+
+        public async Task<List<YillikSatisHedefi>> PullYillikSatisHedefleriAsync()
+        {
+            using var doc = await GetJsonAsync("yillik_satis_hedefleri");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<YillikSatisHedefi>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var h = new YillikSatisHedefi();
+                if (el.TryGetProperty("id", out var id)) h.Id = ParseInt(id);
+                if (el.TryGetProperty("yil", out var y)) h.Yil = ParseInt(y);
+                if (el.TryGetProperty("hedef_tutar", out var ht)) h.HedefTutari = ParseDecimal(ht);
+                else if (el.TryGetProperty("hedef_tutari", out var ht2)) h.HedefTutari = ParseDecimal(ht2);
+                if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) h.Aciklama = ac.GetString();
+                list.Add(h);
+            }
+            return list;
+        }
+
+        // ==========================================
+        // PORTFÖY KARTLARI
+        // ==========================================
+        private static Dictionary<string, object?> MapPortfoyToPayload(PortfoyKart p) => new()
+        {
+            ["id"] = p.Id.ToString(),
+            ["portfoy_no"] = p.PortfoyNo ?? "",
+            ["firma_ismi"] = p.FirmaIsmi ?? "",
+            ["cari_tipi"] = p.CariTipi ?? "",
+            ["yetkili_kisi"] = p.YetkiliKisi ?? "",
+            ["vade_gunu"] = p.VadeGunu,
+            ["risk_limiti"] = p.RiskLimiti,
+            ["vkn"] = p.VKN ?? "",
+            ["vergi_dairesi"] = p.VergiDairesi ?? "",
+            ["gsm"] = p.GSM ?? "",
+            ["telefon"] = p.Telefon ?? "",
+            ["email"] = p.Email ?? "",
+            ["web_sitesi"] = p.WebSitesi ?? "",
+            ["sektor"] = p.Sektor ?? "",
+            ["aciklama"] = p.Aciklama ?? "",
+            ["notlar"] = p.Notlar ?? "",
+            ["is_deleted"] = p.IsDeleted
+        };
+
+        private static PortfoyKart MapPayloadToPortfoy(JsonElement el)
+        {
+            var p = new PortfoyKart();
+            if (el.TryGetProperty("id", out var id)) p.Id = ParseInt(id);
+            if (el.TryGetProperty("portfoy_no", out var pn) && pn.ValueKind == JsonValueKind.String) p.PortfoyNo = pn.GetString();
+            if (el.TryGetProperty("firma_ismi", out var fi) && fi.ValueKind == JsonValueKind.String) p.FirmaIsmi = fi.GetString();
+            if (el.TryGetProperty("cari_tipi", out var ct) && ct.ValueKind == JsonValueKind.String) p.CariTipi = ct.GetString();
+            if (el.TryGetProperty("yetkili_kisi", out var yk) && yk.ValueKind == JsonValueKind.String) p.YetkiliKisi = yk.GetString();
+            if (el.TryGetProperty("vade_gunu", out var vg)) p.VadeGunu = ParseInt(vg);
+            if (el.TryGetProperty("risk_limiti", out var rl)) p.RiskLimiti = ParseDecimal(rl);
+            if (el.TryGetProperty("vkn", out var vkn) && vkn.ValueKind == JsonValueKind.String) p.VKN = vkn.GetString();
+            if (el.TryGetProperty("vergi_dairesi", out var vd) && vd.ValueKind == JsonValueKind.String) p.VergiDairesi = vd.GetString();
+            if (el.TryGetProperty("gsm", out var gsm) && gsm.ValueKind == JsonValueKind.String) p.GSM = gsm.GetString();
+            if (el.TryGetProperty("telefon", out var tel) && tel.ValueKind == JsonValueKind.String) p.Telefon = tel.GetString();
+            if (el.TryGetProperty("email", out var em) && em.ValueKind == JsonValueKind.String) p.Email = em.GetString();
+            if (el.TryGetProperty("web_sitesi", out var ws) && ws.ValueKind == JsonValueKind.String) p.WebSitesi = ws.GetString();
+            if (el.TryGetProperty("sektor", out var sk) && sk.ValueKind == JsonValueKind.String) p.Sektor = sk.GetString();
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) p.Aciklama = ac.GetString();
+            if (el.TryGetProperty("notlar", out var n) && n.ValueKind == JsonValueKind.String) p.Notlar = n.GetString();
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) p.IsDeleted = true;
+            return p;
+        }
+
+        public async Task SyncPortfoyAsync(PortfoyKart portfoy) => await UpsertPayloadAsync("portfoy_kartlar", MapPortfoyToPayload(portfoy));
+        public async Task DeletePortfoyAsync(int id) => await DeleteAsync("portfoy_kartlar", id);
+        public async Task<List<PortfoyKart>> PullPortfoyAsync()
+        {
+            using var doc = await GetJsonAsync("portfoy_kartlar");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<PortfoyKart>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToPortfoy(el));
+            return list;
+        }
+
+        // ==========================================
+        // STOK SAYIM
+        // ==========================================
+        private static Dictionary<string, object?> MapStokSayimFisiToPayload(StokSayimFisi fis) => new()
+        {
+            ["id"] = fis.Id.ToString(),
+            ["fis_no"] = fis.FisNo ?? "",
+            ["tarih"] = fis.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["aciklama"] = fis.Aciklama ?? "",
+            ["sayim_yapan"] = fis.SayimYapan ?? "",
+            ["is_applied"] = fis.IsApplied,
+            ["is_deleted"] = fis.IsDeleted
+        };
+
+        private static StokSayimFisi MapPayloadToStokSayimFisi(JsonElement el)
+        {
+            var f = new StokSayimFisi();
+            if (el.TryGetProperty("id", out var id)) f.Id = ParseInt(id);
+            if (el.TryGetProperty("fis_no", out var fn) && fn.ValueKind == JsonValueKind.String) f.FisNo = fn.GetString();
+            if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var dt)) f.Tarih = dt;
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) f.Aciklama = ac.GetString();
+            if (el.TryGetProperty("sayim_yapan", out var sy) && sy.ValueKind == JsonValueKind.String) f.SayimYapan = sy.GetString();
+            if (el.TryGetProperty("is_applied", out var ia)) f.IsApplied = ia.ValueKind == JsonValueKind.True;
+            if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) f.IsDeleted = true;
+            return f;
+        }
+
+        private static Dictionary<string, object?> MapStokSayimDetayToPayload(StokSayimDetay d) => new()
+        {
+            ["id"] = d.Id.ToString(),
+            ["fis_id"] = d.FisId.ToString(),
+            ["fisi_id"] = d.FisId.ToString(),
+            ["stok_id"] = d.StokId.ToString(),
+            ["stok_kodu"] = d.StokKodu ?? "",
+            ["stok_adi"] = d.StokAdi ?? "",
+            ["mevcut_miktar"] = d.MevcutMiktar,
+            ["sayilan_miktar"] = d.SayilanMiktar,
+            ["fark"] = d.Fark,
+            ["aciklama"] = d.Aciklama ?? ""
+        };
+
+        private static StokSayimDetay MapPayloadToStokSayimDetay(JsonElement el)
+        {
+            var d = new StokSayimDetay();
+            if (el.TryGetProperty("id", out var id)) d.Id = ParseInt(id);
+            if (el.TryGetProperty("fis_id", out var fi)) d.FisId = ParseInt(fi);
+            else if (el.TryGetProperty("fisi_id", out var fi2)) d.FisId = ParseInt(fi2);
+            if (el.TryGetProperty("stok_id", out var si)) d.StokId = ParseInt(si);
+            if (el.TryGetProperty("stok_kodu", out var sk) && sk.ValueKind == JsonValueKind.String) d.StokKodu = sk.GetString();
+            if (el.TryGetProperty("stok_adi", out var sa) && sa.ValueKind == JsonValueKind.String) d.StokAdi = sa.GetString();
+            if (el.TryGetProperty("mevcut_miktar", out var mm)) d.MevcutMiktar = ParseDecimal(mm);
+            if (el.TryGetProperty("sayilan_miktar", out var sm)) d.SayilanMiktar = ParseDecimal(sm);
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) d.Aciklama = ac.GetString();
+            return d;
+        }
+
+        public async Task SyncStokSayimFisiAsync(StokSayimFisi fis) => await UpsertPayloadAsync("stok_sayim_fisileri", MapStokSayimFisiToPayload(fis));
+        public async Task DeleteStokSayimFisiAsync(int id)
+        {
+            await DeleteFilteredAsync("stok_sayim_detaylari", $"fis_id=eq.{id}");
+            await DeleteFilteredAsync("stok_sayim_detaylari", $"fisi_id=eq.{id}");
+            await DeleteAsync("stok_sayim_fisileri", id);
+        }
+
+        public async Task SyncStokSayimDetaylarAsync(int fisId, List<StokSayimDetay> detaylar)
+        {
+            await SafeRun(async () =>
+            {
+                await DeleteFilteredAsync("stok_sayim_detaylari", $"fis_id=eq.{fisId}");
+                await DeleteFilteredAsync("stok_sayim_detaylari", $"fisi_id=eq.{fisId}");
+                if (detaylar != null && detaylar.Any())
+                {
+                    var payloads = detaylar.Select(d => (object)MapStokSayimDetayToPayload(d)).ToList();
+                    await UpsertBatchPayloadAsync("stok_sayim_detaylari", payloads);
+                }
+            });
+        }
+
+        public async Task<List<StokSayimFisi>> PullStokSayimlarAsync()
+        {
+            using var doc = await GetJsonAsync("stok_sayim_fisileri");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<StokSayimFisi>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToStokSayimFisi(el));
+            return list;
+        }
+
+        public async Task<List<StokSayimDetay>> PullStokSayimDetaylarAsync(int fisId)
+        {
+            using var doc = await GetJsonAsync("stok_sayim_detaylari", $"or=(fis_id.eq.{fisId},fisi_id.eq.{fisId})");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<StokSayimDetay>();
+            foreach (var el in doc.RootElement.EnumerateArray()) list.Add(MapPayloadToStokSayimDetay(el));
+            return list;
+        }
+
+        // ==========================================
+        // DÖVİZ KURLARI & BELGE ARŞİV
+        // ==========================================
+        public async Task SyncDovizKurAsync(DovizKur kur) => await UpsertPayloadAsync("doviz_kurlari", new Dictionary<string, object?>
+        {
+            ["id"] = kur.Id.ToString(),
+            ["kod"] = kur.Kod ?? "",
+            ["alis"] = kur.Alis,
+            ["satis"] = kur.Satis,
+            ["tarih"] = kur.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        });
+
+        public async Task<List<DovizKur>?> PullDovizKurlariAsync()
+        {
+            using var doc = await GetJsonAsync("doviz_kurlari");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<DovizKur>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var k = new DovizKur();
+                if (el.TryGetProperty("id", out var id)) k.Id = ParseInt(id);
+                if (el.TryGetProperty("kod", out var kd) && kd.ValueKind == JsonValueKind.String) k.Kod = kd.GetString() ?? "";
+                if (el.TryGetProperty("alis", out var al)) k.Alis = ParseDecimal(al);
+                if (el.TryGetProperty("satis", out var st)) k.Satis = ParseDecimal(st);
+                if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var dt)) k.Tarih = dt;
+                list.Add(k);
+            }
+            return list;
+        }
+
+        public async Task SyncBelgeArsivAsync(BelgeArsiv belge) => await UpsertPayloadAsync("belge_arsiv", new Dictionary<string, object?>
+        {
+            ["id"] = belge.Id.ToString(),
+            ["ad"] = belge.Ad ?? "",
+            ["belge_adi"] = belge.Ad ?? "",
+            ["kategori"] = belge.Kategori ?? "",
+            ["tur"] = belge.Tur ?? "",
+            ["belge_turu"] = belge.Tur ?? "",
+            ["boyut"] = belge.Boyut ?? "",
+            ["tarih"] = belge.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ["veri"] = belge.Veri ?? "",
+            ["yol"] = belge.Yol ?? "",
+            ["dosya_yolu"] = belge.Yol ?? "",
+            ["is_deleted"] = belge.IsDeleted
+        });
+
+        public async Task DeleteBelgeArsivAsync(int id) => await DeleteAsync("belge_arsiv", id);
+
+        public async Task<List<BelgeArsiv>?> PullBelgeArsivAsync()
+        {
+            using var doc = await GetJsonAsync("belge_arsiv");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<BelgeArsiv>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var b = new BelgeArsiv();
+                if (el.TryGetProperty("id", out var id)) b.Id = ParseInt(id);
+                if (el.TryGetProperty("ad", out var ad) && ad.ValueKind == JsonValueKind.String) b.Ad = ad.GetString();
+                else if (el.TryGetProperty("belge_adi", out var ba) && ba.ValueKind == JsonValueKind.String) b.Ad = ba.GetString();
+                if (el.TryGetProperty("kategori", out var kt) && kt.ValueKind == JsonValueKind.String) b.Kategori = kt.GetString();
+                if (el.TryGetProperty("tur", out var tr) && tr.ValueKind == JsonValueKind.String) b.Tur = tr.GetString();
+                else if (el.TryGetProperty("belge_turu", out var bt) && bt.ValueKind == JsonValueKind.String) b.Tur = bt.GetString();
+                if (el.TryGetProperty("boyut", out var by) && by.ValueKind == JsonValueKind.String) b.Boyut = by.GetString();
+                if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var dt)) b.Tarih = dt;
+                else if (el.TryGetProperty("yukleme_tarihi", out var yt) && yt.ValueKind == JsonValueKind.String && DateTime.TryParse(yt.GetString(), out var ytd)) b.Tarih = ytd;
+                if (el.TryGetProperty("veri", out var vr) && vr.ValueKind == JsonValueKind.String) b.Veri = vr.GetString();
+                if (el.TryGetProperty("yol", out var yl) && yl.ValueKind == JsonValueKind.String) b.Yol = yl.GetString();
+                else if (el.TryGetProperty("dosya_yolu", out var dy) && dy.ValueKind == JsonValueKind.String) b.Yol = dy.GetString();
+                if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) b.IsDeleted = true;
+                list.Add(b);
+            }
+            return list;
+        }
+
+        // ==========================================
+        // MÜŞTERİ TAKİP
+        // ==========================================
+        public async Task<List<MusteriTakipKlasor>> PullMusteriTakipKlasorlerAsync()
+        {
+            using var doc = await GetJsonAsync("musteri_takip_klasorler");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<MusteriTakipKlasor>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var k = new MusteriTakipKlasor();
+                if (el.TryGetProperty("id", out var id)) k.Id = ParseInt(id);
+                if (el.TryGetProperty("cari_id", out var ci)) k.CariId = ParseInt(ci);
+                if (el.TryGetProperty("cari_unvan", out var cu) && cu.ValueKind == JsonValueKind.String) k.CariUnvan = cu.GetString() ?? "";
+                if (el.TryGetProperty("cari_kod", out var ck) && ck.ValueKind == JsonValueKind.String) k.CariKod = ck.GetString();
+                if (el.TryGetProperty("telefon", out var tel) && tel.ValueKind == JsonValueKind.String) k.Telefon = tel.GetString();
+                if (el.TryGetProperty("yetkili", out var yk) && yk.ValueKind == JsonValueKind.String) k.Yetkili = yk.GetString();
+                if (el.TryGetProperty("etiket", out var et) && et.ValueKind == JsonValueKind.String) k.Etiket = et.GetString();
+                else if (el.TryGetProperty("klasor_adi", out var ka) && ka.ValueKind == JsonValueKind.String) k.Etiket = ka.GetString();
+                if (el.TryGetProperty("renk", out var rn) && rn.ValueKind == JsonValueKind.String) k.Renk = rn.GetString() ?? "#3B82F6";
+                if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) k.Aciklama = ac.GetString();
+                if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) k.IsDeleted = true;
+                list.Add(k);
+            }
+            return list;
+        }
+
+        public async Task<List<MusteriTakipDetay>> PullMusteriTakipDetaylarAsync()
+        {
+            using var doc = await GetJsonAsync("musteri_takip_detaylar");
+            if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return new();
+            var list = new List<MusteriTakipDetay>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var d = new MusteriTakipDetay();
+                if (el.TryGetProperty("id", out var id)) d.Id = ParseInt(id);
+                if (el.TryGetProperty("klasor_id", out var ki)) d.KlasorId = ParseInt(ki);
+                if (el.TryGetProperty("cari_id", out var ci)) d.CariId = ParseInt(ci);
+                if (el.TryGetProperty("baslik", out var bs) && bs.ValueKind == JsonValueKind.String) d.Baslik = bs.GetString() ?? "";
+                if (el.TryGetProperty("icerik", out var ic) && ic.ValueKind == JsonValueKind.String) d.Icerik = ic.GetString();
+                else if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) d.Icerik = ac.GetString();
+                if (el.TryGetProperty("tip", out var tp) && tp.ValueKind == JsonValueKind.String) d.Tip = tp.GetString() ?? "Not";
+                if (el.TryGetProperty("fiyat_bilgisi", out var fb)) d.FiyatBilgisi = ParseDecimal(fb);
+                if (el.TryGetProperty("para_birimi", out var pb) && pb.ValueKind == JsonValueKind.String) d.ParaBirimi = pb.GetString() ?? "₺";
+                if (el.TryGetProperty("dosya_yolu", out var dy) && dy.ValueKind == JsonValueKind.String) d.DosyaYolu = dy.GetString();
+                if (el.TryGetProperty("gorsel_base64", out var gb) && gb.ValueKind == JsonValueKind.String) d.GorselBase64 = gb.GetString();
+                if (el.TryGetProperty("tarih", out var trh) && trh.ValueKind == JsonValueKind.String && DateTime.TryParse(trh.GetString(), out var dt)) d.Tarih = dt;
+                if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) d.IsDeleted = true;
+                list.Add(d);
+            }
+            return list;
+        }
 
         public async Task ClearCloudTablesAsync(string tenantId = "default")
         {
@@ -2107,6 +2845,116 @@ namespace ErmayMuhasebe.Services
                         ["is_deleted"] = n.IsDeleted
                     }).ToList();
                     await UpsertBatchPayloadAsync("notlar", payloads);
+                }
+                if (cekler?.Any() == true)
+                {
+                    var payloads = cekler.Select(MapCekToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("cekler", payloads);
+                }
+                if (senetler?.Any() == true)
+                {
+                    var payloads = senetler.Select(MapSenetToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("senetler", payloads);
+                }
+                if (kkIslemler?.Any() == true)
+                {
+                    var payloads = kkIslemler.Select(MapKrediKartiToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("kredi_karti_islemler", payloads);
+                }
+                if (eftIslemler?.Any() == true)
+                {
+                    var payloads = eftIslemler.Select(MapEftToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("eft_islemler", payloads);
+                }
+                if (gorevler?.Any() == true)
+                {
+                    var payloads = gorevler.Select(MapGorevToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("gorevler", payloads);
+                }
+                if (personeller?.Any() == true)
+                {
+                    var payloads = personeller.Select(MapPersonelToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("personeller", payloads);
+                }
+                if (hedefler?.Any() == true)
+                {
+                    var payloads = hedefler.Select(h => (object)new Dictionary<string, object?>
+                    {
+                        ["id"] = h.Id.ToString(),
+                        ["yil"] = h.Yil,
+                        ["ay"] = h.Ay,
+                        ["hedef_tutar"] = h.HedefTutari
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("satis_hedefleri", payloads);
+                }
+                if (haftalikHedefler?.Any() == true)
+                {
+                    var payloads = haftalikHedefler.Select(h => (object)new Dictionary<string, object?>
+                    {
+                        ["id"] = h.Id.ToString(),
+                        ["yil"] = h.Yil,
+                        ["hafta"] = h.Hafta,
+                        ["hafta_no"] = h.Hafta,
+                        ["hedef_tutar"] = h.HedefTutari
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("haftalik_satis_hedefleri", payloads);
+                }
+                if (yillikHedefler?.Any() == true)
+                {
+                    var payloads = yillikHedefler.Select(h => (object)new Dictionary<string, object?>
+                    {
+                        ["id"] = h.Id.ToString(),
+                        ["yil"] = h.Yil,
+                        ["hedef_tutar"] = h.HedefTutari,
+                        ["aciklama"] = h.Aciklama ?? ""
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("yillik_satis_hedefleri", payloads);
+                }
+                if (portfoyler?.Any() == true)
+                {
+                    var payloads = portfoyler.Select(MapPortfoyToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("portfoy_kartlar", payloads);
+                }
+                if (stokSayimlar?.Any() == true)
+                {
+                    var payloads = stokSayimlar.Select(MapStokSayimFisiToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("stok_sayim_fisileri", payloads);
+                }
+                if (stokSayimDetaylar?.Any() == true)
+                {
+                    var payloads = stokSayimDetaylar.Select(MapStokSayimDetayToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("stok_sayim_detaylari", payloads);
+                }
+                if (belgeler?.Any() == true)
+                {
+                    var payloads = belgeler.Select(b => (object)new Dictionary<string, object?>
+                    {
+                        ["id"] = b.Id.ToString(),
+                        ["ad"] = b.Ad ?? "",
+                        ["belge_adi"] = b.Ad ?? "",
+                        ["kategori"] = b.Kategori ?? "",
+                        ["tur"] = b.Tur ?? "",
+                        ["belge_turu"] = b.Tur ?? "",
+                        ["boyut"] = b.Boyut ?? "",
+                        ["tarih"] = b.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                        ["veri"] = b.Veri ?? "",
+                        ["yol"] = b.Yol ?? "",
+                        ["dosya_yolu"] = b.Yol ?? "",
+                        ["is_deleted"] = b.IsDeleted
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("belge_arsiv", payloads);
+                }
+                if (kurlar?.Any() == true)
+                {
+                    var payloads = kurlar.Select(k => (object)new Dictionary<string, object?>
+                    {
+                        ["id"] = k.Id.ToString(),
+                        ["kod"] = k.Kod ?? "",
+                        ["alis"] = k.Alis,
+                        ["satis"] = k.Satis,
+                        ["tarih"] = k.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("doviz_kurlari", payloads);
                 }
             });
         }

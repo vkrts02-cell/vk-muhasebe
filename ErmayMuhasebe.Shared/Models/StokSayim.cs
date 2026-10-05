@@ -13,6 +13,7 @@ namespace ErmayMuhasebe.Models
         public string? Aciklama { get; set; }
         public string? SayimYapan { get; set; }
         public bool IsApplied { get; set; } // Stoklara işlendi mi?
+        public bool IsDeleted { get; set; }
 
         [Ignore]
         public List<StokSayimDetay> Detaylar { get; set; } = new();

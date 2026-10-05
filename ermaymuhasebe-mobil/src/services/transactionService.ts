@@ -454,8 +454,8 @@ export const deleteFaturaCascade = async (faturaIdOrNo: number | string): Promis
           ortSatisFiyati: Number(ortSatis.toFixed(2)),
           OrtalamaAlisFiyati: Number(ortAlis.toFixed(2)),
           OrtalamaSatisFiyati: Number(ortSatis.toFixed(2)),
-          alisFiyati: myRemainingSh.length === 0 ? 0 : stokObj.alisFiyati,
-          satisFiyati: myRemainingSh.length === 0 ? 0 : stokObj.satisFiyati,
+          alisFiyati: stokObj.alisFiyati,
+          satisFiyati: stokObj.satisFiyati,
           id: stokObj.id ?? (isNaN(Number(sid)) ? sid : parseInt(sid)) 
         });
       } catch (e) {
@@ -527,6 +527,7 @@ export const deleteFaturaCascade = async (faturaIdOrNo: number | string): Promis
 
     // 8. Delete FaturaDetaylar & mark Fatura isDeleted
     try { await deleteData(`FaturaDetaylar/${faturaId}`); } catch {}
+    try { await deleteData(`Faturalar/${faturaId}`); } catch {}
     try {
       await writeData(`Faturalar/${faturaId}`, { ...oldFatura, isDeleted: true });
     } catch {}
@@ -543,14 +544,25 @@ export const deleteFinancialTransaction = async (cariHareket: any): Promise<bool
 
   // Check if this cariHareket is linked to an invoice (Fatura)
   const rawFaturaId = cariHareket.faturaId || cariHareket.FaturaId;
-  const isInvoice = (cariHareket.islemTuru && cariHareket.islemTuru.includes('Fatura')) ||
+  const cleanEvrak = String(cariHareket.evrakNo || cariHareket.EvrakNo || '').trim();
+  const isInvoice = (cariHareket.islemTuru && (cariHareket.islemTuru.includes('Fatura') || cariHareket.islemTuru.includes('Satış') || cariHareket.islemTuru.includes('Alış'))) ||
                     (rawFaturaId && Number(rawFaturaId) > 0) ||
-                    (cariHareket.evrakNo && (String(cariHareket.evrakNo).startsWith('FAT') || String(cariHareket.evrakNo).startsWith('KPL-')));
+                    cleanEvrak.startsWith('FAT') ||
+                    cleanEvrak.startsWith('SF') ||
+                    cleanEvrak.startsWith('AF') ||
+                    cleanEvrak.startsWith('FTR') ||
+                    cleanEvrak.startsWith('KPL-');
 
   if (isInvoice) {
     const fId = rawFaturaId || cariHareket.evrakNo;
     const okCascade = await deleteFaturaCascade(fId);
-    if (okCascade) return true;
+    if (okCascade) {
+      const chKey = cariHareket.firebaseKey || cariHareket.id || cariHareket.Id;
+      if (chKey) {
+        try { await deleteData(`CariHareketler/${chKey}`); } catch {}
+      }
+      return true;
+    }
 
     // Fallback: If invoice document was not found, still cleanup any orphan stock movements linked to this invoice
     try {
@@ -621,8 +633,8 @@ export const deleteFinancialTransaction = async (cariHareket: any): Promise<bool
             ortSatisFiyati: Number(ortSatis.toFixed(2)),
             OrtalamaAlisFiyati: Number(ortAlis.toFixed(2)),
             OrtalamaSatisFiyati: Number(ortSatis.toFixed(2)),
-            alisFiyati: mySh.length === 0 ? 0 : stokObj.alisFiyati,
-            satisFiyati: mySh.length === 0 ? 0 : stokObj.satisFiyati,
+            alisFiyati: stokObj.alisFiyati,
+            satisFiyati: stokObj.satisFiyati,
             id: stokObj.id ?? (isNaN(Number(sid)) ? sid : parseInt(sid)) 
           });
         }

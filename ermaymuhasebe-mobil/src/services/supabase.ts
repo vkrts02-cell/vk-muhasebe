@@ -135,9 +135,17 @@ const TABLE_MAPPINGS: Record<string, string> = {
   'maliyillar': 'mali_yillar',
   'mali_yillar': 'mali_yillar',
   'cekler': 'cekler',
+  'cek': 'cekler',
   'senetler': 'senetler',
+  'senet': 'senetler',
+  'kredikartlari': 'kredi_karti_islemler',
+  'kredikarti': 'kredi_karti_islemler',
+  'kredikartiislemleri': 'kredi_karti_islemler',
   'kredikartiislemler': 'kredi_karti_islemler',
   'kredi_karti_islemler': 'kredi_karti_islemler',
+  'eftislemleri': 'eft_islemler',
+  'eftislem': 'eft_islemler',
+  'eft': 'eft_islemler',
   'eftislemler': 'eft_islemler',
   'eft_islemler': 'eft_islemler',
   'dovizkurlari': 'doviz_kurlari',
@@ -153,6 +161,7 @@ const TABLE_MAPPINGS: Record<string, string> = {
   'yilliksatishedefleri': 'yillik_satis_hedefleri',
   'yillik_satis_hedefleri': 'yillik_satis_hedefleri',
   'stoksayimlar': 'stok_sayim_fisileri',
+  'stoksayim': 'stok_sayim_fisileri',
   'stoksayimfisileri': 'stok_sayim_fisileri',
   'stok_sayim_fisileri': 'stok_sayim_fisileri',
   'stoksayimdetaylar': 'stok_sayim_detaylari',
@@ -166,7 +175,8 @@ const TABLE_MAPPINGS: Record<string, string> = {
   'musteritakipdetaylar': 'musteri_takip_detaylar',
   'musteri_takip_detaylar': 'musteri_takip_detaylar',
   'kullanicilar': 'kullanicilar',
-  'users': 'kullanicilar'
+  'users': 'kullanicilar',
+  'faturatasarimi': 'notlar'
 };
 
 export const parsePath = (path: string): { table: string; id?: string; field?: string; isDetail?: boolean; foreignKey?: string } => {
@@ -189,6 +199,12 @@ export const parsePath = (path: string): { table: string; id?: string; field?: s
   }
   if (table === 'teklif_detaylar' && id) {
     return { table, id, isDetail: true, foreignKey: 'teklif_id' };
+  }
+  if (table === 'stok_sayim_detaylari' && id) {
+    return { table, id, isDetail: true, foreignKey: 'fisi_id' };
+  }
+  if (table === 'musteri_takip_detaylar' && id) {
+    return { table, id, isDetail: true, foreignKey: 'klasor_id' };
   }
 
   return { table, id, field };
@@ -1297,7 +1313,7 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
 
     // List all
     let query = supabase.from(table).select('*');
-    if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler', 'mali_yillar', 'cekler', 'senetler', 'kredi_karti_islemler', 'eft_islemler', 'belge_arsiv', 'doviz_kurlari', 'portfoy_kartlar', 'musteri_takip_klasorler', 'musteri_takip_detaylar'].includes(table)) {
+    if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler', 'mali_yillar', 'cekler', 'senetler', 'kredi_karti_islemler', 'eft_islemler', 'belge_arsiv', 'doviz_kurlari', 'portfoy_kartlar', 'musteri_takip_klasorler', 'musteri_takip_detaylar', 'gorevler', 'personeller', 'stok_sayim_fisileri', 'stok_sayim_detaylari'].includes(table)) {
       query = query.or('is_deleted.is.null,is_deleted.eq.false');
     }
     const { data, error } = await query;
@@ -1466,24 +1482,69 @@ export const deleteData = async (path: string): Promise<boolean> => {
     }
     if (id) {
       const cleanId = (!isNaN(Number(id)) && String(Number(id)) === String(id).trim()) ? Number(id) : id;
-      if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler'].includes(table)) {
+      const softTables = [
+        'cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 
+        'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 
+        'kasa_hareketler', 'banka_hareketler', 'cekler', 'senetler', 
+        'kredi_karti_islemler', 'eft_islemler', 'gorevler', 'personeller', 
+        'stok_sayim_fisileri', 'stok_sayim_detaylari', 'portfoy_kartlar', 
+        'belge_arsiv', 'musteri_takip_klasorler', 'musteri_takip_detaylar', 'mali_yillar'
+      ];
+
+      if (softTables.includes(table)) {
         const updatePayload: any = { is_deleted: true };
         if (['cariler', 'stoklar', 'faturalar', 'firma_profili'].includes(table)) {
           updatePayload.guncelleme_tarihi = new Date().toISOString();
         }
-        const { error: softErr } = await supabase
+
+        // Try soft delete with primary cleanId
+        let { data: softRows, error: softErr } = await supabase
           .from(table)
           .update(updatePayload)
-          .eq('id', cleanId);
+          .eq('id', cleanId)
+          .select('id');
+
+        // If no row updated, try string/number counterpart
+        if ((!softRows || softRows.length === 0) && !softErr) {
+          const altId = typeof cleanId === 'number' ? String(cleanId) : Number(cleanId);
+          if (!isNaN(altId as any) || typeof altId === 'string') {
+            const res = await supabase.from(table).update(updatePayload).eq('id', altId).select('id');
+            if (res.data && res.data.length > 0) {
+              softRows = res.data;
+            }
+          }
+        }
+
         if (table === 'bankalar') {
           try { await supabase.from('kasalar').update({ is_deleted: true }).eq('id', cleanId); } catch {}
         } else if (table === 'kasalar') {
           try { await supabase.from('bankalar').update({ is_deleted: true }).eq('id', cleanId); } catch {}
         }
-        if (!softErr) return true;
-        console.warn(`[Supabase] soft delete error on ${table}/${id}:`, softErr.message);
+
+        // If this is an invoice, cascade soft-delete details & movements in supabase as well
+        if (table === 'faturalar') {
+          try {
+            await supabase.from('fatura_detaylar').delete().eq('fatura_id', cleanId);
+            await supabase.from('cari_hareketler').update({ is_deleted: true }).eq('fatura_id', cleanId);
+            await supabase.from('stok_hareketler').update({ is_deleted: true }).eq('fatura_id', cleanId);
+          } catch (cascadeErr) {
+            console.warn('[Supabase] deleteData fatura cascade error:', cascadeErr);
+          }
+        }
+
+        if (softRows && softRows.length > 0) {
+          return true;
+        }
       }
-      const { error } = await supabase.from(table).delete().eq('id', cleanId);
+
+      // Fallback: hard delete
+      let { error } = await supabase.from(table).delete().eq('id', cleanId);
+      if (error) {
+        const altId = typeof cleanId === 'number' ? String(cleanId) : Number(cleanId);
+        const resAlt = await supabase.from(table).delete().eq('id', altId);
+        error = resAlt.error;
+      }
+
       if (table === 'bankalar') {
         try { await supabase.from('kasalar').delete().eq('id', cleanId); } catch {}
       } else if (table === 'kasalar') {

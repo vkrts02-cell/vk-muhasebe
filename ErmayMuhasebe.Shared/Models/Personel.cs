@@ -16,5 +16,6 @@ namespace ErmayMuhasebe.Models
         public string? Email { get; set; } // Missing
         public decimal Maas { get; set; }
         public DateTime IseGirisTarihi { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

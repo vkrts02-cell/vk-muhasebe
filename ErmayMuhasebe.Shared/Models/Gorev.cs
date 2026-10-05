@@ -16,5 +16,6 @@ namespace ErmayMuhasebe.Models
         public DateTime SonTarih { get; set; }
         public DateTime BitisTarihi { get; set; } // Missing
         public DateTime OlusturmaTarihi { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

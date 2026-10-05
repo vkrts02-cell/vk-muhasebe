@@ -143,6 +143,16 @@ export default function CarilerScreen({ route, navigation }: any) {
     }
   }, [route?.params?.reOpenCariId, cariler]);
 
+  // Keep selectedCari dynamically in sync with the latest cariler list
+  useEffect(() => {
+    if (selectedCari && cariler.length > 0) {
+      const fresh = cariler.find(c => String(c.id) === String(selectedCari.id) || String(c.firebaseKey || '') === String(selectedCari.firebaseKey || selectedCari.id));
+      if (fresh && JSON.stringify(fresh) !== JSON.stringify(selectedCari)) {
+        setSelectedCari(fresh);
+      }
+    }
+  }, [cariler]);
+
   useEffect(() => {
     const unsubCariler = subscribeToPath('Cariler', (data) => {
       if (data) {

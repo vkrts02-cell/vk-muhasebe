@@ -1,5 +1,5 @@
 # VK Muhasebe - GitHub Actions Takip ve Otomatik Indirme Scripti
-$repo = "vkrts2/vk-muhasebe"
+$repo = "vkrts02-cell/vk-muhasebe"
 $desktopPaths = @(
     [Environment]::GetFolderPath('Desktop'),
     "C:\Users\mazik\OneDrive\Masaüstü",

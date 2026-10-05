@@ -40,6 +40,7 @@ namespace ErmayMuhasebe.Models
         public string? GorselYoluOn { get; set; }
         public string? GorselYoluArka { get; set; }
         public string? GorselYolu { get; set; } // Added generic path if needed
+        public bool IsDeleted { get; set; }
     }
 
     public class Senet : ITenantEntity
@@ -61,5 +62,6 @@ namespace ErmayMuhasebe.Models
         public string? SenetTuru { get; set; }
         public string? Durum { get; set; }
         public string? Aciklama { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }
