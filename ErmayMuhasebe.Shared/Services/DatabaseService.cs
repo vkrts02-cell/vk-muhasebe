@@ -88,22 +88,20 @@ namespace ErmayMuhasebe.Services
         {
             _yearContext = yearContext;
             _sync = new CloudSyncService(yearContext);
-            if (!string.IsNullOrEmpty(ErmayMuhasebe.Data.Constants.DatabasePath))
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+            if (_yearContext.CurrentYear > 0)
             {
-                 _dbPath = ErmayMuhasebe.Data.Constants.DatabasePath;
+                _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+            }
+            else if (!string.IsNullOrEmpty(ErmayMuhasebe.Data.Constants.DatabasePath))
+            {
+                _dbPath = ErmayMuhasebe.Data.Constants.DatabasePath;
             }
             else
             {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                if (_yearContext.CurrentYear > 0)
-                {
-                    _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
-                }
-                else
-                {
-                    _dbPath = "";
-                }
+                _dbPath = Path.Combine(dir, ErmayMuhasebe.Data.Constants.DatabaseFilename);
             }
         }
 

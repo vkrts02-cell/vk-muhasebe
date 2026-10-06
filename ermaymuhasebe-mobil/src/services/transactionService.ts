@@ -161,8 +161,12 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
           yonlendirilenCariUnvan: req.directedSupplier?.unvan || undefined,
         };
         const kkKey = String(kkId);
-        await mustWrite(`KrediKartlari/${kkKey}`, kk);
-        written.push(`KrediKartlari/${kkKey}`);
+        try {
+          const ok = await writeData(`KrediKartlari/${kkKey}`, kk);
+          if (ok) written.push(`KrediKartlari/${kkKey}`);
+        } catch (kkErr) {
+          console.warn('[Transaction] Optional KrediKartlari write skipped:', kkErr);
+        }
       } else if (req.method.includes('EFT') || req.method.includes('Havale')) {
         const eftId = generateInt32Id();
         const eft = {
@@ -183,8 +187,12 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
           yonlendirilenCariUnvan: req.directedSupplier?.unvan || undefined,
         };
         const eftKey = String(eftId);
-        await mustWrite(`EftIslemleri/${eftKey}`, eft);
-        written.push(`EftIslemleri/${eftKey}`);
+        try {
+          const ok = await writeData(`EftIslemleri/${eftKey}`, eft);
+          if (ok) written.push(`EftIslemleri/${eftKey}`);
+        } catch (eftErr) {
+          console.warn('[Transaction] Optional EftIslemleri write skipped:', eftErr);
+        }
       }
     }
 

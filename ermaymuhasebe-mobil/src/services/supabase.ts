@@ -894,22 +894,6 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
   if (r.alacak !== undefined) r.alacak = toDec(r.alacak);
   if (r.giren !== undefined) r.giren = toDec(r.giren);
   if (r.cikan !== undefined) r.cikan = toDec(r.cikan);
-  
-  if (t === 'cariler') {
-    return {
-      ...r,
-      tcNo: row.tc_kimlik_no || r.tcKimlikNo || '',
-      unvan: row.unvan || r.unvan || '',
-      vergiDairesi: row.vergi_dairesi || r.vergiDairesi || '',
-      vergiNo: row.vergi_no || r.vergiNo || '',
-      adres: row.adres || r.adres || '',
-      telefon: row.telefon || r.telefon || '',
-      eposta: row.email || r.email || '',
-      email: row.email || r.email || '',
-      webSitesi: row.web_sitesi || r.webSitesi || '',
-      logoBase64: row.logo_base64 || r.logoBase64 || null
-    };
-  }
 
   if (t === 'cariler') {
     const kod = row.cari_kodu || row.kod || r.cariKod || `CARI-${row.id}`;
@@ -995,7 +979,8 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       borcTutari: borc,
       alacak,
       alacakTutari: alacak,
-      bakiye
+      bakiye,
+      logoBase64: row.logo_base64 || r.logoBase64 || null
     };
   }
 
@@ -1377,10 +1362,14 @@ export const writeData = async (path: string, data: any): Promise<boolean> => {
       if (Array.isArray(data)) {
         await supabase.from(table).delete().eq(foreignKey, Number(id) || id);
         if (data.length > 0) {
-          const items = data.map((item: any) => ({
-            ...sanitizePayloadForTable(table, item),
-            [foreignKey]: Number(id) || id
-          }));
+          const items = data.map((item: any, idx: number) => {
+            const sanitized = sanitizePayloadForTable(table, item);
+            return {
+              ...sanitized,
+              id: item.id ? (Number(item.id) || item.id) : ((Date.now() % 1000000000) + idx),
+              [foreignKey]: Number(id) || id
+            };
+          });
           const { error } = await supabase.from(table).insert(items);
           if (error) {
             console.error(`[Supabase] Detail insert error on ${table}:`, error.message);

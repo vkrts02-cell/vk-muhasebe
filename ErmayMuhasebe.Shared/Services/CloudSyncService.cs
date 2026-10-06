@@ -502,7 +502,7 @@ namespace ErmayMuhasebe.Services
         // ==========================================
         private static Dictionary<string, object?> MapCariToPayload(CariKart c) => new()
         {
-            ["id"] = c.Id.ToString(),
+            ["id"] = c.Id,
             ["kod"] = c.CariKod ?? "",
             ["cari_kodu"] = c.CariKod ?? "",
             ["unvan"] = c.Unvan ?? "",
@@ -520,29 +520,17 @@ namespace ErmayMuhasebe.Services
             ["eposta"] = c.Email,
             ["email"] = c.Email,
             ["adres"] = c.Adres,
-            ["sevk_adresi"] = c.SevkAdresi,
             ["il"] = c.Il,
             ["sehir"] = c.Il,
             ["ilce"] = c.Ilce,
-            ["posta_kodu"] = c.PostaKodu,
-            ["ulke"] = c.Ulke ?? "Türkiye",
             ["web_sitesi"] = c.WebAdresi,
             ["grup"] = c.Grup,
-            ["tur"] = c.Tur,
-            ["iban"] = c.IBAN,
             ["vade_gun"] = c.VadeGunu,
-            ["vade_gunu"] = c.VadeGunu,
             ["kredi_limiti"] = c.RiskLimiti,
-            ["risk_limiti"] = c.RiskLimiti,
-            ["odeme_plani"] = c.OdemePlani,
-            ["ticaret_sicil_no"] = c.TicaretSicilNo,
             ["notlar"] = c.Aciklama,
-            ["aciklama"] = c.Aciklama,
             ["is_active"] = c.AktifMi,
             ["is_deleted"] = c.IsDeleted,
-            ["updated_at"] = (c.UpdatedAt != default ? c.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["guncelleme_tarihi"] = (c.UpdatedAt != default ? c.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["version"] = Math.Max(1, c.Version)
+            ["guncelleme_tarihi"] = (c.UpdatedAt != default ? c.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static CariKart MapPayloadToCari(JsonElement el)
@@ -613,7 +601,7 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapStokToPayload(StokKart s) => new()
         {
-            ["id"] = s.Id.ToString(),
+            ["id"] = s.Id,
             ["stok_kodu"] = s.StokKodu ?? "",
             ["stok_adi"] = s.StokAdi ?? "",
             ["barkod"] = s.Barkod ?? "",
@@ -622,14 +610,16 @@ namespace ErmayMuhasebe.Services
             ["alis_fiyati"] = s.AlisFiyati,
             ["satis_fiyati"] = s.SatisFiyati,
             ["mevcut_miktar"] = (decimal)s.Miktar,
+            ["miktar"] = (decimal)s.Miktar,
+            ["kritik_seviye"] = (decimal)s.MinSeviye,
             ["kritik_stok"] = (decimal)s.MinSeviye,
+            ["grup_adi"] = s.Kategori ?? s.Grup ?? "",
             ["grup"] = s.Kategori ?? s.Grup ?? "",
-            ["kategori"] = s.Kategori ?? s.Grup ?? "",
             ["aciklama"] = s.Aciklama ?? "",
+            ["resim_url"] = "",
             ["is_active"] = true,
             ["is_deleted"] = s.IsDeleted,
-            ["updated_at"] = (s.UpdatedAt != default ? s.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["version"] = Math.Max(1, s.Version)
+            ["guncelleme_tarihi"] = (s.UpdatedAt != default ? s.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static StokKart MapPayloadToStok(JsonElement el)
@@ -660,11 +650,10 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapFaturaToPayload(Fatura f) => new()
         {
-            ["id"] = f.Id.ToString(),
+            ["id"] = f.Id,
             ["fatura_no"] = f.FaturaNo ?? "",
             ["fatura_turu"] = string.IsNullOrWhiteSpace(f.Tur) ? "Satis" : f.Tur,
-            ["tur"] = string.IsNullOrWhiteSpace(f.Tur) ? "Satis" : f.Tur,
-            ["cari_id"] = f.CariId.ToString(),
+            ["cari_id"] = f.CariId > 0 ? f.CariId : null,
             ["cari_unvan"] = f.CariUnvan ?? "",
             ["tarih"] = f.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["vade_tarihi"] = f.VadeTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -672,24 +661,12 @@ namespace ErmayMuhasebe.Services
             ["kdv_toplam"] = f.KdvToplam,
             ["iskonto_toplam"] = 0m,
             ["genel_toplam"] = f.GenelToplam,
-            ["kalan_tutar"] = f.Kalan,
-            ["durum"] = f.IptalMi ? "İptal" : (f.Kalan <= 0 ? "Ödendi" : (f.Odenen > 0 ? "Kısmi Ödendi" : "Açık")),
-            ["aciklama"] = f.Aciklama,
-            ["doviz_turu"] = f.DovizTuru ?? "TRY",
-            ["doviz_kuru"] = f.DovizKuru,
-            ["odeme_sekli"] = f.OdemeSekli,
-            ["is_earsiv"] = f.IsEArsiv,
-            ["vergi_dairesi"] = f.VergiDairesi,
-            ["vergi_no"] = f.VergiNo,
-            ["adres"] = f.Adres,
-            ["baglanti_evrak_no"] = f.BaglantiEvrakNo,
-            ["iptal_mi"] = f.IptalMi,
+            ["aciklama"] = f.Aciklama ?? "",
+            ["is_kapali"] = f.IptalMi ? false : (f.Kalan <= 0),
             ["kasa_id"] = f.KasaId,
             ["banka_id"] = f.BankaId,
-            ["is_deleted"] = f.IsDeleted,
-            ["updated_at"] = (f.UpdatedAt != default ? f.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["guncelleme_tarihi"] = (f.UpdatedAt != default ? f.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["version"] = Math.Max(1, f.Version)
+            ["is_deleted"] = f.IsDeleted || f.IptalMi,
+            ["guncelleme_tarihi"] = (f.UpdatedAt != default ? f.UpdatedAt : DateTime.UtcNow).ToString("yyyy-MM-ddTHH:mm:ssZ")
         };
 
         private static Fatura MapPayloadToFatura(JsonElement el)
@@ -728,9 +705,9 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapFaturaDetayToPayload(FaturaDetay d) => new()
         {
-            ["id"] = d.Id.ToString(),
-            ["fatura_id"] = d.FaturaId.ToString(),
-            ["stok_id"] = d.StokId.ToString(),
+            ["id"] = d.Id,
+            ["fatura_id"] = d.FaturaId,
+            ["stok_id"] = d.StokId > 0 ? d.StokId : null,
             ["stok_kodu"] = d.StokKodu ?? "",
             ["stok_adi"] = d.StokAdi ?? "",
             ["birim"] = d.Birim ?? "Adet",
@@ -740,7 +717,8 @@ namespace ErmayMuhasebe.Services
             ["kdv_tutari"] = d.KdvTutari,
             ["toplam_tutar"] = d.ToplamTutar,
             ["iskonto_orani"] = 0m,
-            ["iskonto_tutari"] = 0m
+            ["iskonto_tutari"] = 0m,
+            ["aciklama"] = ""
         };
 
         private static FaturaDetay MapPayloadToFaturaDetay(JsonElement el)
@@ -762,15 +740,15 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapCariHareketToPayload(CariHareket h) => new()
         {
-            ["id"] = h.Id.ToString(),
-            ["cari_id"] = h.CariId.ToString(),
+            ["id"] = h.Id,
+            ["cari_id"] = h.CariId,
             ["evrak_no"] = h.EvrakNo ?? "",
             ["islem_turu"] = h.IslemTuru ?? "",
             ["borc"] = h.Borc,
             ["alacak"] = h.Alacak,
             ["bakiye"] = h.KalanBakiye,
             ["aciklama"] = h.Aciklama ?? "",
-            ["fatura_id"] = h.FaturaId > 0 ? h.FaturaId.ToString() : null,
+            ["fatura_id"] = h.FaturaId > 0 ? h.FaturaId : null,
             ["tarih"] = h.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["is_deleted"] = h.IsDeleted
         };
@@ -804,8 +782,8 @@ namespace ErmayMuhasebe.Services
             string tur = sh.IslemTuru ?? sh.EvrakTuru ?? (sh.Giren > 0 ? "Giriş" : "Çıkış");
             return new()
             {
-                ["id"] = sh.Id.ToString(),
-                ["stok_id"] = sh.StokId.ToString(),
+                ["id"] = sh.Id,
+                ["stok_id"] = sh.StokId,
                 ["evrak_no"] = sh.EvrakNo ?? "",
                 ["hareket_tipi"] = tur,
                 ["hareket_turu"] = tur,
@@ -815,7 +793,7 @@ namespace ErmayMuhasebe.Services
                 ["kdv_tutari"] = 0m,
                 ["toplam_tutar"] = toplam,
                 ["aciklama"] = sh.Aciklama ?? "",
-                ["fatura_id"] = sh.FaturaId > 0 ? sh.FaturaId.ToString() : null,
+                ["fatura_id"] = sh.FaturaId > 0 ? sh.FaturaId : null,
                 ["tarih"] = sh.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                 ["is_deleted"] = sh.IsDeleted
             };
@@ -861,13 +839,14 @@ namespace ErmayMuhasebe.Services
         {
             return new Dictionary<string, object?>
             {
-                ["id"] = b.Id.ToString(),
+                ["id"] = b.Id,
                 ["banka_adi"] = b.BankaAdi ?? "",
                 ["sube_adi"] = b.SubeAdi ?? "",
                 ["hesap_no"] = b.HesapNo ?? "",
                 ["iban"] = b.IBAN ?? "",
                 ["bakiye"] = b.Bakiye,
                 ["para_birimi"] = b.DovizTuru ?? "TRY",
+                ["aciklama"] = b.Yetkili ?? "",
                 ["is_active"] = true,
                 ["is_deleted"] = b.IsDeleted
             };
@@ -875,7 +854,7 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapKasaToPayload(BankaKart b) => new()
         {
-            ["id"] = b.Id.ToString(),
+            ["id"] = b.Id,
             ["kasa_kodu"] = b.HesapNo ?? $"KAS-{b.Id}",
             ["kasa_adi"] = b.BankaAdi ?? "",
             ["bakiye"] = b.Bakiye,
@@ -941,15 +920,16 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapBankaHareketToPayload(BankaHareket bh) => new()
         {
-            ["id"] = bh.Id.ToString(),
-            ["banka_id"] = bh.BankaId.ToString(),
+            ["id"] = bh.Id,
+            ["banka_id"] = bh.BankaId,
             ["tarih"] = bh.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["hareket_turu"] = bh.IslemTuru ?? "",
             ["evrak_no"] = bh.EvrakNo ?? "",
             ["aciklama"] = bh.Aciklama ?? "",
             ["yatan"] = bh.Giren,
             ["ceken"] = bh.Cikan,
-            ["cari_id"] = bh.CariId?.ToString(),
+            ["cari_id"] = bh.CariId > 0 ? bh.CariId : null,
+            ["fatura_id"] = bh.FaturaId > 0 ? bh.FaturaId : null,
             ["is_deleted"] = bh.IsDeleted
         };
 
@@ -977,15 +957,16 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapKasaHareketToPayload(KasaHareket kh) => new()
         {
-            ["id"] = kh.Id.ToString(),
-            ["kasa_id"] = kh.KasaId.ToString(),
+            ["id"] = kh.Id,
+            ["kasa_id"] = kh.KasaId,
             ["tarih"] = kh.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["hareket_turu"] = kh.IslemTuru ?? "",
             ["evrak_no"] = kh.EvrakNo ?? "",
             ["aciklama"] = kh.Aciklama ?? "",
             ["gelir"] = kh.Giren,
             ["gider"] = kh.Cikan,
-            ["cari_id"] = kh.CariId?.ToString(),
+            ["cari_id"] = kh.CariId > 0 ? kh.CariId : null,
+            ["fatura_id"] = kh.FaturaId > 0 ? kh.FaturaId : null,
             ["is_deleted"] = kh.IsDeleted
         };
 
@@ -1013,10 +994,10 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapSiparisToPayload(Siparis sp) => new()
         {
-            ["id"] = sp.Id.ToString(),
+            ["id"] = sp.Id,
             ["siparis_no"] = sp.SiparisNo ?? "",
             ["siparis_turu"] = "Standart",
-            ["cari_id"] = sp.CariId.ToString(),
+            ["cari_id"] = sp.CariId > 0 ? sp.CariId : null,
             ["cari_unvan"] = sp.CariUnvan ?? "",
             ["tarih"] = sp.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["teslim_tarihi"] = sp.TeslimatTarihi?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -1025,12 +1006,7 @@ namespace ErmayMuhasebe.Services
             ["genel_toplam"] = sp.GenelToplam,
             ["durum"] = sp.Durum ?? "Onaylandı",
             ["aciklama"] = sp.Aciklama ?? "",
-            ["pdf_notlar"] = sp.PdfNotlar ?? "",
-            ["odeme_bilgisi"] = sp.OdemeBilgisi ?? "",
-            ["oncelik"] = sp.Oncelik ?? "Normal",
-            ["baglanti_evrak_no"] = sp.BaglantiEvrakNo ?? "",
-            ["is_deleted"] = sp.IsDeleted,
-            ["updated_at"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            ["is_deleted"] = sp.IsDeleted
         };
 
         private static Siparis MapPayloadToSiparis(JsonElement el)
@@ -1059,10 +1035,10 @@ namespace ErmayMuhasebe.Services
 
         private static Dictionary<string, object?> MapTeklifToPayload(Teklif tk) => new()
         {
-            ["id"] = tk.Id.ToString(),
+            ["id"] = tk.Id,
             ["teklif_no"] = tk.TeklifNo ?? "",
             ["teklif_turu"] = "Standart",
-            ["cari_id"] = tk.CariId.ToString(),
+            ["cari_id"] = tk.CariId > 0 ? tk.CariId : null,
             ["cari_unvan"] = tk.CariUnvan ?? "",
             ["tarih"] = tk.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["gecerlilik_tarihi"] = tk.GecerlilikTarihi?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -1071,9 +1047,7 @@ namespace ErmayMuhasebe.Services
             ["genel_toplam"] = tk.GenelToplam,
             ["durum"] = tk.Durum ?? "Gönderildi",
             ["aciklama"] = tk.Aciklama ?? "",
-            ["odeme_bilgisi"] = tk.OdemeBilgisi ?? "",
-            ["is_deleted"] = tk.IsDeleted,
-            ["updated_at"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            ["is_deleted"] = tk.IsDeleted
         };
 
         private static Teklif MapPayloadToTeklif(JsonElement el)
@@ -2772,6 +2746,7 @@ namespace ErmayMuhasebe.Services
 
             await SafeRun(async () =>
             {
+                // 1. Master records (Cariler, Stoklar, Bankalar, Kasalar)
                 if (cariler?.Any() == true)
                 {
                     var payloads = cariler.Select(MapCariToPayload).ToList<object>();
@@ -2781,26 +2756,6 @@ namespace ErmayMuhasebe.Services
                 {
                     var payloads = stoklar.Select(MapStokToPayload).ToList<object>();
                     await UpsertBatchPayloadAsync("stoklar", payloads);
-                }
-                if (faturalar?.Any() == true)
-                {
-                    var payloads = faturalar.Select(MapFaturaToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("faturalar", payloads);
-                }
-                if (faturaDetaylar?.Any() == true)
-                {
-                    var payloads = faturaDetaylar.Select(MapFaturaDetayToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("fatura_detaylar", payloads);
-                }
-                if (cariHareketler?.Any() == true)
-                {
-                    var payloads = cariHareketler.Select(MapCariHareketToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("cari_hareketler", payloads);
-                }
-                if (stokHareketler?.Any() == true)
-                {
-                    var payloads = stokHareketler.Select(MapStokHareketToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("stok_hareketler", payloads);
                 }
                 if (bankalar?.Any() == true)
                 {
@@ -2813,15 +2768,12 @@ namespace ErmayMuhasebe.Services
                         await UpsertBatchPayloadAsync("kasalar", kasalar);
                     }
                 }
-                if (kasaHareketler?.Any() == true)
+
+                // 2. Parent documents (Faturalar, Siparisler, Teklifler)
+                if (faturalar?.Any() == true)
                 {
-                    var payloads = kasaHareketler.Select(MapKasaHareketToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("kasa_hareketler", payloads);
-                }
-                if (bankaHareketler?.Any() == true)
-                {
-                    var payloads = bankaHareketler.Select(MapBankaHareketToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("banka_hareketler", payloads);
+                    var payloads = faturalar.Select(MapFaturaToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("faturalar", payloads);
                 }
                 if (siparisler?.Any() == true)
                 {
@@ -2833,6 +2785,69 @@ namespace ErmayMuhasebe.Services
                     var payloads = teklifler.Select(MapTeklifToPayload).ToList<object>();
                     await UpsertBatchPayloadAsync("teklifler", payloads);
                 }
+
+                // 3. Document details
+                if (faturaDetaylar?.Any() == true)
+                {
+                    var payloads = faturaDetaylar.Select(MapFaturaDetayToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("fatura_detaylar", payloads);
+                }
+                if (siparisDetaylar?.Any() == true)
+                {
+                    var payloads = siparisDetaylar.Select(d => (object)new
+                    {
+                        id = d.Id,
+                        siparis_id = d.SiparisId,
+                        stok_id = d.StokId,
+                        stok_kodu = "",
+                        stok_adi = d.StokAdi ?? "",
+                        miktar = (decimal)d.Miktar,
+                        birim_fiyat = d.BirimFiyat,
+                        kdv_orani = (decimal)d.KdvOrani,
+                        toplam_tutar = d.Tutar
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("siparis_detaylar", payloads);
+                }
+                if (teklifDetaylar?.Any() == true)
+                {
+                    var payloads = teklifDetaylar.Select(d => (object)new
+                    {
+                        id = d.Id,
+                        teklif_id = d.TeklifId,
+                        stok_id = d.StokId,
+                        stok_kodu = "",
+                        stok_adi = d.StokAdi ?? "",
+                        miktar = (decimal)d.Miktar,
+                        birim_fiyat = d.BirimFiyat,
+                        kdv_orani = (decimal)d.KdvOrani,
+                        toplam_tutar = d.Tutar
+                    }).ToList();
+                    await UpsertBatchPayloadAsync("teklif_detaylar", payloads);
+                }
+
+                // 4. Financial & Stock Movements
+                if (cariHareketler?.Any() == true)
+                {
+                    var payloads = cariHareketler.Select(MapCariHareketToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("cari_hareketler", payloads);
+                }
+                if (stokHareketler?.Any() == true)
+                {
+                    var payloads = stokHareketler.Select(MapStokHareketToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("stok_hareketler", payloads);
+                }
+                if (kasaHareketler?.Any() == true)
+                {
+                    var payloads = kasaHareketler.Select(MapKasaHareketToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("kasa_hareketler", payloads);
+                }
+                if (bankaHareketler?.Any() == true)
+                {
+                    var payloads = bankaHareketler.Select(MapBankaHareketToPayload).ToList<object>();
+                    await UpsertBatchPayloadAsync("banka_hareketler", payloads);
+                }
+
+                // 5. Notes & Shared State
                 if (notes?.Any() == true)
                 {
                     var payloads = notes.Select(n => (object)new Dictionary<string, object?>
@@ -2846,116 +2861,187 @@ namespace ErmayMuhasebe.Services
                     }).ToList();
                     await UpsertBatchPayloadAsync("notlar", payloads);
                 }
-                if (cekler?.Any() == true)
+
+                // 6. Supplementary Tables (safe try-catch per table)
+                try
                 {
-                    var payloads = cekler.Select(MapCekToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("cekler", payloads);
-                }
-                if (senetler?.Any() == true)
-                {
-                    var payloads = senetler.Select(MapSenetToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("senetler", payloads);
-                }
-                if (kkIslemler?.Any() == true)
-                {
-                    var payloads = kkIslemler.Select(MapKrediKartiToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("kredi_karti_islemler", payloads);
-                }
-                if (eftIslemler?.Any() == true)
-                {
-                    var payloads = eftIslemler.Select(MapEftToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("eft_islemler", payloads);
-                }
-                if (gorevler?.Any() == true)
-                {
-                    var payloads = gorevler.Select(MapGorevToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("gorevler", payloads);
-                }
-                if (personeller?.Any() == true)
-                {
-                    var payloads = personeller.Select(MapPersonelToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("personeller", payloads);
-                }
-                if (hedefler?.Any() == true)
-                {
-                    var payloads = hedefler.Select(h => (object)new Dictionary<string, object?>
+                    if (cekler?.Any() == true)
                     {
-                        ["id"] = h.Id.ToString(),
-                        ["yil"] = h.Yil,
-                        ["ay"] = h.Ay,
-                        ["hedef_tutar"] = h.HedefTutari
-                    }).ToList();
-                    await UpsertBatchPayloadAsync("satis_hedefleri", payloads);
+                        var payloads = cekler.Select(MapCekToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("cekler", payloads);
+                    }
                 }
-                if (haftalikHedefler?.Any() == true)
+                catch { }
+
+                try
                 {
-                    var payloads = haftalikHedefler.Select(h => (object)new Dictionary<string, object?>
+                    if (senetler?.Any() == true)
                     {
-                        ["id"] = h.Id.ToString(),
-                        ["yil"] = h.Yil,
-                        ["hafta"] = h.Hafta,
-                        ["hafta_no"] = h.Hafta,
-                        ["hedef_tutar"] = h.HedefTutari
-                    }).ToList();
-                    await UpsertBatchPayloadAsync("haftalik_satis_hedefleri", payloads);
+                        var payloads = senetler.Select(MapSenetToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("senetler", payloads);
+                    }
                 }
-                if (yillikHedefler?.Any() == true)
+                catch { }
+
+                try
                 {
-                    var payloads = yillikHedefler.Select(h => (object)new Dictionary<string, object?>
+                    if (kkIslemler?.Any() == true)
                     {
-                        ["id"] = h.Id.ToString(),
-                        ["yil"] = h.Yil,
-                        ["hedef_tutar"] = h.HedefTutari,
-                        ["aciklama"] = h.Aciklama ?? ""
-                    }).ToList();
-                    await UpsertBatchPayloadAsync("yillik_satis_hedefleri", payloads);
+                        var payloads = kkIslemler.Select(MapKrediKartiToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("kredi_karti_islemler", payloads);
+                    }
                 }
-                if (portfoyler?.Any() == true)
+                catch { }
+
+                try
                 {
-                    var payloads = portfoyler.Select(MapPortfoyToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("portfoy_kartlar", payloads);
-                }
-                if (stokSayimlar?.Any() == true)
-                {
-                    var payloads = stokSayimlar.Select(MapStokSayimFisiToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("stok_sayim_fisileri", payloads);
-                }
-                if (stokSayimDetaylar?.Any() == true)
-                {
-                    var payloads = stokSayimDetaylar.Select(MapStokSayimDetayToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("stok_sayim_detaylari", payloads);
-                }
-                if (belgeler?.Any() == true)
-                {
-                    var payloads = belgeler.Select(b => (object)new Dictionary<string, object?>
+                    if (eftIslemler?.Any() == true)
                     {
-                        ["id"] = b.Id.ToString(),
-                        ["ad"] = b.Ad ?? "",
-                        ["belge_adi"] = b.Ad ?? "",
-                        ["kategori"] = b.Kategori ?? "",
-                        ["tur"] = b.Tur ?? "",
-                        ["belge_turu"] = b.Tur ?? "",
-                        ["boyut"] = b.Boyut ?? "",
-                        ["tarih"] = b.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                        ["veri"] = b.Veri ?? "",
-                        ["yol"] = b.Yol ?? "",
-                        ["dosya_yolu"] = b.Yol ?? "",
-                        ["is_deleted"] = b.IsDeleted
-                    }).ToList();
-                    await UpsertBatchPayloadAsync("belge_arsiv", payloads);
+                        var payloads = eftIslemler.Select(MapEftToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("eft_islemler", payloads);
+                    }
                 }
-                if (kurlar?.Any() == true)
+                catch { }
+
+                try
                 {
-                    var payloads = kurlar.Select(k => (object)new Dictionary<string, object?>
+                    if (gorevler?.Any() == true)
                     {
-                        ["id"] = k.Id.ToString(),
-                        ["kod"] = k.Kod ?? "",
-                        ["alis"] = k.Alis,
-                        ["satis"] = k.Satis,
-                        ["tarih"] = k.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ")
-                    }).ToList();
-                    await UpsertBatchPayloadAsync("doviz_kurlari", payloads);
+                        var payloads = gorevler.Select(MapGorevToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("gorevler", payloads);
+                    }
                 }
+                catch { }
+
+                try
+                {
+                    if (personeller?.Any() == true)
+                    {
+                        var payloads = personeller.Select(MapPersonelToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("personeller", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (hedefler?.Any() == true)
+                    {
+                        var payloads = hedefler.Select(h => (object)new Dictionary<string, object?>
+                        {
+                            ["id"] = h.Id.ToString(),
+                            ["yil"] = h.Yil,
+                            ["ay"] = h.Ay,
+                            ["hedef_tutar"] = h.HedefTutari
+                        }).ToList();
+                        await UpsertBatchPayloadAsync("satis_hedefleri", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (haftalikHedefler?.Any() == true)
+                    {
+                        var payloads = haftalikHedefler.Select(h => (object)new Dictionary<string, object?>
+                        {
+                            ["id"] = h.Id.ToString(),
+                            ["yil"] = h.Yil,
+                            ["hafta"] = h.Hafta,
+                            ["hafta_no"] = h.Hafta,
+                            ["hedef_tutar"] = h.HedefTutari
+                        }).ToList();
+                        await UpsertBatchPayloadAsync("haftalik_satis_hedefleri", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (yillikHedefler?.Any() == true)
+                    {
+                        var payloads = yillikHedefler.Select(h => (object)new Dictionary<string, object?>
+                        {
+                            ["id"] = h.Id.ToString(),
+                            ["yil"] = h.Yil,
+                            ["hedef_tutar"] = h.HedefTutari,
+                            ["aciklama"] = h.Aciklama ?? ""
+                        }).ToList();
+                        await UpsertBatchPayloadAsync("yillik_satis_hedefleri", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (portfoyler?.Any() == true)
+                    {
+                        var payloads = portfoyler.Select(MapPortfoyToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("portfoy_kartlar", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (stokSayimlar?.Any() == true)
+                    {
+                        var payloads = stokSayimlar.Select(MapStokSayimFisiToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("stok_sayim_fisileri", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (stokSayimDetaylar?.Any() == true)
+                    {
+                        var payloads = stokSayimDetaylar.Select(MapStokSayimDetayToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("stok_sayim_detaylari", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (belgeler?.Any() == true)
+                    {
+                        var payloads = belgeler.Select(b => (object)new Dictionary<string, object?>
+                        {
+                            ["id"] = b.Id.ToString(),
+                            ["ad"] = b.Ad ?? "",
+                            ["belge_adi"] = b.Ad ?? "",
+                            ["kategori"] = b.Kategori ?? "",
+                            ["tur"] = b.Tur ?? "",
+                            ["belge_turu"] = b.Tur ?? "",
+                            ["boyut"] = b.Boyut ?? "",
+                            ["tarih"] = b.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            ["veri"] = b.Veri ?? "",
+                            ["yol"] = b.Yol ?? "",
+                            ["dosya_yolu"] = b.Yol ?? "",
+                            ["is_deleted"] = b.IsDeleted
+                        }).ToList();
+                        await UpsertBatchPayloadAsync("belge_arsiv", payloads);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (kurlar?.Any() == true)
+                    {
+                        var payloads = kurlar.Select(k => (object)new Dictionary<string, object?>
+                        {
+                            ["id"] = k.Id.ToString(),
+                            ["kod"] = k.Kod ?? "",
+                            ["alis"] = k.Alis,
+                            ["satis"] = k.Satis,
+                            ["tarih"] = k.Tarih.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        }).ToList();
+                        await UpsertBatchPayloadAsync("doviz_kurlari", payloads);
+                    }
+                }
+                catch { }
             });
         }
 

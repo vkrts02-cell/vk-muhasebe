@@ -52,6 +52,19 @@ while ($elapsed -lt $maxWaitSeconds) {
                             Start-Sleep -Seconds 6
                         }
 
+                        if (-not $downloaded) {
+                            Write-Host "GitHub CLI ile artifact indirilmesi deneniyor..." -ForegroundColor Cyan
+                            try {
+                                $tmpDir = Join-Path $env:TEMP "vk_ipa_$([Guid]::NewGuid().ToString().Substring(0,8))"
+                                gh run download $latestRun.id --repo $repo -n VK-iOS-IPA -D $tmpDir
+                                $artFile = Join-Path $tmpDir "VK.ipa"
+                                if ((Test-Path $artFile) -and ((Get-Item $artFile).Length -gt 1000000)) {
+                                    Copy-Item $artFile -Destination $targetFile -Force
+                                    $downloaded = $true
+                                }
+                            } catch { }
+                        }
+
                         if ($downloaded) {
                             $sizeMB = [math]::Round((Get-Item $targetFile).Length / 1MB, 2)
                             foreach ($dp in $desktopPaths) {

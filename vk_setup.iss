@@ -229,22 +229,23 @@ begin
       if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') then
       begin
         ScriptContent := ScriptContent +
-          '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + ''' }' + #13#10 +
+          '$rawUrl = ''' + SupabaseUrlVal + '''.Trim().TrimEnd(''/'')' + #13#10 +
+          'if ($rawUrl.EndsWith(''/rest/v1'')) { $apiUrl = $rawUrl } else { $apiUrl = $rawUrl + ''/rest/v1'' }' + #13#10 +
+          '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; Prefer = ''return=minimal'' }' + #13#10 +
           '$tables = @(' + #13#10 +
-          '  ''fatura_detaylar'',''siparis_detaylar'',''teklif_detaylar'',''stok_sayim_detaylari'',''musteri_takip_detaylar'',' + #13#10 +
-          '  ''cari_hareketler'',''stok_hareketler'',''banka_hareketler'',''kasa_hareketler'',''kredi_karti_islemler'',''eft_islemler'',' + #13#10 +
-          '  ''cekler'',''senetler'',''faturalar'',''siparisler'',''teklifler'',''stok_sayim_fisileri'',''musteri_takip_klasorler'',' + #13#10 +
-          '  ''stoklar'',''cariler'',''bankalar'',''kasalar'',''doviz_kurlari'',''belge_arsiv'',''notlar'',''gorevler'',''personeller'',' + #13#10 +
-          '  ''satis_hedefleri'',''haftalik_satis_hedefleri'',''yillik_satis_hedefleri'',''portfoy_kartlar'',''firma_profili'',''kullanicilar''' + #13#10 +
+          '  ''fatura_detaylar'',''siparis_detaylar'',''teklif_detaylar'',' + #13#10 +
+          '  ''cari_hareketler'',''stok_hareketler'',''banka_hareketler'',''kasa_hareketler'',' + #13#10 +
+          '  ''faturalar'',''siparisler'',''teklifler'',''stoklar'',''cariler'',''bankalar'',''kasalar'',''notlar''' + #13#10 +
           ')' + #13#10 +
           'for ($pass = 1; $pass -le 3; $pass++) {' + #13#10 +
           '  foreach ($t in $tables) {' + #13#10 +
           '    try {' + #13#10 +
-          '      Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/'' + $t + ''?id=gte.0'') -Method Delete -Headers $headers' + #13#10 +
+          '      Invoke-RestMethod -Uri ($apiUrl + ''/'' + $t + ''?id=gte.0'') -Method Delete -Headers $headers' + #13#10 +
           '    } catch {}' + #13#10 +
           '  }' + #13#10 +
           '}' + #13#10;
       end;
+
 
       SaveStringToFile(ScriptFile, ScriptContent, False);
       Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
