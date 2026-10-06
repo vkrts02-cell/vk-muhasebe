@@ -426,8 +426,10 @@ export default function RaporlarScreen() {
       headers = ['Dönem', 'Satış Tutarı', 'Alış Tutarı', 'Net Kar/Zarar'];
       const rowsList: string[][] = [];
       rowsList.push(['--- YILLIK ANALİZ ---', '', '', '']);
-      for (let i = 4; i >= 0; i--) {
-        const yil = new Date().getFullYear() - i;
+      // Only years that exist in the program data (desktop parity)
+      const yearSet = new Set<number>([new Date().getFullYear()]);
+      activeFaturalar.forEach(f => { const y = new Date(f.tarih).getFullYear(); if (!isNaN(y)) yearSet.add(y); });
+      for (const yil of Array.from(yearSet).sort((x, y) => x - y)) {
         const s = activeFaturalar.filter(f => (f.tur === 'Satış' || f.tur === 'Satis') && new Date(f.tarih).getFullYear() === yil).reduce((x, f) => x + (f.genelToplam || 0), 0);
         const a = activeFaturalar.filter(f => (f.tur === 'Alış' || f.tur === 'Alis') && new Date(f.tarih).getFullYear() === yil).reduce((x, f) => x + (f.genelToplam || 0), 0);
         rowsList.push([String(yil), formatMoney(s), formatMoney(a), formatMoney(s - a)]);

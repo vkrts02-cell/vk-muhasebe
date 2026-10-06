@@ -43,10 +43,10 @@ public partial class YearSelectionViewModel : ViewModelBase
     private bool _isFeedbackSuccess = true;
 
     [ObservableProperty]
-    private int _newYearToCreate = DateTime.Now.Year;
+    private int _newYearToCreate;
 
     [ObservableProperty]
-    private string _newYearToCreateText = DateTime.Now.Year.ToString();
+    private string _newYearToCreateText = "";
 
     [ObservableProperty]
     private bool _hasNoYears;

@@ -263,12 +263,22 @@ public abstract partial class RaporListViewModel : ViewModelBase
                     }
                 }
 
-                foreach(var report in GetAllReports().Where(r => r.Title != "Genel Özet" && r.Title != "Bütçe / Hedef Takibi"))
+                // Reports excluded from the consolidated package (cari selection / raw dumps)
+                var excludedFromSummary = new HashSet<string> { "Genel Özet", "Bütçe / Hedef Takibi", "Cari Hareket Dökümü", "Stok Hareketleri", "Satış Faturası Dökümü" };
+                foreach(var report in GetAllReports().Where(r => !excludedFromSummary.Contains(r.Title)))
                 {
                     try 
                     {
                         var (title, headers, rows) = await CalculateReportDataAsync(report);
-                        if (rows != null && rows.Count > 0)
+                        if (headers == null || headers.Length == 0) continue;
+                        rows ??= new List<string[]>();
+                        if (rows.Count == 0)
+                        {
+                            var emptyRow = new string[headers.Length];
+                            for (int k = 0; k < emptyRow.Length; k++) emptyRow[k] = "";
+                            emptyRow[0] = "Kayıt bulunamadı";
+                            rows.Add(emptyRow);
+                        }
                         {
                             var section = new ReportSection { 
                                 Title = title, 
@@ -1096,9 +1106,12 @@ public abstract partial class RaporListViewModel : ViewModelBase
             
             // Yıllık
             data.Add(new[] { "--- YILLIK ANALİZ ---", "", "", "" });
-            for (int i = 4; i >= 0; i--) // Son 5 yıl
+            // Only years created in the program
+            List<int> programYears;
+            try { programYears = _uow.GetAvailableYears() ?? new List<int>(); } catch { programYears = new List<int>(); }
+            if (programYears.Count == 0) programYears.Add(DateTime.Now.Year);
+            foreach (var year in programYears.Distinct().OrderBy(y => y))
             {
-                int year = DateTime.Now.Year - i;
                 var s = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Year == year).Sum(f => f.GenelToplam);
                 var a = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && f.Tarih.Year == year).Sum(f => f.GenelToplam);
                 data.Add(new[] { year.ToString(), s.ToString("C2"), a.ToString("C2"), (s - a).ToString("C2") });

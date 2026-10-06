@@ -218,14 +218,6 @@ namespace ErmayMuhasebe.Services
 
         private string GetReportOrientation(string title)
         {
-            if (title != null && 
-                (title.Contains("GENEL RAPOR", StringComparison.OrdinalIgnoreCase) || 
-                 title.Contains("360 DERECE", StringComparison.OrdinalIgnoreCase) || 
-                 title.Contains("GENEL ÖZET", StringComparison.OrdinalIgnoreCase) || 
-                 title.Contains("GENEL DURUM", StringComparison.OrdinalIgnoreCase)))
-            {
-                return "Portrait";
-            }
             return "Landscape";
         }
 
@@ -2607,7 +2599,7 @@ namespace ErmayMuhasebe.Services
                                                 if (h == "no" || h == "no." || h == "sıra" || h == "sira" || h == "sıra no" || h == "sira no" || "#" == h) 
                                                     columns.RelativeColumn(1.2f);
                                                 else if (h.Contains("tarih") || h.Contains("vade")) 
-                                                     columns.RelativeColumn(3.5f);
+                                                     columns.ConstantColumn(64); // fits dd.MM.yyyy on one line
                                                 else if (h.Contains("durum") || h.Contains("tür") || h.Contains("tur") || h.Contains("tip")) 
                                                      columns.RelativeColumn(4f);
                                                 else if (h.Contains("no")) // like dekont no, fatura no, evrak no
