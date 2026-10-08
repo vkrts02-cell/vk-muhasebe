@@ -4,6 +4,7 @@ import { Search, FileKey2, Plus, X, Save, Edit3, Trash2, Calendar, User, Shoppin
 import { subscribeToPath, writeData, readData, mapAppToDatabase } from '../services/firebase';
 import { generateInt32Id } from '../utils/IdGenerator';
 import { generateReportPdf } from '../services/pdfService';
+import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
 
 const BIRIM_LISTESI = ['Adet', 'Kg', 'Mt', 'M2'];
 
@@ -410,17 +411,25 @@ export default function TeklifFormScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'height' : undefined} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
+        style={{ flex: 1 }}
+      >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Yeni Teklif Oluştur</Text>
-              <TouchableOpacity onPress={handleCloseForm} style={styles.closeButton}>
+              <TouchableOpacity onPress={handleCloseForm} style={styles.closeButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <X color="#FFF" size={24} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.formScroll}>
+            <ScrollView 
+              contentContainerStyle={styles.formScroll} 
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              showsVerticalScrollIndicator={false}
+            >
               <TouchableOpacity style={styles.selectorCard} onPress={() => setIsCariOverlayOpen(true)}>
                 <User color="#0061FF" size={20} />
                 <Text style={styles.selectorText}>
@@ -491,7 +500,7 @@ export default function TeklifFormScreen({ route, navigation }: any) {
               <View style={styles.itemsSection}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <Text style={styles.itemsTitle}>Teklif Kalemleri</Text>
-                  <TouchableOpacity style={styles.addItemBtn} onPress={() => setIsStokOverlayOpen(true)}>
+                  <TouchableOpacity style={styles.addItemBtn} onPress={() => setIsStokOverlayOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Plus color="#00FF87" size={16} />
                     <Text style={styles.addItemBtnText}>Kalem Ekle</Text>
                   </TouchableOpacity>
@@ -518,6 +527,7 @@ export default function TeklifFormScreen({ route, navigation }: any) {
                               <TextInput 
                                 style={styles.itemInputFlat}
                                 keyboardType="numeric"
+                                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                                 placeholder="0"
                                 value={String(item.miktar)}
                                 onChangeText={(val) => handleItemChange(index, 'miktar', val)}
@@ -526,6 +536,7 @@ export default function TeklifFormScreen({ route, navigation }: any) {
                                 style={styles.unitPickerBtn}
                                 onPress={() => setSelectedItemIndexForBirim(index)}
                                 activeOpacity={0.7}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                               >
                                 <Text style={styles.unitPickerBtnText}>{item.birim || 'Adet'}</Text>
                                 <ChevronDown color="#94A3B8" size={13} style={{ marginLeft: 3 }} />
@@ -538,6 +549,7 @@ export default function TeklifFormScreen({ route, navigation }: any) {
                             <TextInput 
                               style={styles.itemInputFlat}
                               keyboardType="numeric"
+                              inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                               placeholder="0.00"
                               value={String(item.birimFiyat)}
                               onChangeText={(val) => handleItemChange(index, 'birimFiyat', val)}
@@ -727,6 +739,8 @@ export default function TeklifFormScreen({ route, navigation }: any) {
             </View>
           </TouchableOpacity>
         </Modal>
+      {/* iOS Sayısal Klavye Bitti Butonu */}
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

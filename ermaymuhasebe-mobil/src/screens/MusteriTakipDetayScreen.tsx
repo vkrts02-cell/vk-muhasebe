@@ -43,6 +43,10 @@ import { subscribeToPath, writeData, deleteData } from '../services/firebase';
 import { triggerSelectionHaptic } from '../services/hapticsService';
 import { generateInt32Id } from '../utils/IdGenerator';
 import { MusteriTakipKlasor, MusteriTakipDetay } from './MusteriTakipScreen';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ETIKETLER = ['Sıcak Müşteri', 'Teklif Aşamasında', 'Önemli', 'Yeni İletişim', 'Takipte'];
@@ -720,6 +724,8 @@ export default function MusteriTakipDetayScreen({ route, navigation }: any) {
         style={styles.contentScroll}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={true}
+        keyboardShouldPersistTaps="handled"
       >
         {/* --- 1. GÖRÜŞMELER PANELİ --- */}
         {activeTab === 'Gorusmeler' && (
@@ -856,6 +862,7 @@ export default function MusteriTakipDetayScreen({ route, navigation }: any) {
                   placeholder="Tutar (Örn: 15000)"
                   placeholderTextColor="#64748B"
                   keyboardType="numeric"
+                  inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                   value={fiyatTutar}
                   onChangeText={setFiyatTutar}
                 />
@@ -1253,6 +1260,7 @@ export default function MusteriTakipDetayScreen({ route, navigation }: any) {
           )}
         </View>
       </Modal>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

@@ -38,6 +38,10 @@ import {
 } from "lucide-react-native";
 import { FlashList, ListRenderItemInfo } from "@shopify/flash-list";
 import FadeInView from "../components/FadeInView";
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from "../components/KeyboardDoneAccessory";
 import { generateInt32Id } from "../utils/IdGenerator";
 import Svg, { Path, Line, Text as SvgText } from "react-native-svg";
 import {
@@ -4301,6 +4305,7 @@ export default function FinansScreen({ route, navigation }: any) {
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 placeholder="0.00"
                 placeholderTextColor="#64748B"
                 value={tutar}
@@ -4446,6 +4451,7 @@ export default function FinansScreen({ route, navigation }: any) {
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 placeholder="0.00"
                 placeholderTextColor="#64748B"
                 value={hesapAcilisBakiye}
@@ -4491,6 +4497,7 @@ export default function FinansScreen({ route, navigation }: any) {
                   <TextInput
                     style={styles.input}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     placeholder="0.00"
                     placeholderTextColor="#64748B"
                     value={tutar}
@@ -4571,6 +4578,7 @@ export default function FinansScreen({ route, navigation }: any) {
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 placeholder="0.00"
                 placeholderTextColor="#64748B"
                 value={tutar}
@@ -4670,6 +4678,7 @@ export default function FinansScreen({ route, navigation }: any) {
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 placeholder="0.00"
                 placeholderTextColor="#64748B"
                 value={kkEftTutar}
@@ -5029,6 +5038,7 @@ export default function FinansScreen({ route, navigation }: any) {
           {selectedKasaForDetay && renderKasaDetayView(selectedKasaForDetay)}
         </View>
       </SwipeableModal>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

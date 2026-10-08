@@ -1359,7 +1359,7 @@ export default function CarilerScreen({ route, navigation }: any) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>T.C. Kimlik No</Text>
-                <TextInput style={styles.input} placeholder="11 haneli TC No" placeholderTextColor="#64748B" keyboardType="numeric" maxLength={11} value={tcNo} onChangeText={setTcNo} />
+                <TextInput style={styles.input} placeholder="11 haneli TC No" placeholderTextColor="#64748B" keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} maxLength={11} value={tcNo} onChangeText={setTcNo} />
               </View>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -1369,7 +1369,7 @@ export default function CarilerScreen({ route, navigation }: any) {
                 </View>
                 <View style={[styles.inputGroup, { width: '48%' }]}>
                   <Text style={styles.inputLabel}>Vergi Numarası</Text>
-                  <TextInput style={styles.input} placeholder="10 haneli Vergi No" placeholderTextColor="#64748B" keyboardType="numeric" maxLength={10} value={vergiNo} onChangeText={setVergiNo} />
+                  <TextInput style={styles.input} placeholder="10 haneli Vergi No" placeholderTextColor="#64748B" keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} maxLength={10} value={vergiNo} onChangeText={setVergiNo} />
                 </View>
               </View>
 

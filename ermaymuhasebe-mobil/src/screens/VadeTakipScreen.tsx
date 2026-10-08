@@ -3,6 +3,10 @@ import { StyleSheet, Text, View, SafeAreaView, FlatList, TextInput, ActivityIndi
 import { Search, CalendarDays, Plus, X, Save, Edit3, Trash2, Calendar, User, Clock, AlertTriangle, CheckCircle2, Users, RefreshCw, Camera, ChevronDown, Download, Printer } from 'lucide-react-native';
 import { generateInt32Id } from '../utils/IdGenerator';
 import { subscribeToPath, writeData, mapAppToDatabase } from '../services/firebase';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -646,12 +650,19 @@ export default function VadeTakipScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Yeni Evrak Girişi</Text>
-              <TouchableOpacity onPress={() => setIsFormOpen(false)}>
+              <TouchableOpacity
+                onPress={() => setIsFormOpen(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
                 <X color="#FFF" size={24} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: 40 }}
+              automaticallyAdjustKeyboardInsets={true}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.label}>Evrak Tipi</Text>
               <View style={styles.segmentRow}>
                 {['Cek', 'Senet'].map((t: any) => (
@@ -682,7 +693,15 @@ export default function VadeTakipScreen() {
               <TextInput style={styles.input} placeholder="Seri Numarası..." placeholderTextColor="#64748B" value={seriNo} onChangeText={setSeriNo} />
 
               <Text style={styles.label}>Tutar (₺)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" placeholder="0.00" placeholderTextColor="#64748B" value={tutar} onChangeText={setTutar} />
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+                placeholder="0.00"
+                placeholderTextColor="#64748B"
+                value={tutar}
+                onChangeText={setTutar}
+              />
 
               <Text style={styles.label}>Vade Tarihi</Text>
               <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor="#64748B" value={vadeTarihi} onChangeText={setVadeTarihi} />
@@ -902,6 +921,7 @@ export default function VadeTakipScreen() {
         </View>
       </Modal>
 
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

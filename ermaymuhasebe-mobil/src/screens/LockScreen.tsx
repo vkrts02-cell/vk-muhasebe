@@ -3,6 +3,10 @@ import { StyleSheet, Text, View, SafeAreaView, TextInput, TouchableOpacity, Acti
 import { Lock, KeyRound, ScanFace } from 'lucide-react-native';
 import { verifyPin } from '../services/lockService';
 import { authenticateWithBiometrics, checkBiometricsAvailability } from '../services/biometricService';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -83,6 +87,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
             onChangeText={setPin}
             secureTextEntry
             keyboardType="number-pad"
+            inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
             maxLength={6}
           />
         </View>
@@ -95,6 +100,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
           {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Kilidi Aç</Text>}
         </TouchableOpacity>
       </View>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

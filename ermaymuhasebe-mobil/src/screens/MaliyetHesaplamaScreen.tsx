@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, SafeAreaView, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { Calculator, Weight, DollarSign, Layers } from 'lucide-react-native';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 export default function MaliyetHesaplamaScreen() {
   // Section 1: Toplam KG Hesaplama
@@ -87,7 +91,11 @@ export default function MaliyetHesaplamaScreen() {
         <Text style={styles.headerSubtitle}>Reaktif Maliyet & Ölçü Hesaplayıcı</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        automaticallyAdjustKeyboardInsets={true}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* 1. Toplam KG Hesaplama */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -101,6 +109,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={gr}
                 onChangeText={setGr}
               />
@@ -110,6 +119,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={en}
                 onChangeText={setEn}
               />
@@ -119,6 +129,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={sarim}
                 onChangeText={setSarim}
               />
@@ -146,6 +157,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={toplamKg}
                 onChangeText={setToplamKg}
               />
@@ -155,6 +167,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={kgFiyati}
                 onChangeText={setKgFiyati}
               />
@@ -181,6 +194,7 @@ export default function MaliyetHesaplamaScreen() {
             <TextInput 
               style={styles.input}
               keyboardType="numeric"
+              inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
               value={topBoy}
               onChangeText={setTopBoy}
             />
@@ -207,6 +221,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={toplamMetrekare}
                 onChangeText={setToplamMetrekare}
               />
@@ -216,6 +231,7 @@ export default function MaliyetHesaplamaScreen() {
               <TextInput 
                 style={styles.input}
                 keyboardType="numeric"
+                inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 value={topFiyatiInput}
                 onChangeText={setTopFiyatiInput}
               />
@@ -230,6 +246,7 @@ export default function MaliyetHesaplamaScreen() {
           </View>
         </View>
       </ScrollView>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

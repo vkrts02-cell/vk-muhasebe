@@ -8,6 +8,10 @@ import * as Device from 'expo-device';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import MusteriLimitScreen from './MusteriLimitScreen';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val);
@@ -907,7 +911,15 @@ export default function AraclarScreen() {
               ))}
             </View>
             <Text style={styles.label}>Yüzde Oranı (%)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" placeholder="Örn: 15" placeholderTextColor="#64748B" value={yuzdeOran} onChangeText={setYuzdeOran} />
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+              placeholder="Örn: 15"
+              placeholderTextColor="#64748B"
+              value={yuzdeOran}
+              onChangeText={setYuzdeOran}
+            />
             <TouchableOpacity style={[styles.btnPremium, { backgroundColor: '#10B981', marginTop: 16 }]} onPress={handleUpdatePrices}>
               <Text style={styles.btnText}>Fiyatları Toplu Güncelle</Text>
             </TouchableOpacity>
@@ -1075,6 +1087,7 @@ export default function AraclarScreen() {
                             <TextInput
                               style={[styles.input, { flex: 1, marginBottom: 0 }]}
                               keyboardType="numeric"
+                              inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                               placeholder="Hedef ciro tutarı..."
                               placeholderTextColor="#64748B"
                               value={aylikHedef}
@@ -1125,6 +1138,7 @@ export default function AraclarScreen() {
                     <TextInput 
                       style={styles.input} 
                       keyboardType="numeric" 
+                      inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                       placeholder="Örn: 2400000" 
                       placeholderTextColor="#64748B"
                       value={yillikHedefInput} 
@@ -1259,11 +1273,11 @@ export default function AraclarScreen() {
               <Text style={styles.cardTitle}>Gecikme Faizi Hesaplayıcı</Text>
             </View>
             <Text style={styles.label}>Ana Para (₺)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={anaPara} onChangeText={setAnaPara} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={anaPara} onChangeText={setAnaPara} />
             <Text style={styles.label}>Yıllık Faiz Oranı (%)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={faizOrani} onChangeText={setFaizOrani} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={faizOrani} onChangeText={setFaizOrani} />
             <Text style={styles.label}>Gecikme Günü</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={gecikmeGunu} onChangeText={setGecikmeGunu} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={gecikmeGunu} onChangeText={setGecikmeGunu} />
             <View style={[styles.kurRow, { marginTop: 16 }]}>
               <Text style={[styles.kurLabel, { fontWeight: 'bold' }]}>Toplam Faiz Yükü:</Text>
               <Text style={[styles.kurVal, { color: '#EF4444', fontWeight: 'bold', fontSize: 16 }]}>{calculateFaiz()}</Text>
@@ -1347,7 +1361,7 @@ export default function AraclarScreen() {
               <Text style={styles.cardTitle}>Döviz Çevirici (Çapraz Kur)</Text>
             </View>
             <Text style={styles.label}>Miktar</Text>
-            <TextInput style={styles.input} keyboardType="numeric" placeholder="100" placeholderTextColor="#64748B" value={kurMiktar} onChangeText={setKurMiktar} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} placeholder="100" placeholderTextColor="#64748B" value={kurMiktar} onChangeText={setKurMiktar} />
             <Text style={styles.label}>Kaynak Birim</Text>
             <View style={styles.segmentRow}>
               {['TRY', 'USD', 'EUR', 'GBP'].map(d => (
@@ -1382,13 +1396,13 @@ export default function AraclarScreen() {
               <Text style={styles.cardTitle}>Optimal Satış Fiyatı Önerisi</Text>
             </View>
             <Text style={styles.label}>Alış Fiyatı (₺)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={optAlisFiyati} onChangeText={setOptAlisFiyati} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={optAlisFiyati} onChangeText={setOptAlisFiyati} />
             <Text style={styles.label}>Ek Maliyet (₺)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={optEkMaliyet} onChangeText={setOptEkMaliyet} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={optEkMaliyet} onChangeText={setOptEkMaliyet} />
             <Text style={styles.label}>Hedef Kâr Oranı (%)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={optKarOrani} onChangeText={setOptKarOrani} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={optKarOrani} onChangeText={setOptKarOrani} />
             <Text style={styles.label}>KDV Oranı (%)</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={optKdvOrani} onChangeText={setOptKdvOrani} />
+            <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={optKdvOrani} onChangeText={setOptKdvOrani} />
             {(() => {
               const o = calculateOptimal();
               return (
@@ -1450,7 +1464,7 @@ export default function AraclarScreen() {
                       setSeriTanimlar(updated);
                     }} />
                   <Text style={styles.label}>Sıradaki Numara</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" placeholder="1024" placeholderTextColor="#64748B" value={String(s.siradakiNo || '')}
+                  <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} placeholder="1024" placeholderTextColor="#64748B" value={String(s.siradakiNo || '')}
                     onChangeText={(v) => {
                       const updated = seriTanimlar.map((x, i) => (i === idx ? { ...x, siradakiNo: v } : x));
                       setSeriTanimlar(updated);
@@ -1555,7 +1569,7 @@ export default function AraclarScreen() {
               <Text style={styles.label}>Şehir (İl)</Text>
               <TextInput style={styles.input} value={leadIl} onChangeText={setLeadIl} placeholder="İstanbul..." placeholderTextColor="#64748B" />
               <Text style={styles.label}>Tahmini Fırsat Değeri (₺)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={leadTutar} onChangeText={setLeadTutar} />
+              <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={leadTutar} onChangeText={setLeadTutar} />
               <Text style={styles.label}>Fırsat Detayları</Text>
               <TextInput style={[styles.input, { height: 60 }]} multiline={true} value={leadAciklama} onChangeText={setLeadAciklama} />
               <TouchableOpacity style={styles.btnPremium} onPress={handleSavePortfoy}>
@@ -1602,6 +1616,7 @@ export default function AraclarScreen() {
           </View>
         </SafeAreaView>
       </Modal>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

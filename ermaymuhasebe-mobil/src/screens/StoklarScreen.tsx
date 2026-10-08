@@ -52,6 +52,7 @@ import { AppleTheme } from '../theme/appleDesign';
 import { generateReportPdf } from '../services/pdfService';
 import { exportToExcel, importFromExcel } from '../services/excelService';
 import { generateInt32Id } from '../utils/IdGenerator';
+import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 }).format(val || 0);
@@ -977,8 +978,17 @@ export default function StoklarScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'height' : undefined} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
+        style={{ flex: 1 }}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
+          showsVerticalScrollIndicator={false}
+        >
           <OfflineNetworkBar />
           
           {/* ========================================================================= */}
@@ -1275,6 +1285,7 @@ export default function StoklarScreen() {
                   <TextInput
                     style={[styles.fInput, styles.fInputDisabled]}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     value={editOrtalamaAlisFiyati}
                     editable={false}
                   />
@@ -1284,6 +1295,7 @@ export default function StoklarScreen() {
                   <TextInput
                     style={styles.fInput}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     value={editAlisFiyati}
                     onChangeText={setEditAlisFiyati}
                   />
@@ -1297,6 +1309,7 @@ export default function StoklarScreen() {
                   <TextInput
                     style={[styles.fInput, styles.fInputDisabled]}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     value={editOrtalamaSatisFiyati}
                     editable={false}
                   />
@@ -1306,6 +1319,7 @@ export default function StoklarScreen() {
                   <TextInput
                     style={styles.fInput}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     value={editSatisFiyati}
                     onChangeText={setEditSatisFiyati}
                   />
@@ -1319,6 +1333,7 @@ export default function StoklarScreen() {
                   <TextInput
                     style={styles.fInput}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     value={editKdv}
                     onChangeText={setEditKdv}
                   />
@@ -1328,6 +1343,7 @@ export default function StoklarScreen() {
                   <TextInput
                     style={[styles.fInput, isEditMode && styles.fInputDisabled]}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     value={editAcilisBakiye}
                     onChangeText={setEditAcilisBakiye}
                     editable={!isEditMode}
@@ -1766,6 +1782,7 @@ export default function StoklarScreen() {
                     value={islemMiktar}
                     onChangeText={setIslemMiktar}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                   />
                 </View>
 
@@ -1777,6 +1794,7 @@ export default function StoklarScreen() {
                     value={islemFiyat}
                     onChangeText={setIslemFiyat}
                     keyboardType="numeric"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                   />
                 </View>
 
@@ -1897,6 +1915,8 @@ export default function StoklarScreen() {
         </View>
       </Modal>
 
+      {/* iOS Sayısal Klavye Bitti Butonu */}
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

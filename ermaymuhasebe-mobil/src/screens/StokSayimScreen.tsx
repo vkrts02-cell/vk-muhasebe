@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Modal, FlatList } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Modal, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { ClipboardList, Plus, X, Save, CheckCircle2, RefreshCw } from 'lucide-react-native';
 import { subscribeToPath, writeData, readData } from '../services/firebase';
 import { generateInt32Id } from '../utils/IdGenerator';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 export default function StokSayimScreen() {
   const [stoklar, setStoklar] = useState<any[]>([]);
@@ -125,6 +129,7 @@ export default function StokSayimScreen() {
         <TextInput
           style={styles.sayimInput}
           keyboardType="numeric"
+          inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
           value={sayilan[item.stokId] ?? String(item.mevcutMiktar ?? 0)}
           onChangeText={(v) => setSayilan((prev) => ({ ...prev, [item.stokId]: v }))}
           placeholderTextColor="#64748B"
@@ -194,29 +199,38 @@ export default function StokSayimScreen() {
       {/* Yeni Sayım Modalı */}
       <Modal visible={isFormOpen} animationType="slide" transparent>
         <SafeAreaView style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Yeni Sayım Fişi</Text>
-              <TouchableOpacity onPress={() => setIsFormOpen(false)}>
-                <X color="#FFF" size={24} />
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Yeni Sayım Fişi</Text>
+                <TouchableOpacity
+                  onPress={() => setIsFormOpen(false)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <X color="#FFF" size={24} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.label}>Açıklama</Text>
+              <TextInput style={styles.input} value={fisAciklama} onChangeText={setFisAciklama} placeholder="Sayım notu..." placeholderTextColor="#64748B" />
+              <Text style={styles.label}>Sayılan Miktarlar ({stoklar.length} kalem)</Text>
+              <FlatList initialNumToRender={20} maxToRenderPerBatch={20} windowSize={5}
+                data={stoklar}
+                keyExtractor={(it) => String(it.id)}
+                renderItem={renderItem}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              />
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveFis}>
+                <Save color="#FFF" size={18} />
+                <Text style={styles.saveText}>Fişi Kaydet</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.label}>Açıklama</Text>
-            <TextInput style={styles.input} value={fisAciklama} onChangeText={setFisAciklama} placeholder="Sayım notu..." placeholderTextColor="#64748B" />
-            <Text style={styles.label}>Sayılan Miktarlar ({stoklar.length} kalem)</Text>
-            <FlatList initialNumToRender={20} maxToRenderPerBatch={20} windowSize={5}
-              data={stoklar}
-              keyExtractor={(it) => String(it.id)}
-              renderItem={renderItem}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            />
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveFis}>
-              <Save color="#FFF" size={18} />
-              <Text style={styles.saveText}>Fişi Kaydet</Text>
-            </TouchableOpacity>
-          </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

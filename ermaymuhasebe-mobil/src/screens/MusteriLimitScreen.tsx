@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
 import { ShieldAlert, TrendingUp, X, Save } from 'lucide-react-native';
 import { subscribeToPath, writeData } from '../services/firebase';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val);
@@ -110,7 +114,10 @@ export default function MusteriLimitScreen({ isTab = false }: { isTab?: boolean 
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Risk Limiti Düzenle</Text>
-              <TouchableOpacity onPress={() => setEditCari(null)}>
+              <TouchableOpacity
+                onPress={() => setEditCari(null)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
                 <X color="#FFF" size={24} />
               </TouchableOpacity>
             </View>
@@ -120,6 +127,7 @@ export default function MusteriLimitScreen({ isTab = false }: { isTab?: boolean 
             <TextInput
               style={styles.input}
               keyboardType="numeric"
+              inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
               value={editLimit}
               onChangeText={setEditLimit}
               placeholderTextColor="#64748B"
@@ -131,6 +139,7 @@ export default function MusteriLimitScreen({ isTab = false }: { isTab?: boolean 
           </View>
         </SafeAreaView>
       </Modal>
+      <KeyboardDoneAccessory />
     </Wrapper>
   );
 }

@@ -7,6 +7,10 @@ import AsyncStorage from '../services/storage';
 import { saveFirebaseConfig, saveSupabaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil } from '../services/firebase';
 import { getLockSettings, savePin, setLockEnabled, clearLock, setLockTimeout, DEFAULT_LOCK_MINUTES } from '../services/lockService';
 import { resetPdfServiceCache, cleanBase64Logo } from '../services/pdfService';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_ACCESSORY_ID,
+} from '../components/KeyboardDoneAccessory';
 
 export default function AyarlarScreen() {
   const navigation = useNavigation<any>();
@@ -918,7 +922,11 @@ export default function AyarlarScreen() {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        automaticallyAdjustKeyboardInsets={true}
+        keyboardShouldPersistTaps="handled"
+      >
         {currentCategory === null ? (
           <View style={styles.categoriesGrid}>
             {categories.map((cat) => {
@@ -1180,6 +1188,7 @@ export default function AyarlarScreen() {
                     value={lockTimeout}
                     onChangeText={setLockTimeoutState}
                     keyboardType="number-pad"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     maxLength={4}
                   />
                 </View>
@@ -1197,6 +1206,7 @@ export default function AyarlarScreen() {
                     onChangeText={setNewPin}
                     secureTextEntry
                     keyboardType="number-pad"
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     maxLength={6}
                   />
                 </View>
@@ -1293,6 +1303,7 @@ export default function AyarlarScreen() {
                         value={newYearInput}
                         onChangeText={setNewYearInput}
                         keyboardType="numeric"
+                        inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                         maxLength={4}
                       />
                       <TouchableOpacity
@@ -1361,6 +1372,7 @@ export default function AyarlarScreen() {
                       <TextInput
                         style={[styles.input, { width: 90, textAlign: 'center', fontWeight: 'bold' }]}
                         keyboardType="numeric"
+                        inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                         value={devirKaynakYil}
                         onChangeText={setDevirKaynakYil}
                       />
@@ -1373,6 +1385,7 @@ export default function AyarlarScreen() {
                       <TextInput
                         style={[styles.input, { width: 90, textAlign: 'center', fontWeight: 'bold' }]}
                         keyboardType="numeric"
+                        inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                         value={devirHedefYil}
                         onChangeText={setDevirHedefYil}
                       />
@@ -1480,6 +1493,7 @@ export default function AyarlarScreen() {
           </>
         )}
       </ScrollView>
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }
