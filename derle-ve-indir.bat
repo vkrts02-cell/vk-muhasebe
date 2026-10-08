@@ -14,7 +14,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo ----------------------------------------------------------------
     echo [BILGI] GitHub oturumu acilmasi gerekiyor.
     echo Simdi tarayiciniz acilacak ve tek kullanimlik kod panoya kopyalanacak.
-    echo Acilan sayfaya yapistirip (Ctrl+V) Authorize butonuna basin!
+    echo Acilan sayfaya yapistirip [Ctrl+V] Authorize butonuna basin!
     echo ----------------------------------------------------------------
     echo.
     gh auth login -p https -h github.com -w -c -s repo,workflow

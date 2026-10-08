@@ -5958,8 +5958,12 @@ namespace ErmayMuhasebe.Services
                 {
                     if (!cloudStokHareketIds.Contains(local.Id))
                     {
-                        await _db.DeleteAsync(local);
-                        hasAnyChanges = true;
+                        if (!local.IsDeleted)
+                        {
+                            _ = Task.Run(async () => {
+                                try { await _sync.SyncStokHareketAsync(local); } catch { }
+                            });
+                        }
                     }
                 }
 
@@ -6022,8 +6026,12 @@ namespace ErmayMuhasebe.Services
                 {
                     if (!cloudCariHareketIds.Contains(local.Id))
                     {
-                        await _db.DeleteAsync(local);
-                        hasAnyChanges = true;
+                        if (!local.IsDeleted)
+                        {
+                            _ = Task.Run(async () => {
+                                try { await _sync.SyncCariHareketAsync(local); } catch { }
+                            });
+                        }
                     }
                 }
 
@@ -6525,6 +6533,12 @@ namespace ErmayMuhasebe.Services
                                 hasAnyChanges = true;
                             }
                         }
+                        else if (!local.IsDeleted)
+                        {
+                            _ = Task.Run(async () => {
+                                try { await _sync.SyncKasaHareketAsync(local); } catch { }
+                            });
+                        }
                     }
 
                     foreach (var kh in cloudKasaHareketler)
@@ -6569,6 +6583,12 @@ namespace ErmayMuhasebe.Services
                                 await _db.DeleteAsync(local);
                                 hasAnyChanges = true;
                             }
+                        }
+                        else if (!local.IsDeleted)
+                        {
+                            _ = Task.Run(async () => {
+                                try { await _sync.SyncBankaHareketAsync(local); } catch { }
+                            });
                         }
                     }
 

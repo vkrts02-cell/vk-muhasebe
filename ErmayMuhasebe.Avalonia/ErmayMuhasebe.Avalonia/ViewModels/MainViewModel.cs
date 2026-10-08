@@ -515,15 +515,24 @@ public partial class MainViewModel : ViewModelBase
                     if (isInitialSync)
                     {
                         SyncStatusText = "Bulut Eşitleniyor...";
+                        await _uow.SyncFromCloudAsync();
+                        try
+                        {
+                            await _uow.SyncToCloudAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MainViewModel] Initial SyncToCloudAsync error: {ex.Message}");
+                        }
+                        SyncStatusText = "Bulut Eşitlendi";
+                        isInitialSync = false;
                     }
-
-                    await _uow.SyncFromCloudAsync();
-                    SyncStatusText = "Bulut Eşitlendi";
-                    isInitialSync = false;
-                    
-                    if (IsOffline)
+                    else
                     {
-                        IsOffline = false;
+                        await _uow.SyncFromCloudAsync();
+                        SyncStatusText = "Bulut Eşitlendi";
+                        
+                        // Periyodik olarak masaüstündeki yerel verileri de buluta gönder (Mobilde anında görünmesi için)
                         _ = Task.Run(async () =>
                         {
                             try
@@ -532,9 +541,14 @@ public partial class MainViewModel : ViewModelBase
                             }
                             catch (Exception ex)
                             {
-                                System.Diagnostics.Debug.WriteLine($"[MainViewModel] Background SyncToCloudAsync error: {ex.Message}");
+                                System.Diagnostics.Debug.WriteLine($"[MainViewModel] Periodic SyncToCloudAsync error: {ex.Message}");
                             }
                         });
+                    }
+
+                    if (IsOffline)
+                    {
+                        IsOffline = false;
                     }
                 }
                 else

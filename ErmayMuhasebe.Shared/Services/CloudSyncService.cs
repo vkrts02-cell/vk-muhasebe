@@ -505,7 +505,7 @@ namespace ErmayMuhasebe.Services
             ["id"] = c.Id,
             ["kod"] = c.CariKod ?? "",
             ["cari_kodu"] = c.CariKod ?? "",
-            ["unvan"] = c.Unvan ?? "",
+            ["unvan"] = string.IsNullOrWhiteSpace(c.Unvan) ? (!string.IsNullOrWhiteSpace(c.CariKod) ? c.CariKod : $"Cari-{c.Id}") : c.Unvan,
             ["yetkili_kisi"] = c.Yetkili ?? "",
             ["tc_kimlik_no"] = c.TCNo ?? "",
             ["bakiye"] = c.Bakiye,
@@ -603,7 +603,7 @@ namespace ErmayMuhasebe.Services
         {
             ["id"] = s.Id,
             ["stok_kodu"] = s.StokKodu ?? "",
-            ["stok_adi"] = s.StokAdi ?? "",
+            ["stok_adi"] = string.IsNullOrWhiteSpace(s.StokAdi) ? (!string.IsNullOrWhiteSpace(s.StokKodu) ? s.StokKodu : $"Stok-{s.Id}") : s.StokAdi,
             ["barkod"] = s.Barkod ?? "",
             ["birim"] = s.Birim ?? "Adet",
             ["kdv_orani"] = s.KDV,
@@ -651,7 +651,7 @@ namespace ErmayMuhasebe.Services
         private static Dictionary<string, object?> MapFaturaToPayload(Fatura f) => new()
         {
             ["id"] = f.Id,
-            ["fatura_no"] = f.FaturaNo ?? "",
+            ["fatura_no"] = string.IsNullOrWhiteSpace(f.FaturaNo) ? $"FTR-{f.Id}" : f.FaturaNo,
             ["fatura_turu"] = string.IsNullOrWhiteSpace(f.Tur) ? "Satis" : f.Tur,
             ["cari_id"] = f.CariId > 0 ? f.CariId : null,
             ["cari_unvan"] = f.CariUnvan ?? "",
