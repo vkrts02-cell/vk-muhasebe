@@ -1120,11 +1120,15 @@ export default function FaturalarScreen({ route, navigation }: any) {
         <ShimmerCardList count={6} />
       ) : (
         <View style={styles.appleListWrapper}>
-          <FlashList 
+          <FlatList 
             data={filteredFaturalar}
-            keyExtractor={(item, index) => item.firebaseKey || index.toString()}
+            keyExtractor={(item, index) => String(item.firebaseKey || item.id || index)}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
+            removeClippedSubviews={false}
+            initialNumToRender={15}
+            maxToRenderPerBatch={15}
+            windowSize={7}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <FileText color="rgba(255,255,255,0.1)" size={64} style={{ alignSelf: 'center', marginBottom: 16 }} />

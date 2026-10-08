@@ -15,6 +15,7 @@ import { cariSchema } from '../utils/validationSchema';
 import { AppleListRow, AppleGroupedCard } from '../components/AppleGroupedList';
 import { AppleTheme } from '../theme/appleDesign';
 import { ShimmerCardList } from '../components/Shimmer';
+import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val);
@@ -1239,11 +1240,15 @@ export default function CarilerScreen({ route, navigation }: any) {
       {loading ? (
         <ShimmerCardList count={6} />
       ) : (
-        <FlashList 
+        <FlatList 
           data={filteredCariler}
-          keyExtractor={(item, index) => item.firebaseKey || index.toString()}
+          keyExtractor={(item, index) => String(item.firebaseKey || item.id || index)}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+          removeClippedSubviews={false}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={7}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Hiç cari bulunamadı.</Text>
           }
@@ -1419,14 +1424,14 @@ export default function CarilerScreen({ route, navigation }: any) {
                 </View>
                 <View style={[styles.inputGroup, { width: '48%' }]}>
                   <Text style={styles.inputLabel}>Vade Günü</Text>
-                  <TextInput style={styles.input} placeholder="0" placeholderTextColor="#64748B" keyboardType="numeric" value={vadeGunu} onChangeText={setVadeGunu} />
+                  <TextInput style={styles.input} placeholder="0" placeholderTextColor="#64748B" keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={vadeGunu} onChangeText={setVadeGunu} />
                 </View>
               </View>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View style={[styles.inputGroup, { width: '48%' }]}>
                   <Text style={styles.inputLabel}>Risk Limiti (TL)</Text>
-                  <TextInput style={styles.input} placeholder="0.00" placeholderTextColor="#64748B" keyboardType="numeric" value={riskLimiti} onChangeText={setRiskLimiti} />
+                  <TextInput style={styles.input} placeholder="0.00" placeholderTextColor="#64748B" keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} value={riskLimiti} onChangeText={setRiskLimiti} />
                 </View>
                 <View style={[styles.inputGroup, { width: '48%' }]}>
                   <Text style={styles.inputLabel}>Ülke</Text>
@@ -1783,7 +1788,7 @@ export default function CarilerScreen({ route, navigation }: any) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Tutar (TL) *</Text>
-                <TextInput style={styles.input} keyboardType="numeric" placeholder="0.00" placeholderTextColor="#64748B" value={transAmount} onChangeText={setTransAmount} />
+                <TextInput style={styles.input} keyboardType="numeric" inputAccessoryViewID={KEYBOARD_ACCESSORY_ID} placeholder="0.00" placeholderTextColor="#64748B" value={transAmount} onChangeText={setTransAmount} />
               </View>
 
               {transMethod !== 'Nakit' && (
@@ -1904,6 +1909,8 @@ export default function CarilerScreen({ route, navigation }: any) {
         </SafeAreaView>
       </Modal>
 
+      {/* iOS Sayısal Klavye Bitti Butonu */}
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }
@@ -2009,6 +2016,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   header: {
+    backgroundColor: '#070709',
+    zIndex: 10,
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'ios' ? 12 : 28,
     paddingBottom: 14,

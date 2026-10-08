@@ -7,6 +7,7 @@ import { exportToExcel } from '../services/excelService';
 import { generateInt32Id } from '../utils/IdGenerator';
 import { BlurView } from 'expo-blur';
 import { deleteFaturaCascade } from '../services/transactionService';
+import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
 
 const BIRIM_LISTESI = ['Adet', 'Kg', 'Mt', 'M2'];
 
@@ -1098,10 +1099,15 @@ export default function FaturaFormScreen({ route, navigation }: any) {
       ) : (
         <KeyboardAvoidingView 
           style={{ flex: 1 }} 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+          behavior={Platform.OS === 'ios' ? 'height' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
         >
-          <ScrollView contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
+          <ScrollView 
+            contentContainerStyle={styles.formScroll} 
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+            showsVerticalScrollIndicator={false}
+          >
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Fatura Türü</Text>
                 <View style={styles.toggleRow}>
@@ -1217,6 +1223,7 @@ export default function FaturaFormScreen({ route, navigation }: any) {
                   <TextInput 
                     style={styles.input} 
                     keyboardType="numeric" 
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                     editable={dovizTuru !== 'TL'}
                     placeholder="1" 
                     placeholderTextColor="#64748B" 
@@ -1289,6 +1296,7 @@ export default function FaturaFormScreen({ route, navigation }: any) {
                             <TextInput 
                               style={[styles.itemInput, { flex: 1, textAlign: 'left', backgroundColor: 'transparent' }]}
                               keyboardType="numeric"
+                              inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                               placeholder="Miktar"
                               placeholderTextColor="#64748B"
                               value={String(item.miktar)}
@@ -1312,6 +1320,7 @@ export default function FaturaFormScreen({ route, navigation }: any) {
                           <TextInput 
                             style={[styles.itemInput, { textAlign: 'left', paddingHorizontal: 12 }]}
                             keyboardType="numeric"
+                            inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                             placeholder="Fiyat"
                             placeholderTextColor="#64748B"
                             value={String(item.birimFiyat)}
@@ -1583,6 +1592,8 @@ export default function FaturaFormScreen({ route, navigation }: any) {
                 </View>
               </TouchableOpacity>
             </Modal>
+      {/* iOS Sayısal Klavye Bitti Butonu */}
+      <KeyboardDoneAccessory />
     </SafeAreaView>
   );
 }

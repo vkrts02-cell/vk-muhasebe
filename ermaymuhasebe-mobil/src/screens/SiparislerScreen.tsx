@@ -513,11 +513,15 @@ export default function SiparislerScreen({ route, navigation }: any) {
           <ActivityIndicator size="large" color="#0061FF" />
         </View>
       ) : (
-        <FlashList 
+        <FlatList 
           data={filteredSiparisler}
-          keyExtractor={(item, index) => item.firebaseKey || index.toString()}
+          keyExtractor={(item, index) => String(item.firebaseKey || item.id || index)}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          removeClippedSubviews={false}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={7}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Hiç sipariş bulunamadı.</Text>
           }

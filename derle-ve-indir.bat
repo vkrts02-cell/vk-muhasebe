@@ -8,7 +8,7 @@ echo.
 echo [1/2] Guncel kodlar ve duzeltmeler GitHub a aktariliyor...
 echo.
 
-git push origin main
+git push fork main
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ----------------------------------------------------------------
@@ -21,7 +21,7 @@ if %ERRORLEVEL% NEQ 0 (
     gh auth setup-git
     echo.
     echo Tekrar GitHub a yukleniyor...
-    git push origin main
+    git push fork main
 )
 
 if %ERRORLEVEL% EQU 0 (
