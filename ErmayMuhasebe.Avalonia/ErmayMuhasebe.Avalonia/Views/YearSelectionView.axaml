@@ -183,60 +183,87 @@
                         <!-- Yeni Yıl Ekleme Paneli (Açıldığında) -->
                         <Border Background="{DynamicResource SurfaceBrush}"
                                 BorderBrush="{DynamicResource BorderColor}"
-                                BorderThickness="1"
-                                CornerRadius="12"
-                                Padding="12"
+                                BorderThickness="1.5"
+                                CornerRadius="16"
+                                Padding="16"
                                 IsVisible="{Binding IsAddingNewYear}">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="Yeni Çalışma Yılı Belirleyin:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                                <Grid ColumnDefinitions="*, Auto, Auto">
-                                    <Border Background="{DynamicResource PanelBrush}"
-                                            BorderBrush="{DynamicResource BorderColor}"
-                                            BorderThickness="1"
-                                            CornerRadius="8"
-                                            Padding="10,0"
-                                            Height="38">
-                                        <Grid ColumnDefinitions="Auto, *">
-                                            <ic:SymbolIcon Symbol="Calendar" FontSize="16" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                            <TextBox Grid.Column="1"
-                                                     Text="{Binding NewYearToCreateText, Mode=TwoWay}"
-                                                     FontSize="14"
-                                                     FontWeight="Bold"
-                                                     VerticalContentAlignment="Center"
-                                                     BorderThickness="0"
-                                                     Background="Transparent"
-                                                     Foreground="{DynamicResource TextBrush}"
-                                                     Watermark="Örn: 2027"
-                                                     MaxLength="4"/>
-                                        </Grid>
-                                    </Border>
+                            <StackPanel Spacing="14">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="Yeni Çalışma Yılı Belirleyin" 
+                                                   FontSize="13" 
+                                                   FontWeight="Bold" 
+                                                   Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text="Eklemek istediğiniz mali yılı giriniz" 
+                                                   FontSize="11" 
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </StackPanel>
                                     <Button Grid.Column="1"
-                                            Command="{Binding CreateNewYearCommand}"
-                                            Height="38"
-                                            Margin="8,0,0,0"
-                                            Padding="14,0"
-                                            Background="{DynamicResource FluidBlueGradient}"
-                                            Foreground="White"
-                                            CornerRadius="8"
-                                            FontWeight="Bold"
-                                            FontSize="12"
-                                            Cursor="Hand">
-                                        <StackPanel Orientation="Horizontal" Spacing="5">
-                                            <ic:SymbolIcon Symbol="Checkmark" FontSize="14" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Oluştur ve Seç" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Grid.Column="2"
                                             Command="{Binding CancelAddNewYearCommand}"
-                                            Height="38"
-                                            Margin="6,0,0,0"
-                                            Padding="10,0"
+                                            Classes="LinkButton"
+                                            Padding="4"
+                                            Cursor="Hand">
+                                        <ic:SymbolIcon Symbol="Dismiss" FontSize="16" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Yıl Giriş Kutusu -->
+                                <Border Background="{DynamicResource PanelBrush}"
+                                        BorderBrush="{DynamicResource BorderColor}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="12,0"
+                                        Height="44">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <ic:SymbolIcon Symbol="Calendar" FontSize="18" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBox Grid.Column="1"
+                                                 Text="{Binding NewYearToCreateText, Mode=TwoWay}"
+                                                 FontSize="16"
+                                                 FontWeight="Bold"
+                                                 VerticalContentAlignment="Center"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 Foreground="{DynamicResource TextBrush}"
+                                                 Watermark="Örn: 2030"
+                                                 MaxLength="4"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Butonlar: Vazgeç ve Oluştur & Seç -->
+                                <Grid ColumnDefinitions="*, *">
+                                    <Button Grid.Column="0"
+                                            Command="{Binding CancelAddNewYearCommand}"
+                                            Height="40"
+                                            Margin="0,0,6,0"
                                             Background="#20FFFFFF"
                                             Foreground="{DynamicResource SecondaryTextBrush}"
-                                            CornerRadius="8"
-                                            FontSize="12"
+                                            CornerRadius="10"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            FontWeight="SemiBold"
+                                            FontSize="13"
                                             Cursor="Hand">
-                                        <TextBlock Text="Vazgeç" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Vazgeç"/>
+                                    </Button>
+
+                                    <Button Grid.Column="1"
+                                            Command="{Binding CreateNewYearCommand}"
+                                            Height="40"
+                                            Margin="6,0,0,0"
+                                            Background="{DynamicResource FluidBlueGradient}"
+                                            Foreground="White"
+                                            CornerRadius="10"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            FontWeight="Bold"
+                                            FontSize="13"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                            <ic:SymbolIcon Symbol="Checkmark" FontSize="15" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Oluştur ve Seç" VerticalAlignment="Center"/>
+                                        </StackPanel>
                                     </Button>
                                 </Grid>
                             </StackPanel>
@@ -266,7 +293,7 @@
                                          BorderThickness="0"
                                          Background="Transparent"
                                          Foreground="{DynamicResource TextBrush}"
-                                         Watermark="Örn: 2026"
+                                         Watermark="Örn: 2030"
                                          MaxLength="4"/>
                             </Grid>
                         </Border>

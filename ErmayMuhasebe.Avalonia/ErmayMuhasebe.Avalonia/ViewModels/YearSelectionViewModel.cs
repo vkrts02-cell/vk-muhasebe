@@ -149,11 +149,8 @@ public partial class YearSelectionViewModel : ViewModelBase
 
         if (HasNoYears)
         {
-            // İlk kurulum: Kullanıcıya kolaylık olması için mevcut takvim yılını varsayılan doldur (ama kullanıcı değiştirebilir)
-            if (string.IsNullOrWhiteSpace(NewYearToCreateText))
-            {
-                NewYearToCreateText = DateTime.Now.Year.ToString();
-            }
+            // İlk kurulum: Kullanıcı istediği yılı kendisi belirler, otomatik yıl doldurulmaz
+            NewYearToCreateText = "";
         }
 
         var targetYear = _yearContext.CurrentYear > 0 && available.Contains(_yearContext.CurrentYear) 
@@ -162,7 +159,7 @@ public partial class YearSelectionViewModel : ViewModelBase
 
         SelectYearByNumber(targetYear);
 
-        RolloverSourceYear = SelectedYear ?? DateTime.Now.Year;
+        RolloverSourceYear = SelectedYear ?? (available.FirstOrDefault() > 0 ? available.FirstOrDefault() : DateTime.Now.Year);
         RolloverTargetYear = RolloverSourceYear + 1;
 
         if (available.Any())
@@ -182,7 +179,8 @@ public partial class YearSelectionViewModel : ViewModelBase
     private void OpenAddNewYear()
     {
         IsAddingNewYear = true;
-        NewYearToCreateText = Years.Any() ? (Years.Max(y => y.Year) + 1).ToString() : DateTime.Now.Year.ToString();
+        // Kullanıcı kendi belirleyeceği yılı girmeli; otomatik yıl doldurulmasın
+        NewYearToCreateText = "";
         FeedbackMessage = "";
     }
 
@@ -190,6 +188,7 @@ public partial class YearSelectionViewModel : ViewModelBase
     private void CancelAddNewYear()
     {
         IsAddingNewYear = false;
+        NewYearToCreateText = "";
         FeedbackMessage = "";
     }
 
@@ -231,7 +230,7 @@ public partial class YearSelectionViewModel : ViewModelBase
     {
         if (!int.TryParse(NewYearToCreateText?.Trim(), out int yearToCreate) || yearToCreate < 2000 || yearToCreate > 2100)
         {
-            FeedbackMessage = "Lütfen geçerli bir mali yıl giriniz (Örn: 2026).";
+            FeedbackMessage = "Lütfen geçerli bir mali yıl giriniz (Örn: 2030).";
             IsFeedbackSuccess = false;
             return;
         }

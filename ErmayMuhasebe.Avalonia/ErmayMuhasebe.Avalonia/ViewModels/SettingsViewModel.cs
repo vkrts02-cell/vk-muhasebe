@@ -2142,8 +2142,6 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
-            int baseYear = DateTime.Now.Year;
-
             // 4. Oluşturulmuş tüm mali yılları (.db, .db-wal, .db-shm) diskten kalıcı olarak sil
             string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
             if (System.IO.Directory.Exists(appDir))
@@ -2173,12 +2171,9 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                 catch { }
             }
 
-            // 5. Temel yıl veritabanını başlat ve tüm tablolarını kalıcı olarak sıfırla
-            _yearContext.CurrentYear = baseYear;
-            ActiveYear = baseYear;
-
-            await _dataProvider.InitializeAsync($"ermay_{baseYear}.db");
-            await _uow.ClearAllTablesAsync();
+            // 5. Mali yıl durumunu tamamen sıfırla - Otomatik varsayılan yıl OLUŞTURULMAZ
+            _yearContext.CurrentYear = 0;
+            ActiveYear = 0;
 
             // 6. Bulut (Supabase) yapılandırmasını kesin olarak koru ve yeniden uygula
             if (!string.IsNullOrWhiteSpace(savedCloudUrl) && !string.IsNullOrWhiteSpace(savedCloudSecret))
@@ -2208,47 +2203,21 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                     }
                 }
                 catch { }
-
-                // Buluta temel yılı temiz olarak kaydet
-                if (dbService != null && dbService.IsCloudConnected)
-                {
-                    try { await dbService.SyncService.SyncMaliYilAsync(baseYear); } catch { }
-                }
             }
 
             // 7. Profil ve yerel durumu yenile
-            await LoadFirmaProfiliAsync();
-            ReloadCloudSettings();
-            LoadAvailableYears();
-            SelectedYearToSwitch = baseYear;
-            RolloverSourceYear = baseYear;
-            RolloverTargetYear = baseYear + 1;
-
             LogoBytes = null;
             _dataProvider.InvalidateAllCache();
 
-            // Tüm açık modülleri temiz veriyle anında güncelle
-            WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
-
-            // 8. Sıfırlama modundan çık ve canlı senkronizasyonu başlat
+            // 8. Sıfırlama modundan çık
             DatabaseService.IsResetting = false;
-            if (dbService != null && dbService.IsCloudConnected)
-            {
-                try { dbService.StartRealtimeSync(); } catch { }
-            }
 
-            // Durum çubuğunu ve ana ekranı güncelle
-            var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<MainViewModel>();
-            if (mainVm != null)
-            {
-                mainVm.SyncStatusText = (dbService != null && dbService.IsCloudConnected) ? "Bulut Eşitlendi" : "Çevrimiçi";
-                // Kullanıcıya tertemiz uygulamayı anında göstermek için Dashboard'a yönlendir
-                WeakReferenceMessenger.Default.Send(new NavigationRequestMessage(typeof(DashboardViewModel)));
-            }
-
-            SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü; yerel ve bulut veriler tamamen temizlendi. Uygulama kullanıma hazır.";
+            SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü; tüm veriler tamamen temizlendi.";
             ErrorMessage = "";
             ResetPassword = "";
+
+            // 9. Oturumu temiz şekilde kapatarak kullanıcıyı ilk kurulum / mali yıl belirleme ekranına yönlendir
+            WeakReferenceMessenger.Default.Send(new LogoutMessage());
         }
         catch (Exception ex)
         {
