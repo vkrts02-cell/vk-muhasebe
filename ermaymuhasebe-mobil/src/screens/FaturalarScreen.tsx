@@ -1311,7 +1311,7 @@ export default function FaturalarScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#000000',
   },
   center: {
     flex: 1,
@@ -1446,7 +1446,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
-    paddingBottom: 20,
+    paddingBottom: 110,
   },
   faturaCard: {
     backgroundColor: '#0F0F0F',

@@ -1929,7 +1929,7 @@ export default function StoklarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A'
+    backgroundColor: '#000000'
   },
   center: {
     justifyContent: 'center',
@@ -1943,7 +1943,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 12,
-    paddingBottom: 40,
+    paddingBottom: 110,
     gap: 12
   },
 

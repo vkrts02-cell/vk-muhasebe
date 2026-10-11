@@ -1247,7 +1247,7 @@ export default function CarilerScreen({ route, navigation }: any) {
           data={filteredCariler}
           keyExtractor={(item, index) => String(item.firebaseKey || item.id || index)}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
           removeClippedSubviews={false}
           initialNumToRender={15}
           maxToRenderPerBatch={15}
@@ -1923,7 +1923,7 @@ export default function CarilerScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070709',
+    backgroundColor: '#000000',
   },
   center: {
     flex: 1,

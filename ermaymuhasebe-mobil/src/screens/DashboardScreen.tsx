@@ -307,12 +307,12 @@ export default function DashboardScreen() {
     });
 
     const maxVal = Math.max(...chartData.map(d => Math.max(d.target, d.actual)), 100000);
-    const chartHeight = 120;
+    const chartHeight = 160;
     const chartWidth = 330;
-    const paddingLeft = 40;
-    const paddingRight = 10;
-    const paddingTop = 15;
-    const paddingBottom = 20;
+    const paddingLeft = 42;
+    const paddingRight = 12;
+    const paddingTop = 16;
+    const paddingBottom = 24;
 
     const stepX = (chartWidth - paddingLeft - paddingRight) / 11;
     const getCoords = (val: number, index: number) => {
@@ -365,7 +365,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <View style={{ height: chartHeight, width: '100%', marginTop: 10 }} pointerEvents="none">
+        <View style={{ height: chartHeight, width: '100%', marginTop: 12 }} pointerEvents="none">
           <Svg height="100%" width="100%" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
             <Defs>
               <LinearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
@@ -383,8 +383,8 @@ export default function DashboardScreen() {
               const { y } = getCoords(t, 0);
               return (
                 <React.Fragment key={idx}>
-                  <Line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth={1} strokeDasharray="3,3" />
-                  <SvgText x={paddingLeft - 8} y={y + 3} fill="#64748B" fontSize={8} fontWeight="bold" textAnchor="end">
+                  <Line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth={1} strokeDasharray="3,3" />
+                  <SvgText x={paddingLeft - 8} y={y + 3} fill="#94A3B8" fontSize={9} fontWeight="600" textAnchor="end">
                     {t >= 1000 ? `${(t / 1000).toFixed(0)}k` : t.toFixed(0)}
                   </SvgText>
                 </React.Fragment>
@@ -395,7 +395,7 @@ export default function DashboardScreen() {
             {chartData.map((d, i) => {
               const { x } = getCoords(0, i);
               return (
-                <SvgText key={i} x={x} y={chartHeight - 4} fill="#64748B" fontSize={8} fontWeight="bold" textAnchor="middle">
+                <SvgText key={i} x={x} y={chartHeight - 6} fill="#94A3B8" fontSize={9} fontWeight="600" textAnchor="middle">
                   {d.label}
                 </SvgText>
               );
@@ -609,7 +609,7 @@ export default function DashboardScreen() {
             </View>
           </>
         )}
-        <View style={{ height: 95 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -651,10 +651,10 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    backgroundColor: '#141416',
+    backgroundColor: '#121216',
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
     marginBottom: 12,
     justifyContent: 'space-between',
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionCard: {
-    backgroundColor: '#141416',
+    backgroundColor: '#121216',
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderRadius: 20,
@@ -713,30 +713,33 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.035)',
+    borderColor: 'rgba(255, 255, 255, 0.07)',
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 12,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     width: '23%',
+    minHeight: 88,
   },
   actionIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
   },
   quickActionText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '600',
     color: '#E2E8F0',
     textAlign: 'center',
+    lineHeight: 13,
   },
   chartCard: {
-    backgroundColor: '#141416',
+    backgroundColor: '#121216',
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderRadius: 20,

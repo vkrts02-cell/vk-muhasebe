@@ -40,7 +40,7 @@ function MoreStack() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: '#0A0A0A' },
+        contentStyle: { backgroundColor: '#000000' },
       }}
     >
       <Stack.Screen 
@@ -70,17 +70,19 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }: any) => ({
         headerShown: false,
-        sceneStyle: { backgroundColor: '#0A0A0A' },
+        sceneStyle: { backgroundColor: '#000000' },
         tabBarStyle: {
-          backgroundColor: '#121216',
-          borderTopColor: 'rgba(255, 255, 255, 0.08)',
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+          backgroundColor: '#000000',
+          borderTopColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
           paddingTop: 8,
         },
         tabBarActiveTintColor: '#38BDF8',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarInactiveTintColor: '#64748B',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
@@ -135,15 +137,16 @@ const customDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: '#0A0A0A',
-    card: '#0A0A0A',
+    background: '#000000',
+    card: '#000000',
+    border: 'transparent',
   },
 };
 
 export default function AppNavigator() {
   return (
     <NavigationContainer theme={customDarkTheme}>
-      <RootStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0A0A' } }}>
+      <RootStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000000' } }}>
         <RootStack.Screen name="MainTabs" component={MainTabs} />
         <RootStack.Screen 
           name="FaturaForm" 

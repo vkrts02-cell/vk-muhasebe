@@ -1,6 +1,21 @@
 import React from 'react';
 import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
-import { Settings, BarChart3, CreditCard, Box, PieChart, Info, FileSignature, FileKey2, CalendarDays, LayoutGrid, Calculator, Wrench, Folder, ShieldAlert, BellRing, ClipboardList, Megaphone, Palette } from 'lucide-react-native';
+import { 
+  Settings, 
+  BarChart3, 
+  CreditCard, 
+  Box, 
+  PieChart, 
+  Info, 
+  FileSignature, 
+  FileKey2, 
+  CalendarDays, 
+  LayoutGrid, 
+  Calculator, 
+  Wrench, 
+  Folder, 
+  ChevronRight 
+} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 export default function DahaFazlaScreen() {
@@ -21,23 +36,28 @@ export default function DahaFazlaScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerTitle}>Diğer Modüller</Text>
         <View style={styles.menuContainer}>
           {menuItems.map((item, idx) => {
             const Icon = item.icon;
+            const isLast = idx === menuItems.length - 1;
             return (
               <TouchableOpacity 
                 key={idx} 
-                style={styles.menuItem}
+                style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]}
                 onPress={() => navigation.navigate(item.route)}
+                activeOpacity={0.7}
               >
-                <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>
-                  <Icon color={item.color} size={24} />
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>
+                    <Icon color={item.color} size={22} />
+                  </View>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
                 </View>
-                <Text style={styles.menuTitle}>{item.title}</Text>
+                <ChevronRight color="#64748B" size={18} />
               </TouchableOpacity>
-            )
+            );
           })}
         </View>
       </ScrollView>
@@ -48,49 +68,52 @@ export default function DahaFazlaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#000000',
   },
   content: {
-    padding: 20,
-    paddingTop: 40,
-    paddingBottom: 95,
+    padding: 16,
+    paddingTop: 30,
+    paddingBottom: 110,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: 24,
+    letterSpacing: -0.5,
+    marginBottom: 20,
+    paddingHorizontal: 4,
   },
   menuContainer: {
-    backgroundColor: 'rgba(24, 24, 28, 0.75)',
+    backgroundColor: '#121216',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   menuTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#E2E8F0',
-  }
+  },
 });
