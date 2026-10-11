@@ -145,23 +145,29 @@ public partial class CariDetayViewModel : ErmayMuhasebe.Shared.ViewModels.CariDe
         decimal bin2 = 0; // 31-60 days overdue
         decimal bin3 = 0; // 60+ days overdue
 
+        int maxDelay1 = 0, maxDelay2 = 0, maxDelay3 = 0;
+
         // Add overdue invoices
         foreach (var f in Faturalar.Where(f => f.Kalan > 0 && f.VadeTarihi.Date < today))
         {
             int delay = (today - f.VadeTarihi.Date).Days;
-            if (delay <= 30) bin1 += f.Kalan;
-            else if (delay <= 60) bin2 += f.Kalan;
-            else bin3 += f.Kalan;
+            if (delay <= 30) { bin1 += f.Kalan; maxDelay1 = Math.Max(maxDelay1, delay); }
+            else if (delay <= 60) { bin2 += f.Kalan; maxDelay2 = Math.Max(maxDelay2, delay); }
+            else { bin3 += f.Kalan; maxDelay3 = Math.Max(maxDelay3, delay); }
         }
 
         // Add overdue checks and bills
         foreach (var ev in BekleyenEvraklar.Where(e => e.VadeTarihi.Date < today))
         {
             int delay = (today - ev.VadeTarihi.Date).Days;
-            if (delay <= 30) bin1 += ev.Tutar;
-            else if (delay <= 60) bin2 += ev.Tutar;
-            else bin3 += ev.Tutar;
+            if (delay <= 30) { bin1 += ev.Tutar; maxDelay1 = Math.Max(maxDelay1, delay); }
+            else if (delay <= 60) { bin2 += ev.Tutar; maxDelay2 = Math.Max(maxDelay2, delay); }
+            else { bin3 += ev.Tutar; maxDelay3 = Math.Max(maxDelay3, delay); }
         }
+
+        string name1 = maxDelay1 > 0 ? $"0-30 Gün ({maxDelay1} gün)" : "0-30 Gün";
+        string name2 = maxDelay2 > 0 ? $"31-60 Gün ({maxDelay2} gün)" : "31-60 Gün";
+        string name3 = maxDelay3 > 0 ? $"60+ Gün ({maxDelay3} gün)" : "60+ Gün";
 
         if (bin1 == 0 && bin2 == 0 && bin3 == 0)
         {
@@ -182,21 +188,21 @@ public partial class CariDetayViewModel : ErmayMuhasebe.Shared.ViewModels.CariDe
             {
                 new PieSeries<decimal>
                 {
-                    Name = "1-30 Gün",
+                    Name = name1,
                     Values = new decimal[] { bin1 },
                     Fill = new SolidColorPaint(new SKColor(245, 158, 11)), // Amber (#F59E0B)
                     InnerRadius = 55
                 },
                 new PieSeries<decimal>
                 {
-                    Name = "31-60 Gün",
+                    Name = name2,
                     Values = new decimal[] { bin2 },
                     Fill = new SolidColorPaint(new SKColor(249, 115, 22)), // Orange (#F97316)
                     InnerRadius = 55
                 },
                 new PieSeries<decimal>
                 {
-                    Name = "60+ Gün",
+                    Name = name3,
                     Values = new decimal[] { bin3 },
                     Fill = new SolidColorPaint(new SKColor(239, 68, 68)), // Red (#EF4444)
                     InnerRadius = 55
@@ -209,5 +215,189 @@ public partial class CariDetayViewModel : ErmayMuhasebe.Shared.ViewModels.CariDe
     public Task OpenEditCariAsync()
     {
         return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    public async Task PrintAsync()
+    {
+        if (Cari == null) return;
+        
+        try
+        {
+            IsLoading = true;
+            
+            var sections = new List<ReportSection>();
+            
+            // 1. Finansal Durum & İletişim Bilgileri Özeti
+            sections.Add(new ReportSection
+            {
+                Title = "Finansal Durum",
+                KeyMetrics = new List<ChartDataItem>
+                {
+                    new ChartDataItem { Label = "Toplam Borç", Actual = Borc },
+                    new ChartDataItem { Label = "Toplam Alacak", Actual = Alacak },
+                    new ChartDataItem { Label = "Net Bakiye", Actual = Math.Abs(Bakiye) },
+                    new ChartDataItem { Label = "Geciken Toplam", Actual = GecikenBorcToplam }
+                }
+            });
+
+            sections.Add(new ReportSection
+            {
+                Title = "Risk Limiti & Performans",
+                Headers = new string[] { "Bilgi", "Değer" },
+                Rows = new List<string[]>
+                {
+                    new string[] { "Risk Limiti Durumu", RiskLimitStatusText ?? "-" },
+                    new string[] { "Kullanılan Risk", $"% {RiskOrani:F1}" },
+                    new string[] { "Ödeme Performans Skoru", PerformansSkoru ?? "-" },
+                    new string[] { "Performans Değerlendirmesi", PerformansMetni ?? "-" }
+                }
+            });
+
+            sections.Add(new ReportSection
+            {
+                Title = "İletişim Bilgileri",
+                Headers = new string[] { "Bilgi", "Detay" },
+                Rows = new List<string[]>
+                {
+                    new string[] { "Telefon", Cari.Telefon ?? "-" },
+                    new string[] { "E-Posta", Cari.Email ?? "-" },
+                    new string[] { "İl / İlçe", $"{Cari.Il ?? "-"} / {Cari.Ilce ?? "-"}" },
+                    new string[] { "Açık Adres", Cari.Adres ?? "-" }
+                }
+            });
+
+            var today = DateTime.Today;
+            decimal bin1 = 0, bin2 = 0, bin3 = 0;
+            int pdfMaxDelay1 = 0, pdfMaxDelay2 = 0, pdfMaxDelay3 = 0;
+
+            if (Faturalar != null)
+            {
+                foreach (var f in Faturalar.Where(f => f.Kalan > 0 && f.VadeTarihi.Date < today))
+                {
+                    int delay = (today - f.VadeTarihi.Date).Days;
+                    if (delay <= 30) { bin1 += f.Kalan; pdfMaxDelay1 = Math.Max(pdfMaxDelay1, delay); }
+                    else if (delay <= 60) { bin2 += f.Kalan; pdfMaxDelay2 = Math.Max(pdfMaxDelay2, delay); }
+                    else { bin3 += f.Kalan; pdfMaxDelay3 = Math.Max(pdfMaxDelay3, delay); }
+                }
+            }
+            if (BekleyenEvraklar != null)
+            {
+                foreach (var ev in BekleyenEvraklar.Where(e => e.VadeTarihi.Date < today))
+                {
+                    int delay = (today - ev.VadeTarihi.Date).Days;
+                    if (delay <= 30) { bin1 += ev.Tutar; pdfMaxDelay1 = Math.Max(pdfMaxDelay1, delay); }
+                    else if (delay <= 60) { bin2 += ev.Tutar; pdfMaxDelay2 = Math.Max(pdfMaxDelay2, delay); }
+                    else { bin3 += ev.Tutar; pdfMaxDelay3 = Math.Max(pdfMaxDelay3, delay); }
+                }
+            }
+
+            string pdfName1 = pdfMaxDelay1 > 0 ? $"0-30 Gün ({pdfMaxDelay1} gün)" : "0-30 Gün";
+            string pdfName2 = pdfMaxDelay2 > 0 ? $"31-60 Gün ({pdfMaxDelay2} gün)" : "31-60 Gün";
+            string pdfName3 = pdfMaxDelay3 > 0 ? $"60+ Gün ({pdfMaxDelay3} gün)" : "60+ Gün";
+
+            sections.Add(new ReportSection
+            {
+                Title = "Analiz & Grafikler (Vade Yaşlandırma)",
+                LeftChartTitle = "VADE YAŞLANDIRMA",
+                ChartData = new List<ChartDataItem>
+                {
+                    new ChartDataItem { Label = pdfName1, Actual = bin1 },
+                    new ChartDataItem { Label = pdfName2, Actual = bin2 },
+                    new ChartDataItem { Label = pdfName3, Actual = bin3 }
+                }
+            });
+
+            // 2. Hesap Ekstresi
+            if (Hareketler != null && Hareketler.Any())
+            {
+                var ekstreRows = Hareketler.Select(h => new string[]
+                {
+                    h.Tarih.ToString("dd.MM.yyyy"),
+                    h.IslemTuru ?? "",
+                    h.Aciklama ?? "",
+                    h.Borc.ToString("N2"),
+                    h.Alacak.ToString("N2"),
+                    h.KalanBakiye.ToString("N2")
+                }).ToList();
+
+                sections.Add(new ReportSection
+                {
+                    Title = "Hesap Ekstresi",
+                    Headers = new string[] { "Tarih", "İşlem Türü", "Açıklama", "Borç", "Alacak", "Bakiye" },
+                    Rows = ekstreRows
+                });
+            }
+
+            // 3. Fatura Vadeleri
+            if (Faturalar != null && Faturalar.Any())
+            {
+                var faturaRows = Faturalar.Select(f => new string[]
+                {
+                    f.FaturaNo ?? "",
+                    f.Tarih.ToString("dd.MM.yyyy"),
+                    f.VadeTarihi.ToString("dd.MM.yyyy"),
+                    f.GenelToplam.ToString("N2"),
+                    f.Odenen.ToString("N2"),
+                    f.Kalan.ToString("N2"),
+                    f.OdemeDurumu,
+                    f.KalanGunText
+                }).ToList();
+
+                sections.Add(new ReportSection
+                {
+                    Title = "Fatura Vadeleri",
+                    Headers = new string[] { "Fatura No", "Tarih", "Vade Tarihi", "Genel Toplam", "Ödenen", "Kalan Tutar", "Durum", "Vade Durumu" },
+                    Rows = faturaRows,
+                    NewPage = true
+                });
+            }
+
+            // 4. Çek / Senet
+            if (BekleyenEvraklar != null && BekleyenEvraklar.Any())
+            {
+                var evrakRows = BekleyenEvraklar.Select(e => new string[]
+                {
+                    e.Type,
+                    e.No ?? "",
+                    e.VadeTarihi.ToString("dd.MM.yyyy"),
+                    e.Tutar.ToString("N2"),
+                    e.Tur,
+                    e.Durum ?? "",
+                    e.KalanGunText
+                }).ToList();
+
+                sections.Add(new ReportSection
+                {
+                    Title = "Bekleyen Evraklar (Çek / Senet)",
+                    Headers = new string[] { "Tür", "Seri/Evrak No", "Vade Tarihi", "Tutar", "Yönü", "Durum", "Vade Durumu" },
+                    Rows = evrakRows,
+                    NewPage = true
+                });
+            }
+
+            var pdfBytes = await _pdfService.GenerateConsolidatedReportPdfBytesAsync($"Cari Detay Raporu - {Cari.Unvan}", sections);
+            
+            if (pdfBytes != null && pdfBytes.Length > 0)
+            {
+                string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ErmayFiles");
+                if (!System.IO.Directory.Exists(tempDir)) System.IO.Directory.CreateDirectory(tempDir);
+                
+                string safeName = $"CariDetay_{Cari.Unvan}_{DateTime.Now:HHmmss}.pdf";
+                foreach (var c in System.IO.Path.GetInvalidFileNameChars()) { safeName = safeName.Replace(c.ToString(), "_"); }
+                string path = System.IO.Path.Combine(tempDir, safeName);
+                
+                await System.IO.File.WriteAllBytesAsync(path, pdfBytes);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error printing Cari Detay: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 }

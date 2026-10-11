@@ -86,7 +86,10 @@ export const toSnakeCase = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
   const newObj: any = {};
   for (const key of Object.keys(obj)) {
-    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    const snakeKey = key
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/^[A-Z]/, letter => letter.toLowerCase())
+      .toLowerCase();
     newObj[snakeKey] = toSnakeCase(obj[key]);
   }
   return newObj;
@@ -1554,6 +1557,20 @@ export const deleteData = async (path: string): Promise<boolean> => {
 
 export const updateDataBatch = async (updates: Record<string, any>): Promise<boolean> => {
   try {
+    // 1. Try atomic PostgreSQL transaction RPC if available
+    try {
+      const { data, error } = await supabase.rpc('exec_batch_updates', { updates_payload: updates });
+      if (!error && data === true) {
+        return true;
+      }
+      if (error) {
+        console.warn('[Supabase] exec_batch_updates RPC error, using fallback:', error.message);
+      }
+    } catch (rpcErr: any) {
+      console.warn('[Supabase] RPC not available, using sequential fallback:', rpcErr?.message);
+    }
+
+    // 2. Sequential fallback if RPC is not present or failed
     let success = true;
     for (const [path, val] of Object.entries(updates)) {
       const ok = await writeData(path, val);

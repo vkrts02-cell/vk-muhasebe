@@ -224,19 +224,19 @@ public partial class StokScenariosTests
             StokKodu = $"UNIT-{birim}",
             StokAdi = $"{birim} Bazlı Ürün",
             Birim = birim,
-            Miktar = miktar
+            Miktar = (decimal)miktar
         };
         await _uow.Stoklar.SaveAsync(stok);
 
         var retrieved = await _uow.Stoklar.GetByIdAsync(stok.Id);
         Assert.Equal(birim, retrieved!.Birim);
-        Assert.Equal(miktar, retrieved.Miktar);
+        Assert.Equal((decimal)miktar, retrieved.Miktar);
     }
 
     [Fact]
     public async Task Scenario_128_MilligramPrecision_StoresSmallFractionalValues()
     {
-        double smallQty = 0.005; // 5 gram = 0.005 kg
+        decimal smallQty = 0.005m; // 5 gram = 0.005 kg
         var stok = new StokKart { StokKodu = "MG-128", StokAdi = "Baharat", Birim = "Kg", Miktar = smallQty };
         await _uow.Stoklar.SaveAsync(stok);
 
@@ -247,7 +247,7 @@ public partial class StokScenariosTests
     [Fact]
     public async Task Scenario_129_HugeQuantity_StoresMillionsWithoutOverflow()
     {
-        double hugeQty = 5000000.0;
+        decimal hugeQty = 5000000m;
         var stok = new StokKart { StokKodu = "HUGE-129", StokAdi = "Çivi Adet", Birim = "Adet", Miktar = hugeQty };
         await _uow.Stoklar.SaveAsync(stok);
 

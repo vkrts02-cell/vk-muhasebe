@@ -278,11 +278,16 @@ export const generateReportPdf = async (endpoint: string, payload: any, reportNa
     try {
       const serverUrl = await getPdfServerUrl();
       const enrichedPayload = await enrichWithTasarim(endpoint, payload);
+      const apiKey = (await AsyncStorage.getItem('pdf_api_key')) || (process.env as any)?.EXPO_PUBLIC_PDF_API_KEY || '';
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (apiKey) {
+        headers['X-API-Key'] = apiKey;
+      }
       const response = await fetch(`${serverUrl}/generate/${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(enrichedPayload),
       });
 

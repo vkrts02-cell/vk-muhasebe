@@ -278,7 +278,7 @@ public partial class DashboardScenariosTests
     public async Task Scenario_122_FractionalStockQuantities_CountsInDistinctItems()
     {
         var conn = _dbService.GetConnection();
-        await conn.InsertAsync(new StokKart { Id = 1221, StokKodu = "STK-122", StokAdi = "Kumaş", Miktar = 14.75, MinSeviye = 20 });
+        await conn.InsertAsync(new StokKart { Id = 1221, StokKodu = "STK-122", StokAdi = "Kumaş", Miktar = 14.75m, MinSeviye = 20m });
 
         var vm = _serviceProvider.GetRequiredService<DashboardViewModel>();
         await vm.LoadStatsAsync();

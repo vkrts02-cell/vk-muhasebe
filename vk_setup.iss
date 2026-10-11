@@ -101,13 +101,15 @@ begin
 
   // Sistemde kayıtlı mevcut Supabase yapılandırması varsa otomatik doldur
   ExistingCloudConfig := '';
-  if FileExists(ExpandConstant('{localappdata}') + '\ermay_cloud_config.json') then
+  if FileExists(ExpandConstant('{localappdata}') + '\ErmayMuhasebe\ermay_cloud_config.json') then
+    LoadStringFromFile(ExpandConstant('{localappdata}') + '\ErmayMuhasebe\ermay_cloud_config.json', ExistingCloudConfig)
+  else if FileExists(ExpandConstant('{localappdata}') + '\ermay_cloud_config.json') then
+    LoadStringFromFile(ExpandConstant('{localappdata}') + '\ermay_cloud_config.json', ExistingCloudConfig);
+
+  if ExistingCloudConfig <> '' then
   begin
-    if LoadStringFromFile(ExpandConstant('{localappdata}') + '\ermay_cloud_config.json', ExistingCloudConfig) then
-    begin
-      SupabasePage.Values[0] := ExtractJsonValue(String(ExistingCloudConfig), 'BaseUrl');
-      SupabasePage.Values[1] := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
-    end;
+    SupabasePage.Values[0] := ExtractJsonValue(String(ExistingCloudConfig), 'BaseUrl');
+    SupabasePage.Values[1] := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
   end;
 
   // 3. Kullanıcı 1 (Ana Yönetici) ve Sistem Sıfırlama Şifresi Belirleme Sayfası
@@ -197,16 +199,23 @@ begin
     // 0. Temiz Kurulum: Veritabanı ve Bütün Eski Yapılandırmayı Sıfırla
     if WizardIsTaskSelected('cleandatabase') then
     begin
+      // Temiz kurulum bayrağını hem ErmayMuhasebe hem de localappdata köküne kaydet
+      ForceDirectories(AppDataDir + '\ErmayMuhasebe');
+      SaveStringToFile(AppDataDir + '\ErmayMuhasebe\clean_install_pending.flag', 'PENDING', False);
+      SaveStringToFile(AppDataDir + '\clean_install_pending.flag', 'PENDING', False);
+
       // Form kutucukları boş bırakılmışsa mevcut dosyadan oku
       if (SupabaseUrlVal = '') or (SupabaseKeyVal = '') then
       begin
-        if FileExists(AppDataDir + '\ermay_cloud_config.json') then
+        if FileExists(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json') then
+          LoadStringFromFile(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json', ExistingCloudConfig)
+        else if FileExists(AppDataDir + '\ermay_cloud_config.json') then
+          LoadStringFromFile(AppDataDir + '\ermay_cloud_config.json', ExistingCloudConfig);
+
+        if ExistingCloudConfig <> '' then
         begin
-          if LoadStringFromFile(AppDataDir + '\ermay_cloud_config.json', ExistingCloudConfig) then
-          begin
-            if SupabaseUrlVal = '' then SupabaseUrlVal := ExtractJsonValue(String(ExistingCloudConfig), 'BaseUrl');
-            if SupabaseKeyVal = '' then SupabaseKeyVal := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
-          end;
+          if SupabaseUrlVal = '' then SupabaseUrlVal := ExtractJsonValue(String(ExistingCloudConfig), 'BaseUrl');
+          if SupabaseKeyVal = '' then SupabaseKeyVal := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
         end;
       end;
 
@@ -225,27 +234,30 @@ begin
         '}' + #13#10 +
         'Remove-Item -Path ''' + AppDataDir + '\ermay_cloud_config.json'' -Force -ErrorAction SilentlyContinue' + #13#10;
 
-      // Supabase bulut veritabanını da temizle
-      if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') then
+      // Supabase bulut veritabanını da temizle (Düz anon key girildiyse)
+      if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') and (not (Pos('ENC::AES::', SupabaseKeyVal) > 0)) then
       begin
         ScriptContent := ScriptContent +
           '$rawUrl = ''' + SupabaseUrlVal + '''.Trim().TrimEnd(''/'')' + #13#10 +
           'if ($rawUrl.EndsWith(''/rest/v1'')) { $apiUrl = $rawUrl } else { $apiUrl = $rawUrl + ''/rest/v1'' }' + #13#10 +
           '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; Prefer = ''return=minimal'' }' + #13#10 +
           '$tables = @(' + #13#10 +
-          '  ''fatura_detaylar'',''siparis_detaylar'',''teklif_detaylar'',' + #13#10 +
-          '  ''cari_hareketler'',''stok_hareketler'',''banka_hareketler'',''kasa_hareketler'',' + #13#10 +
-          '  ''faturalar'',''siparisler'',''teklifler'',''stoklar'',''cariler'',''bankalar'',''kasalar'',''notlar''' + #13#10 +
+          '  ''fatura_detaylar'',''siparis_detaylar'',''teklif_detaylar'',''stok_sayim_detaylari'',''musteri_takip_detaylar'',' + #13#10 +
+          '  ''kredi_karti_islemler'',''eft_islemler'',''cekler'',''senetler'',''cari_hareketler'',''stok_hareketler'',' + #13#10 +
+          '  ''banka_hareketler'',''kasa_hareketler'',''stok_sayim_fisileri'',''musteri_takip_klasorler'',''gorevler'',' + #13#10 +
+          '  ''personeller'',''satis_hedefleri'',''haftalik_satis_hedefleri'',''yillik_satis_hedefleri'',''portfoy_kartlar'',' + #13#10 +
+          '  ''belge_arsiv'',''doviz_kurlari'',''faturalar'',''siparisler'',''teklifler'',''stoklar'',''cariler'',' + #13#10 +
+          '  ''bankalar'',''kasalar'',''notlar'',''mobil_gelen_kutusu'',''security_requests'',''user_security_states'',''mali_yillar''' + #13#10 +
           ')' + #13#10 +
           'for ($pass = 1; $pass -le 3; $pass++) {' + #13#10 +
           '  foreach ($t in $tables) {' + #13#10 +
           '    try {' + #13#10 +
-          '      Invoke-RestMethod -Uri ($apiUrl + ''/'' + $t + ''?id=gte.0'') -Method Delete -Headers $headers' + #13#10 +
+          '      $filter = if ($t -eq ''mali_yillar'') { ''?yil=gte.0'' } else { ''?id=not.is.null'' }' + #13#10 +
+          '      Invoke-RestMethod -Uri ($apiUrl + ''/'' + $t + $filter) -Method Delete -Headers $headers' + #13#10 +
           '    } catch {}' + #13#10 +
           '  }' + #13#10 +
           '}' + #13#10;
       end;
-
 
       SaveStringToFile(ScriptFile, ScriptContent, False);
       Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
@@ -315,6 +327,12 @@ begin
       SaveStringToFile(ScriptFile, ScriptContent, False);
       Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       DeleteFile(ScriptFile);
+    end;
+
+    // 4. Temiz Kurulum Seçilmişse: VK.exe CLI ile hem yerel hem bulut tablolarını tam sıfırla
+    if WizardIsTaskSelected('cleandatabase') then
+    begin
+      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '--clean-install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     end;
   end;
 end;

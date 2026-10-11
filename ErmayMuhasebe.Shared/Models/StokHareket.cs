@@ -63,29 +63,45 @@ namespace ErmayMuhasebe.Models
             }
         }
 
+        private static string NormalizeTurkish(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+            return text
+                .Replace('İ', 'i')
+                .Replace('I', 'i')
+                .Replace('ı', 'i')
+                .Replace('i', 'i')
+                .Replace('Ş', 's')
+                .Replace('ş', 's')
+                .Replace('Ğ', 'g')
+                .Replace('ğ', 'g')
+                .Replace('Ü', 'u')
+                .Replace('ü', 'u')
+                .Replace('Ö', 'o')
+                .Replace('ö', 'o')
+                .Replace('Ç', 'c')
+                .Replace('ç', 'c')
+                .Trim()
+                .ToLowerInvariant();
+        }
+
         public static bool IsStockInflow(string? islemTuru)
         {
             if (string.IsNullOrWhiteSpace(islemTuru)) return false;
-            string tur = islemTuru.Trim();
+            string norm = NormalizeTurkish(islemTuru);
 
-            if (tur.Contains("Satış İade", StringComparison.OrdinalIgnoreCase) || 
-                tur.Contains("Satis Iade", StringComparison.OrdinalIgnoreCase))
+            if (norm.Contains("satis iade"))
                 return true;
 
-            if (tur.Contains("Alış İade", StringComparison.OrdinalIgnoreCase) || 
-                tur.Contains("Alis Iade", StringComparison.OrdinalIgnoreCase))
+            if (norm.Contains("alis iade"))
                 return false;
 
-            if (tur.Contains("Alış", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Alis", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Giriş", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Giris", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("GİREN", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Açılış", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Acilis", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Devir", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Sayım Fazlası", StringComparison.OrdinalIgnoreCase) ||
-                tur.Contains("Sayim Fazlasi", StringComparison.OrdinalIgnoreCase))
+            if (norm.Contains("alis") ||
+                norm.Contains("giris") ||
+                norm.Contains("giren") ||
+                norm.Contains("acilis") ||
+                norm.Contains("devir") ||
+                norm.Contains("sayim fazlasi"))
             {
                 return true;
             }

@@ -89,7 +89,7 @@
                     
                     <div class="mt-auto pa-4" style="background: white; border-radius: 12px; border-left: 4px solid #10b981;">
                         <MudText Typo="Typo.subtitle2">Stok Değeri (Maliyet)</MudText>
-                        <MudText Typo="Typo.h5" Class="font-weight-bold">@((_stok.Miktar * (double)_stok.AlisFiyati).ToString("N0")) ₺</MudText>
+                        <MudText Typo="Typo.h5" Class="font-weight-bold">@((_stok.Miktar * _stok.AlisFiyati).ToString("N0")) ₺</MudText>
                     </div>
                 </MudPaper>
             </MudItem>

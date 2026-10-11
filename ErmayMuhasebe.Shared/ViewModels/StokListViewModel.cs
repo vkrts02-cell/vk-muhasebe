@@ -440,16 +440,18 @@ public abstract partial class StokListViewModel : ViewModelBase
   
                 if (EditAcilisBakiye != 0 && EditAcilisBakiye != null)
                 {
+                    bool isPositive = EditAcilisBakiye.Value > 0;
+                    decimal absBakiye = Math.Abs(EditAcilisBakiye.Value);
                     await _uow.Stoklar.SaveHareketAsync(new StokHareket
                     {
                         StokId = yeniStok.Id,
                         StokKodu = yeniStok.StokKodu ?? "",
                         StokAdi = yeniStok.StokAdi ?? "",
                         Tarih = DateTime.Now,
-                        IslemTuru = "GİRİŞ",
-                        Miktar = Math.Abs(EditAcilisBakiye.Value),
-                        Giren = EditAcilisBakiye.Value > 0 ? Math.Abs(EditAcilisBakiye.Value) : 0,
-                        Cikan = EditAcilisBakiye.Value < 0 ? Math.Abs(EditAcilisBakiye.Value) : 0,
+                        IslemTuru = isPositive ? "Giriş" : "Çıkış",
+                        Miktar = absBakiye,
+                        Giren = isPositive ? absBakiye : 0,
+                        Cikan = !isPositive ? absBakiye : 0,
                         Aciklama = "Açılış Bakiyesi",
                         Fiyat = EditAlisFiyati ?? 0
                     });

@@ -359,8 +359,8 @@ public partial class SiparisScenariosTests
     [Fact]
     public void Scenario_145_SiparisDetay_FractionalQuantityPrecision()
     {
-        var d = new SiparisDetay { Miktar = 12.375, BirimFiyat = 80m };
-        decimal total = (decimal)d.Miktar * d.BirimFiyat;
+        var d = new SiparisDetay { Miktar = 12.375m, BirimFiyat = 80m };
+        decimal total = d.Miktar * d.BirimFiyat;
         Assert.Equal(990.00m, total);
     }
 

@@ -38,7 +38,7 @@
 
     <!-- Whole screen background synced with application theme (#0A0A0A) -->
     <Border Background="{DynamicResource BackgroundBrush}">
-        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440" Width="400" Margin="24">
+        <Panel HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             
             <!-- Ana Seçim Kartı (Uygulama Tasarımı: PanelBrush #161616 & BorderColor) -->
             <Border Background="{DynamicResource PanelBrush}" 
@@ -46,8 +46,11 @@
                     BorderThickness="1.5" 
                     CornerRadius="22" 
                     Padding="32"
+                    MaxWidth="440" Width="400"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
                     BoxShadow="0 25 60 0 #60000000">
-                <StackPanel Spacing="22">
+                <StackPanel Spacing="20">
                     
                     <!-- Logo & Başlık Alanı -->
                     <StackPanel Spacing="10" HorizontalAlignment="Center">
@@ -56,7 +59,8 @@
                                HorizontalAlignment="Center"
                                Margin="0,0,0,4"/>
                         
-                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                        <!-- Başlık: Mevcut Yıllar Varsa -->
+                        <StackPanel Spacing="4" HorizontalAlignment="Center" IsVisible="{Binding !HasNoYears}">
                             <TextBlock Text="Çalışma Yılı Seçimi" 
                                        FontSize="22" 
                                        FontWeight="Black" 
@@ -65,6 +69,21 @@
                                        Foreground="{DynamicResource TextBrush}"/>
                             
                             <TextBlock Text="Lütfen çalışmak istediğiniz mali yılı seçiniz" 
+                                       FontSize="13" 
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Başlık: İlk Kurulum (Hiç Yıl Yoksa) -->
+                        <StackPanel Spacing="4" HorizontalAlignment="Center" IsVisible="{Binding HasNoYears}">
+                            <TextBlock Text="İlk Kurulum - Mali Yıl Belirleme" 
+                                       FontSize="20" 
+                                       FontWeight="Black" 
+                                       LetterSpacing="-0.5"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                            
+                            <TextBlock Text="Lütfen başlamak istediğiniz çalışma yılını belirleyiniz" 
                                        FontSize="13" 
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        HorizontalAlignment="Center"/>
@@ -88,23 +107,24 @@
                             Padding="8"
                             IsVisible="{Binding !HasNoYears}">
                         <ListBox ItemsSource="{Binding Years}" 
-                                 SelectedItem="{Binding SelectedYear}"
+                                 SelectedItem="{Binding SelectedYearItem}"
                                  Background="Transparent"
-                                 MaxHeight="240">
+                                 MaxHeight="220">
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Spacing="6"/>
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
                             <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="x:Int32">
+                                <DataTemplate x:DataType="vm:YearItemModel">
                                     <Border Padding="16,13" CornerRadius="12">
                                         <Grid ColumnDefinitions="Auto, *, Auto">
                                             <ic:SymbolIcon Symbol="CalendarMonth" FontSize="20" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center"/>
                                             <TextBlock Grid.Column="1" 
-                                                       Text="{Binding, StringFormat='{}{0} Mali Yılı'}" 
+                                                       Text="{Binding DisplayText}" 
                                                        FontSize="15" 
                                                        FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextBrush}"
                                                        Margin="14,0,0,0" 
                                                        VerticalAlignment="Center"/>
                                             <ic:SymbolIcon Symbol="ChevronRight" FontSize="16" Opacity="0.5" Grid.Column="2" VerticalAlignment="Center"/>
@@ -116,6 +136,7 @@
                                 <Style Selector="ListBoxItem">
                                     <Setter Property="Padding" Value="0"/>
                                     <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
                                     <Setter Property="Template">
                                         <ControlTemplate>
                                             <ContentPresenter Name="PART_ContentPresenter"
@@ -129,7 +150,12 @@
                                 </Style>
                                 <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
                                     <Setter Property="Background" Value="#0061FF"/>
-                                    <Setter Property="TextBlock.Foreground" Value="White"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected TextBlock">
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected ic|SymbolIcon">
+                                    <Setter Property="Foreground" Value="White"/>
                                 </Style>
                                 <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
                                     <Setter Property="Background" Value="#15FFFFFF"/>
@@ -141,102 +167,191 @@
                         </ListBox>
                     </Border>
 
-                    <!-- Yeni Yıl Ekleme (Sadece hiç yıl yoksa görünür) -->
-                    <Border Background="{DynamicResource SurfaceBrush}" 
-                            CornerRadius="16" 
-                            BorderThickness="1" 
-                            BorderBrush="{DynamicResource BorderColor}"
-                            Padding="24,20"
-                            IsVisible="{Binding HasNoYears}">
-                        <StackPanel Spacing="16" HorizontalAlignment="Stretch">
-                            <StackPanel Spacing="6" HorizontalAlignment="Center">
-                                <ic:SymbolIcon Symbol="CalendarAdd" FontSize="36" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                <TextBlock Text="Mali Yıl Bulunamadı" 
-                                           FontSize="15" FontWeight="Bold"
-                                           HorizontalAlignment="Center" 
-                                           Foreground="{DynamicResource TextBrush}"/>
-                                <TextBlock Text="Başlamak için lütfen çalışmak istediğiniz mali yılı girip oluşturun." 
-                                           TextWrapping="Wrap" 
-                                           TextAlignment="Center" 
-                                           FontSize="12" 
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
-                                           HorizontalAlignment="Center"/>
+                    <!-- Yeni Mali Yıl Ekle Butonu / Paneli (Yıl Listesi Varken) -->
+                    <StackPanel Spacing="8" IsVisible="{Binding !HasNoYears}">
+                        <!-- Buton: Yeni Yıl Ekleme Panelini Aç -->
+                        <Button Command="{Binding OpenAddNewYearCommand}" 
+                                Classes="LinkButton"
+                                HorizontalAlignment="Center"
+                                IsVisible="{Binding !IsAddingNewYear}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ic:SymbolIcon Symbol="AddCircle" FontSize="15" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Farklı / Yeni Mali Yıl Ekle" FontSize="13" FontWeight="SemiBold" Foreground="#60A5FA" VerticalAlignment="Center"/>
                             </StackPanel>
-                            
-                            <!-- Yıl Giriş Kutusu ve Kompakt Buton -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                                <Border Background="{DynamicResource PanelBrush}"
-                                        BorderBrush="{DynamicResource BorderColor}"
-                                        BorderThickness="1"
-                                        CornerRadius="10"
-                                        Padding="8,0"
-                                        Height="40"
-                                        Width="130"
-                                        VerticalAlignment="Center">
-                                    <Grid ColumnDefinitions="Auto, *">
-                                        <ic:SymbolIcon Symbol="Calendar" FontSize="18" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <TextBox Grid.Column="1"
-                                                 Text="{Binding NewYearToCreateText, Mode=TwoWay}" 
-                                                 FontSize="15" 
-                                                 FontWeight="Bold"
-                                                 HorizontalContentAlignment="Center"
-                                                 VerticalContentAlignment="Center"
-                                                 BorderThickness="0"
-                                                 Background="Transparent"
-                                                 Foreground="{DynamicResource TextBrush}"
-                                                 Watermark="2026"
-                                                 MaxLength="4"/>
-                                    </Grid>
-                                </Border>
+                        </Button>
 
-                                <!-- Kompakt Oluştur Butonu -->
-                                <Button Command="{Binding CreateNewYearCommand}" 
-                                        Height="40"
-                                        Width="120"
-                                        MaxWidth="120"
-                                        Padding="0"
-                                        Background="{DynamicResource FluidBlueGradient}" 
-                                        Foreground="White" 
-                                        BorderThickness="0" 
-                                        CornerRadius="10" 
-                                        HorizontalAlignment="Center"
-                                        HorizontalContentAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <ic:SymbolIcon Symbol="AddCircle" FontSize="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Oluştur" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
+                        <!-- Yeni Yıl Ekleme Paneli (Açıldığında) -->
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="12"
+                                IsVisible="{Binding IsAddingNewYear}">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Yeni Çalışma Yılı Belirleyin:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <Grid ColumnDefinitions="*, Auto, Auto">
+                                    <Border Background="{DynamicResource PanelBrush}"
+                                            BorderBrush="{DynamicResource BorderColor}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="10,0"
+                                            Height="38">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <ic:SymbolIcon Symbol="Calendar" FontSize="16" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding NewYearToCreateText, Mode=TwoWay}"
+                                                     FontSize="14"
+                                                     FontWeight="Bold"
+                                                     VerticalContentAlignment="Center"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Foreground="{DynamicResource TextBrush}"
+                                                     Watermark="Örn: 2027"
+                                                     MaxLength="4"/>
+                                        </Grid>
+                                    </Border>
+                                    <Button Grid.Column="1"
+                                            Command="{Binding CreateNewYearCommand}"
+                                            Height="38"
+                                            Margin="8,0,0,0"
+                                            Padding="14,0"
+                                            Background="{DynamicResource FluidBlueGradient}"
+                                            Foreground="White"
+                                            CornerRadius="8"
+                                            FontWeight="Bold"
+                                            FontSize="12"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                            <ic:SymbolIcon Symbol="Checkmark" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Oluştur ve Seç" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="2"
+                                            Command="{Binding CancelAddNewYearCommand}"
+                                            Height="38"
+                                            Margin="6,0,0,0"
+                                            Padding="10,0"
+                                            Background="#20FFFFFF"
+                                            Foreground="{DynamicResource SecondaryTextBrush}"
+                                            CornerRadius="8"
+                                            FontSize="12"
+                                            Cursor="Hand">
+                                        <TextBlock Text="Vazgeç" VerticalAlignment="Center"/>
+                                    </Button>
+                                </Grid>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
+                        </Border>
+                    </StackPanel>
 
-                    <!-- Butonlar -->
-                    <StackPanel Spacing="12" IsVisible="{Binding !HasNoYears}">
-                        <!-- Uygulamayı Başlat / Seçilen Yıla Geç -->
+                    <!-- İlk Kurulum Alanı (Hiç Yıl Yokken Görünür) -->
+                    <StackPanel Spacing="12" IsVisible="{Binding HasNoYears}">
+                        <TextBlock Text="Başlangıç Çalışma Yılı" 
+                                   FontSize="13" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="1.5"
+                                CornerRadius="12"
+                                Padding="14,0"
+                                Height="50">
+                            <Grid ColumnDefinitions="Auto, *">
+                                <ic:SymbolIcon Symbol="Calendar" FontSize="20" Foreground="#60A5FA" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding NewYearToCreateText, Mode=TwoWay}" 
+                                         FontSize="18" 
+                                         FontWeight="Bold"
+                                         VerticalContentAlignment="Center"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         Foreground="{DynamicResource TextBrush}"
+                                         Watermark="Örn: 2026"
+                                         MaxLength="4"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Ana Eylem Butonları -->
+                    <StackPanel Spacing="12">
+                        <!-- İlk Kurulum: Başlat Butonu -->
+                        <Button Command="{Binding CreateNewYearCommand}" 
+                                Height="48"
+                                Background="{DynamicResource FluidBlueGradient}" 
+                                Foreground="White" 
+                                BorderThickness="0" 
+                                CornerRadius="12" 
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                FontSize="15"
+                                FontWeight="Bold"
+                                IsDefault="True"
+                                Cursor="Hand"
+                                IsVisible="{Binding HasNoYears}">
+                            <Panel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsBusy}">
+                                    <ic:SymbolIcon Symbol="ArrowRight" FontSize="18" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Mali Yılı Oluştur ve Başlat" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsBusy}">
+                                    <ic:SymbolIcon Symbol="Clock" FontSize="18" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Mali Yıl Oluşturuluyor..." VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Panel>
+                        </Button>
+
+                        <!-- Mevcut Yıl Varken: Uygulamayı Başlat / Seçilen Yıla Geç Butonu -->
                         <Button Command="{Binding SelectYearCommand}" 
                                 Height="48"
                                 Background="{DynamicResource FluidBlueGradient}" 
                                 Foreground="White" 
+                                BorderThickness="0"
                                 CornerRadius="12"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 FontSize="15"
                                 FontWeight="Bold"
-                                IsEnabled="{Binding SelectedYear, Converter={StaticResource ObjectIsNotNullConverter}}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <ic:SymbolIcon Symbol="ArrowRight" FontSize="18" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding ActionButtonText}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                                IsDefault="True"
+                                Cursor="Hand"
+                                IsEnabled="{Binding SelectedYear, Converter={StaticResource ObjectIsNotNullConverter}}"
+                                IsVisible="{Binding !HasNoYears}">
+                            <Panel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsBusy}">
+                                    <ic:SymbolIcon Symbol="ArrowRight" FontSize="18" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ActionButtonText}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsBusy}">
+                                    <ic:SymbolIcon Symbol="Clock" FontSize="18" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Uygulama Başlatılıyor..." VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Panel>
                         </Button>
+                    </StackPanel>
 
+                    <!-- Yükleme Göstergesi -->
+                    <ProgressBar IsIndeterminate="True" 
+                                 Height="3" 
+                                 IsVisible="{Binding IsBusy}" 
+                                 Foreground="#38BDF8" 
+                                 Background="Transparent"
+                                 HorizontalAlignment="Stretch"
+                                 Margin="4,-4,4,0"/>
+
+                    <TextBlock Text="{Binding StatusMessage}" 
+                               IsVisible="{Binding IsBusy}" 
+                               HorizontalAlignment="Center" 
+                               FontSize="12" 
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               Margin="0,-6,0,0"/>
+
+                    <!-- Alt Link Butonları -->
+                    <StackPanel Spacing="6" HorizontalAlignment="Center">
                         <!-- Vazgeç / Ana Menüye Dön (Oturum Açılmışsa) -->
                         <Button Command="{Binding CancelCommand}" 
                                 Classes="LinkButton"
                                 HorizontalAlignment="Center"
-                                Margin="0,4,0,0"
                                 IsVisible="{Binding IsAlreadyAuthenticated}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <ic:SymbolIcon Symbol="ArrowLeft" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
@@ -248,7 +363,6 @@
                         <Button Command="{Binding SwitchUserCommand}" 
                                 Classes="LinkButton"
                                 HorizontalAlignment="Center"
-                                Margin="0,4,0,0"
                                 IsVisible="{Binding !IsAlreadyAuthenticated}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <ic:SymbolIcon Symbol="Person" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
@@ -256,9 +370,10 @@
                             </StackPanel>
                         </Button>
                     </StackPanel>
+
                 </StackPanel>
             </Border>
 
-        </Grid>
+        </Panel>
     </Border>
 </UserControl>

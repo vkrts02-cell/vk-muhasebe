@@ -33,6 +33,19 @@ sealed class Program
 
         try
         {
+            if (args != null && args.Length > 0)
+            {
+                for (int i = 0; i < args.Length; i++)
+                {
+                    var arg = args[i]?.Trim().ToLowerInvariant();
+                    if (arg == "--clean-install" || arg == "--clear-database" || arg == "/cleaninstall")
+                    {
+                        PerformCleanInstallCli();
+                        return;
+                    }
+                }
+            }
+
             // Initialize SQLite SQLCipher native library at the very beginning
             try
             {
@@ -101,6 +114,95 @@ sealed class Program
                 MessageBox(IntPtr.Zero, message, "Ermay Muhasebe - Kritik Hata", 0x10); // 0x10 is MB_ICONERROR
             }
             catch { }
+        }
+    }
+
+    private static void PerformCleanInstallCli()
+    {
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string appDir = Path.Combine(localAppData, "ErmayMuhasebe");
+        string logPath = Path.Combine(appDir, "clean_install.log");
+        if (!Directory.Exists(appDir)) Directory.CreateDirectory(appDir);
+
+        void Log(string msg)
+        {
+            try { File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
+            Console.WriteLine(msg);
+        }
+
+        Log("[VK Clean Install CLI] Starting comprehensive clean install reset...");
+        try
+        {
+            ErmayMuhasebe.Services.DatabaseService.IsResetting = true;
+
+            // 1. Reset Supabase Cloud Tables using CloudSyncService
+            try
+            {
+                var yearCtx = new ErmayMuhasebe.Services.YearContext();
+                var sync = new ErmayMuhasebe.Services.CloudSyncService(yearCtx);
+                Log($"[VK Clean Install CLI] CloudSyncService IsConnected: {sync.IsConnected}, BaseUrl: {sync.BaseUrl}");
+                if (sync.IsConnected)
+                {
+                    Log("[VK Clean Install CLI] Purging Supabase Cloud Tables...");
+                    sync.ClearCloudTablesAsync("default").GetAwaiter().GetResult();
+                    Log("[VK Clean Install CLI] Supabase Cloud Tables purged successfully.");
+                }
+                else
+                {
+                    Log("[VK Clean Install CLI] CloudSyncService is NOT connected! Trying manual LoadConfig from local appdata...");
+                    var cfgFile = Path.Combine(appDir, "ermay_cloud_config.json");
+                    if (File.Exists(cfgFile))
+                    {
+                        Log("[VK Clean Install CLI] Found config in ErmayMuhasebe folder, retrying...");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"[VK Clean Install CLI] Cloud purge error: {ex}");
+            }
+
+            // 2. Delete all local SQLite databases and temporary WAL/SHM files
+            if (Directory.Exists(appDir))
+            {
+                var files = Directory.GetFiles(appDir);
+                foreach (var f in files)
+                {
+                    var name = Path.GetFileName(f).ToLowerInvariant();
+                    if (name.Contains(".db") || name.EndsWith(".wal") || name.EndsWith(".shm") || name == "clean_install_pending.flag")
+                    {
+                        try 
+                        { 
+                            File.Delete(f); 
+                            Log($"[VK Clean Install CLI] Deleted local file: {name}");
+                        } 
+                        catch (Exception delEx) 
+                        {
+                            Log($"[VK Clean Install CLI] Failed to delete {name}: {delEx.Message}");
+                        }
+                    }
+                }
+            }
+
+            // Also check for pending flag in localAppData root
+            try
+            {
+                var flag1 = Path.Combine(appDir, "clean_install_pending.flag");
+                if (File.Exists(flag1)) File.Delete(flag1);
+                var flag2 = Path.Combine(localAppData, "clean_install_pending.flag");
+                if (File.Exists(flag2)) File.Delete(flag2);
+            }
+            catch { }
+
+            Log("[VK Clean Install CLI] Clean install completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            Log($"[VK Clean Install CLI] Error: {ex}");
+        }
+        finally
+        {
+            ErmayMuhasebe.Services.DatabaseService.IsResetting = false;
         }
     }
 

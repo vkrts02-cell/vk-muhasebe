@@ -48,7 +48,7 @@ public partial class VadeTakipViewModel : ViewModelBase
         WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => 
         {
             if (!DisableAutoRefresh)
-                _ = LoadVadelerAsync();
+                _ = LoadVadelerAsync(isSilent: true);
         });
     }
 
@@ -56,12 +56,12 @@ public partial class VadeTakipViewModel : ViewModelBase
     partial void OnSelectedFilterChanged(string value) => ApplyFilters();
 
     [RelayCommand]
-    public async Task LoadVadelerAsync()
+    public async Task LoadVadelerAsync(bool isSilent = false)
     {
-        if (IsLoading) return;
+        if (!isSilent && IsLoading) return;
         try
         {
-            IsLoading = true;
+            if (!isSilent && Vadeler.Count == 0) IsLoading = true;
             var items = new List<VadeItem>();
 
             // 1. Faturalar (Borç/Alacak Kalanı olanlar)
@@ -124,7 +124,7 @@ public partial class VadeTakipViewModel : ViewModelBase
         }
         finally
         {
-            IsLoading = false;
+            if (!isSilent) IsLoading = false;
         }
     }
 

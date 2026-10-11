@@ -177,17 +177,7 @@ Write-Host " - $mainSetup"
 Write-Host " - $altSetup1"
 Write-Host " - $altSetup2"
 
-# 6. Windows Explorer Onbellegini Sifirla ve Yeniden Baslat
-Write-Host "Windows Explorer onbellegi temizleniyor..."
-try {
-    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 1
-    Get-ChildItem "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" -Filter "iconcache*" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" -Filter "thumbcache*" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Remove-Item "$env:LOCALAPPDATA\IconCache.db" -Force -ErrorAction SilentlyContinue
-} catch {}
-finally {
-    Start-Process explorer
-}
+# 6. Windows Explorer Onbellegi (Istege bagli)
+# Write-Host "Kurulum tamamlandi."
 
 Write-Host "=== ISLEM BASARIYLA TAMAMLANDI ==="

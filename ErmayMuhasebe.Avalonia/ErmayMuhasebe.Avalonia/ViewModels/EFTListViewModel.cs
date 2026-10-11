@@ -16,6 +16,7 @@ public partial class EFTListViewModel : ErmayMuhasebe.Shared.ViewModels.EFTListV
     {
         WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => 
         {
+            if (m.Sender == this) return;
             if (!IsEditDialogVisible && !IsCariSecimVisible) _ = LoadIslemlerAsync();
         });
     }
@@ -36,6 +37,6 @@ public partial class EFTListViewModel : ErmayMuhasebe.Shared.ViewModels.EFTListV
 
     protected override void NotifyFinancialDataChanged()
     {
-        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage(this));
     }
 }

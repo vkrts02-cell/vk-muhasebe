@@ -196,11 +196,11 @@ public partial class StokScenariosTests
     [Fact]
     public async Task Scenario_75_KritikSeviye_Alias_MinSeviyeMatchesKritikSeviye()
     {
-        var stok = new StokKart { MinSeviye = 25.5 };
-        Assert.Equal(25.5, stok.KritikSeviye);
+        var stok = new StokKart { MinSeviye = 25.5m };
+        Assert.Equal(25.5m, stok.KritikSeviye);
 
-        stok.KritikSeviye = 40.0;
-        Assert.Equal(40.0, stok.MinSeviye);
+        stok.KritikSeviye = 40.0m;
+        Assert.Equal(40.0m, stok.MinSeviye);
     }
 
     [Fact]
@@ -226,11 +226,11 @@ public partial class StokScenariosTests
     [Fact]
     public async Task Scenario_78_FractionalQuantity_AllowsKilogramPrecision()
     {
-        var stok = new StokKart { StokKodu = "KG-78", StokAdi = "Tartılı Kumaş", Birim = "Kg", Miktar = 125.75 };
+        var stok = new StokKart { StokKodu = "KG-78", StokAdi = "Tartılı Kumaş", Birim = "Kg", Miktar = 125.75m };
         await _uow.Stoklar.SaveAsync(stok);
 
         var retrieved = await _uow.Stoklar.GetByIdAsync(stok.Id);
-        Assert.Equal(125.75, retrieved!.Miktar);
+        Assert.Equal(125.75m, retrieved!.Miktar);
     }
 
     [Fact]
@@ -530,7 +530,7 @@ public partial class StokScenariosTests
         string? changed = null;
         stok.PropertyChanged += (s, e) => changed = e.PropertyName;
 
-        stok.Miktar = 45.5;
+        stok.Miktar = 45.5m;
         Assert.Equal(nameof(StokKart.Miktar), changed);
     }
 

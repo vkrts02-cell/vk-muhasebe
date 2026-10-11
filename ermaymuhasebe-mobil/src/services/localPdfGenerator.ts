@@ -70,9 +70,9 @@ export const generateLocalPdfAndShare = async (options: LocalPdfOptions): Promis
   }
 };
 
-const getBaseStyles = () => `
+const getBaseStyles = (isLandscape = false) => `
   <style>
-    @page { margin: 15mm; size: A4 portrait; }
+    @page { margin: 15mm; size: A4 ${isLandscape ? 'landscape' : 'portrait'}; }
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     body { margin: 0; padding: 0; color: #1E293B; font-size: 11px; line-height: 1.5; background: #FFF; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 2px solid #2563EB; margin-bottom: 20px; }
@@ -131,6 +131,12 @@ const buildHeader = (meta: { firmaAdi: string; adres: string; telefon: string; l
 const buildGenericReportHtml = (options: LocalPdfOptions, company: any) => {
   const headers = options.headers || [];
   const rows = options.rows || [];
+  const titleLower = (options.title || '').toLowerCase();
+  const isLandscape = headers.length >= 8 || 
+                      titleLower.includes('detaylı gelir ve maliyet') || 
+                      titleLower.includes('detayli gelir ve maliyet') ||
+                      titleLower.includes('aylık tahsilat ve ödeme') ||
+                      titleLower.includes('aylik tahsilat ve odeme');
 
   return `
     <!DOCTYPE html>
@@ -138,7 +144,7 @@ const buildGenericReportHtml = (options: LocalPdfOptions, company: any) => {
       <head>
         <meta charset="utf-8">
         <title>${options.title}</title>
-        ${getBaseStyles()}
+        ${getBaseStyles(isLandscape)}
       </head>
       <body>
         ${buildHeader(company, options.title, options.subtitle)}

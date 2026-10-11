@@ -21,12 +21,16 @@ public partial class FaturaListViewModel : ErmayMuhasebe.Shared.ViewModels.Fatur
     {
         _fileService = fileService;
         // Listen for financial changes
-        WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => _ = LoadFaturalarAsync());
+        WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => 
+        {
+            if (m.Sender == this) return;
+            _ = LoadFaturalarAsync();
+        });
     }
 
     protected override void NotifyFinancialDataChanged()
     {
-        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage(this));
     }
 
     protected override async Task InvokeOnUIThreadAsync(Action action)

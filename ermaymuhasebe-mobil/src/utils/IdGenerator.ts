@@ -1,16 +1,26 @@
-let lastGeneratedId = 10000000;
+// Custom Base epoch (Jan 1, 2024 UTC = 1704067200) to keep IDs compact, safe, and positive within signed 32-bit int
+const APP_EPOCH_OFFSET = 1704067200;
+const MOBILE_ID_BASE = 100000000; // 100M+ range (above desktop auto-increments, strictly below 2.14B)
+const MAX_SAFE_INT32 = 2147483600;
+
+let lastGeneratedId = MOBILE_ID_BASE;
 
 /**
- * Mobil ortamda üretilen ID'ler 10,000,000 ile 1,999,999,999 aralığındaki güvenli havuzdan tahsis edilir.
+ * Mobil ortamda üretilen ID'ler 100,000,000 ile 2,147,483,600 aralığındaki güvenli havuzdan tahsis edilir.
  * Masaüstü SQLite veritabanı autoincrement olarak 1, 2, 3... sayılarından başladığı için,
  * mobil çevrimdışıyken veya masaüstüyle eşzamanlı yeni kayıt eklendiğinde ID ÇAKIŞMASI KESİNLİKLE ENGELLENİR.
  */
 export const generateInt32Id = (): number => {
-  const epochSec = Math.floor(Date.now() / 1000); // ~1,740,000,000
-  let newId = epochSec;
+  const epochSec = Math.floor(Date.now() / 1000);
+  const delta = Math.max(0, epochSec - APP_EPOCH_OFFSET);
+  let newId = MOBILE_ID_BASE + delta;
 
   if (newId <= lastGeneratedId) {
     newId = lastGeneratedId + 1;
+  }
+
+  if (newId >= MAX_SAFE_INT32) {
+    newId = MOBILE_ID_BASE;
   }
 
   lastGeneratedId = newId;

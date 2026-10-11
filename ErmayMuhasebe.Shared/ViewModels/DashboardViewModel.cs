@@ -169,9 +169,12 @@ public partial class DashboardViewModel : ViewModelBase
         };
     }
 
-    public async Task LoadStatsAsync()
+    public async Task LoadStatsAsync(bool isSilent = false)
     {
-        IsLoading = true;
+        if (!isSilent && Goals.Count == 0 && TargetVsActualData.Length == 0)
+        {
+            IsLoading = true;
+        }
         
         // 1. Goal Tracking Data
         try 

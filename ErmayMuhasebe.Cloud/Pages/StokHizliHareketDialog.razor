@@ -19,7 +19,7 @@
                 <MudText Typo="Typo.caption">Mevcut Stok: <b>@Model.Miktar @Model.Birim</b></MudText>
             </MudPaper>
 
-            <MudNumericField @bind-Value="_miktar" Label="İşlem Miktarı" Variant="Variant.Outlined" Min="0.01" FullWidth="true" AutoFocus="true" />
+            <MudNumericField @bind-Value="_miktar" Label="İşlem Miktarı" Variant="Variant.Outlined" Min="0.01m" FullWidth="true" AutoFocus="true" />
             
             <MudTextField @bind-Value="_aciklama" Label="Açıklama / Not" Variant="Variant.Outlined" Lines="2" Placeholder="Örn: Sayım farkı, numune vs." />
 
@@ -39,12 +39,12 @@
     [Parameter] public StokKart Model { get; set; } = new();
     [Parameter] public bool IsEntry { get; set; } = true;
 
-    private double _miktar = 1;
+    private decimal _miktar = 1m;
     private string _aciklama = "";
 
     private async Task Submit()
     {
-        if (_miktar <= 0)
+        if (_miktar <= 0m)
         {
             Snackbar.Add("Miktar 0'dan büyük olmalıdır.", Severity.Warning);
             return;

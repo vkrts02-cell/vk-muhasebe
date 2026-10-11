@@ -16,6 +16,7 @@ public partial class KrediKartiListViewModel : ErmayMuhasebe.Shared.ViewModels.K
     {
         WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => 
         {
+            if (m.Sender == this) return;
             if (!IsEditDialogVisible && !IsCariSecimVisible) _ = LoadIslemlerAsync();
         });
     }
@@ -36,6 +37,6 @@ public partial class KrediKartiListViewModel : ErmayMuhasebe.Shared.ViewModels.K
 
     protected override void NotifyFinancialDataChanged()
     {
-        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage(this));
     }
 }

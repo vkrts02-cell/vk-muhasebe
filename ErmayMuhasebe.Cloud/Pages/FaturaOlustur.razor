@@ -551,7 +551,7 @@
                             <td style="text-align:center; padding: 2px;">
                                 <input type="number" 
                                        value="@line.Miktar" 
-                                       @oninput="@(async e => { if(double.TryParse(e.Value?.ToString(), out var v)) { line.Miktar = v; await RecalculateLine(line); StateHasChanged(); } })"
+                                       @oninput="@(async e => { if(decimal.TryParse(e.Value?.ToString(), out var v)) { line.Miktar = v; await RecalculateLine(line); StateHasChanged(); } })"
                                        class="table-input" style="text-align:center; width: 60px;" />
                             </td>
                             <td style="text-align:center; padding: 2px;">

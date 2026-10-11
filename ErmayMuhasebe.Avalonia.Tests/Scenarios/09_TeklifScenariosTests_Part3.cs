@@ -357,8 +357,8 @@ public partial class TeklifScenariosTests
     [Fact]
     public void Scenario_145_TeklifDetay_FractionalQuantityPrecision()
     {
-        var d = new TeklifDetay { Miktar = 15.5, BirimFiyat = 40m };
-        decimal total = (decimal)d.Miktar * d.BirimFiyat;
+        var d = new TeklifDetay { Miktar = 15.5m, BirimFiyat = 40m };
+        decimal total = d.Miktar * d.BirimFiyat;
         Assert.Equal(620.0m, total);
     }
 

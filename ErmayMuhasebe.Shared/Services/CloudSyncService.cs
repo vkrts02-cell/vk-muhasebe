@@ -274,7 +274,12 @@ namespace ErmayMuhasebe.Services
         {
             var cleanUrl = CleanSupabaseUrl(url);
             _config.BaseUrl = string.IsNullOrWhiteSpace(cleanUrl) ? CloudConfig.DefaultSupabaseUrl : cleanUrl;
-            _config.AuthSecret = string.IsNullOrWhiteSpace(secret) ? CloudConfig.DefaultSupabaseKey : secret.Trim();
+            string rawSecret = secret?.Trim() ?? "";
+            if (rawSecret.StartsWith("ENC::AES::"))
+            {
+                try { rawSecret = AuthService.Decrypt(rawSecret); } catch { }
+            }
+            _config.AuthSecret = string.IsNullOrWhiteSpace(rawSecret) ? CloudConfig.DefaultSupabaseKey : rawSecret;
             _config.IsActive = !string.IsNullOrEmpty(_config.BaseUrl) && !string.IsNullOrEmpty(_config.AuthSecret);
             _config.IsAutoSyncEnabled = true;
             SaveConfigInternal();
@@ -659,7 +664,7 @@ namespace ErmayMuhasebe.Services
             ["vade_tarihi"] = f.VadeTarihi.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             ["ara_toplam"] = f.AraToplam,
             ["kdv_toplam"] = f.KdvToplam,
-            ["iskonto_toplam"] = 0m,
+            ["iskonto_toplam"] = f.IskontoToplam,
             ["genel_toplam"] = f.GenelToplam,
             ["aciklama"] = f.Aciklama ?? "",
             ["is_kapali"] = f.IptalMi ? false : (f.Kalan <= 0),
@@ -682,6 +687,7 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("vade_tarihi", out var vt) && vt.ValueKind == JsonValueKind.String && DateTime.TryParse(vt.GetString(), out var vd)) f.VadeTarihi = vd;
             if (el.TryGetProperty("ara_toplam", out var at)) f.AraToplam = ParseDecimal(at);
             if (el.TryGetProperty("kdv_toplam", out var kt)) f.KdvToplam = ParseDecimal(kt);
+            if (el.TryGetProperty("iskonto_toplam", out var itp)) f.IskontoToplam = ParseDecimal(itp);
             if (el.TryGetProperty("genel_toplam", out var gt)) f.GenelToplam = ParseDecimal(gt);
             if (el.TryGetProperty("odenen", out var od)) f.Odenen = ParseDecimal(od);
             else if (el.TryGetProperty("odenen_tutar", out var odt)) f.Odenen = ParseDecimal(odt);
@@ -718,9 +724,9 @@ namespace ErmayMuhasebe.Services
             ["kdv_orani"] = (decimal)d.KDVOrani,
             ["kdv_tutari"] = d.KdvTutari,
             ["toplam_tutar"] = d.ToplamTutar,
-            ["iskonto_orani"] = 0m,
-            ["iskonto_tutari"] = 0m,
-            ["aciklama"] = ""
+            ["iskonto_orani"] = d.IskontoOrani,
+            ["iskonto_tutari"] = d.IskontoTutari,
+            ["aciklama"] = d.Aciklama ?? ""
         };
 
         private static FaturaDetay MapPayloadToFaturaDetay(JsonElement el)
@@ -737,6 +743,9 @@ namespace ErmayMuhasebe.Services
             if (el.TryGetProperty("kdv_orani", out var ko)) d.KDVOrani = ParseInt(ko);
             if (el.TryGetProperty("kdv_tutari", out var kt)) d.KdvTutari = ParseDecimal(kt);
             if (el.TryGetProperty("toplam_tutar", out var tt)) d.ToplamTutar = ParseDecimal(tt);
+            if (el.TryGetProperty("iskonto_orani", out var io)) d.IskontoOrani = ParseDecimal(io);
+            if (el.TryGetProperty("iskonto_tutari", out var it)) d.IskontoTutari = ParseDecimal(it);
+            if (el.TryGetProperty("aciklama", out var ac) && ac.ValueKind == JsonValueKind.String) d.Aciklama = ac.GetString();
             return d;
         }
 
@@ -2681,7 +2690,10 @@ namespace ErmayMuhasebe.Services
                 "kasalar",
                 "notlar",
 
-                // 3. Fiscal years
+                // 3. Fiscal years and extra tables
+                "mobil_gelen_kutusu",
+                "security_requests",
+                "user_security_states",
                 "mali_yillar"
             };
 

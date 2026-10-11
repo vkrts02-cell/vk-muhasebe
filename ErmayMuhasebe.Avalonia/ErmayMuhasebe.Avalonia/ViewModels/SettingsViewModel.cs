@@ -2144,25 +2144,20 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
             int baseYear = DateTime.Now.Year;
 
-            // 4. Oluşturulmuş tüm ek mali yılları (.db, .db-wal, .db-shm) diskten kalıcı olarak sil
+            // 4. Oluşturulmuş tüm mali yılları (.db, .db-wal, .db-shm) diskten kalıcı olarak sil
             string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
             if (System.IO.Directory.Exists(appDir))
             {
                 var yearFiles = System.IO.Directory.GetFiles(appDir, "ermay_*.db*");
                 foreach (var file in yearFiles)
                 {
-                    var fileName = System.IO.Path.GetFileName(file);
-                    // Temel yıl dışındaki tüm oluşturulmuş ekstra yıl veritabanlarını (.db, .db-wal, .db-shm) sil
-                    if (!fileName.StartsWith($"ermay_{baseYear}."))
+                    try
                     {
-                        try
-                        {
-                            System.IO.File.Delete(file);
-                        }
-                        catch (Exception fEx)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[FactoryReset] Yıl dosyası silinemedi ({file}): {fEx.Message}");
-                        }
+                        System.IO.File.Delete(file);
+                    }
+                    catch (Exception fEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[FactoryReset] Yıl dosyası silinemedi ({file}): {fEx.Message}");
                     }
                 }
 

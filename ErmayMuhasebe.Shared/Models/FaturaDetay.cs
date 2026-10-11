@@ -36,5 +36,8 @@ namespace ErmayMuhasebe.Models
         [System.Text.Json.Serialization.JsonIgnore] 
         public decimal Tutar => ToplamTutar; 
         public string? Aciklama { get; set; }
+
+        public decimal IskontoOrani { get; set; }
+        public decimal IskontoTutari { get; set; }
     }
 }

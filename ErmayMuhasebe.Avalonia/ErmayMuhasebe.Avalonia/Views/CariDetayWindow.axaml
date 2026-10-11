@@ -39,6 +39,9 @@
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+           <Button Command="{Binding PrintCommand}" Classes="Secondary" Width="36" Height="36" CornerRadius="18" Padding="0" BorderThickness="0" Background="#15FFFFFF" ToolTip.Tip="Sayfayı Yazdır (PDF)">
+              <ic:SymbolIcon Symbol="Print" FontSize="18" Foreground="White"/>
+           </Button>
            <Button Command="{Binding GoBackCommand}" Classes="Secondary" Width="36" Height="36" CornerRadius="18" Padding="0" BorderThickness="0" Background="#15FFFFFF">
               <ic:SymbolIcon Symbol="Dismiss" FontSize="18" Foreground="White"/>
            </Button>

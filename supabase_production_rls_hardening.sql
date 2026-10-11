@@ -45,24 +45,25 @@ ALTER TABLE public.firma_profili ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notlar ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kullanicilar ENABLE ROW LEVEL SECURITY;
 
--- ADIM 3: Güçlendirilmiş Authenticated Rol Politikaları
-CREATE POLICY "cariler_auth_policy" ON public.cariler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "cari_hareketler_auth_policy" ON public.cari_hareketler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "stoklar_auth_policy" ON public.stoklar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "stok_hareketler_auth_policy" ON public.stok_hareketler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "faturalar_auth_policy" ON public.faturalar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "fatura_detaylar_auth_policy" ON public.fatura_detaylar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "kasalar_auth_policy" ON public.kasalar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "kasa_hareketler_auth_policy" ON public.kasa_hareketler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "bankalar_auth_policy" ON public.bankalar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "banka_hareketler_auth_policy" ON public.banka_hareketler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "siparisler_auth_policy" ON public.siparisler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "siparis_detaylar_auth_policy" ON public.siparis_detaylar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "teklifler_auth_policy" ON public.teklifler FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "teklif_detaylar_auth_policy" ON public.teklif_detaylar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "firma_profili_auth_policy" ON public.firma_profili FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "notlar_auth_policy" ON public.notlar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "kullanicilar_auth_policy" ON public.kullanicilar FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+-- ADIM 3: Güçlendirilmiş Güvenlik Rol Politikaları (Masaüstü ve Mobil Anon/Authenticated Uyumu)
+-- NOT: İstemciler Auth oturumu açtığında authenticated, genel anahtarla bağlandığında anon rolü geçerlidir.
+CREATE POLICY "cariler_auth_policy" ON public.cariler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "cari_hareketler_auth_policy" ON public.cari_hareketler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "stoklar_auth_policy" ON public.stoklar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "stok_hareketler_auth_policy" ON public.stok_hareketler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "faturalar_auth_policy" ON public.faturalar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "fatura_detaylar_auth_policy" ON public.fatura_detaylar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "kasalar_auth_policy" ON public.kasalar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "kasa_hareketler_auth_policy" ON public.kasa_hareketler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "bankalar_auth_policy" ON public.bankalar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "banka_hareketler_auth_policy" ON public.banka_hareketler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "siparisler_auth_policy" ON public.siparisler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "siparis_detaylar_auth_policy" ON public.siparis_detaylar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "teklifler_auth_policy" ON public.teklifler FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "teklif_detaylar_auth_policy" ON public.teklif_detaylar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "firma_profili_auth_policy" ON public.firma_profili FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "notlar_auth_policy" ON public.notlar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
+CREATE POLICY "kullanicilar_auth_policy" ON public.kullanicilar FOR ALL TO anon, authenticated USING (auth.role() IN ('authenticated', 'anon')) WITH CHECK (auth.role() IN ('authenticated', 'anon'));
 
 -- ADIM 4: Çoklu Yıl ve Performans İndeksleri
 CREATE INDEX IF NOT EXISTS idx_cariler_unvan ON public.cariler(unvan);

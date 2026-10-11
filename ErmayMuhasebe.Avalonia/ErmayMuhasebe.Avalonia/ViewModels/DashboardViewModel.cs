@@ -276,12 +276,59 @@ public partial class DashboardViewModel : ViewModelBase
         UpdateGoalChart();
     }
 
+    private decimal[] _lastRenderedTargets = Array.Empty<decimal>();
+    private decimal[] _lastRenderedActuals = Array.Empty<decimal>();
+    private string[] _lastRenderedLabels = Array.Empty<string>();
+    private bool? _lastRenderedIsWeekly = null;
+
     private void UpdateGoalChart()
     {
         var targets = IsWeeklyGoal ? _chartWeeklyTargets : _chartMonthlyTargets;
         var actuals = IsWeeklyGoal ? _chartWeeklyActuals : _chartMonthlyActuals;
         var labels = IsWeeklyGoal ? _chartWeeklyLabels : _chartMonthlyLabels;
-        
+
+        // Veriler tamamen aynıysa ve seri zaten ekrandaysa yeniden çizim yapıp animasyonu sıfırlama
+        if (_lastRenderedIsWeekly == IsWeeklyGoal &&
+            TargetVsActualSeries != null && TargetVsActualSeries.Length == 2 &&
+            _lastRenderedTargets.SequenceEqual(targets) &&
+            _lastRenderedActuals.SequenceEqual(actuals) &&
+            _lastRenderedLabels.SequenceEqual(labels))
+        {
+            return;
+        }
+
+        // Seri zaten oluşturulmuşsa ve aynı periyotta sadece veri güncelleniyorsa (arka plan yenilemesi),
+        // seriyi sıfırdan oluşturmak yerine sadece Values ve Eksen güncellemesi yap
+        if (_lastRenderedIsWeekly == IsWeeklyGoal &&
+            TargetVsActualSeries != null && TargetVsActualSeries.Length == 2 &&
+            TargetVsActualSeries[0] is LineSeries<decimal> sTarget &&
+            TargetVsActualSeries[1] is LineSeries<decimal> sActual)
+        {
+            sTarget.Values = targets;
+            sActual.Values = actuals;
+
+            if (TargetVsActualXAxis != null && TargetVsActualXAxis.Length > 0 && TargetVsActualXAxis[0] is Axis xAxis)
+            {
+                xAxis.Labels = labels;
+            }
+
+            var maxT = targets.Any() ? targets.Max() : 0;
+            var maxA = actuals.Any() ? actuals.Max() : 0;
+            var maxValue = Math.Max(maxT, maxA);
+            var maxY = maxValue < 10 ? 100 : (decimal?)null;
+
+            if (TargetVsActualYAxis != null && TargetVsActualYAxis.Length > 0 && TargetVsActualYAxis[0] is Axis yAxis)
+            {
+                yAxis.MaxLimit = (double?)maxY;
+            }
+
+            _lastRenderedTargets = (decimal[])targets.Clone();
+            _lastRenderedActuals = (decimal[])actuals.Clone();
+            _lastRenderedLabels = (string[])labels.Clone();
+            _lastRenderedIsWeekly = IsWeeklyGoal;
+            return;
+        }
+
         var targetColor = new SKColor(255, 107, 0); // Vivid Orange
         var realizedColor = new SKColor(0, 230, 118); // Vivid Green
 
@@ -313,17 +360,17 @@ public partial class DashboardViewModel : ViewModelBase
             }
         };
 
-        var maxT = targets.Any() ? targets.Max() : 0;
-        var maxA = actuals.Any() ? actuals.Max() : 0;
-        var maxValue = Math.Max(maxT, maxA);
-        var maxY = maxValue < 10 ? 100 : (decimal?)null;
+        var maxTarget = targets.Any() ? targets.Max() : 0;
+        var maxActual = actuals.Any() ? actuals.Max() : 0;
+        var maxVal = Math.Max(maxTarget, maxActual);
+        var maxYVal = maxVal < 10 ? 100 : (decimal?)null;
 
         TargetVsActualYAxis = new ICartesianAxis[]
         {
             new Axis
             {
                 MinLimit = 0,
-                MaxLimit = (double?)maxY,
+                MaxLimit = (double?)maxYVal,
                 MinStep = 1,
                 SeparatorsPaint = new SolidColorPaint(SKColors.Gray.WithAlpha(20)) { StrokeThickness = 1 },
                 LabelsPaint = new SolidColorPaint(SKColors.Gray),
@@ -340,6 +387,11 @@ public partial class DashboardViewModel : ViewModelBase
                 TextSize = 14
             }
         };
+
+        _lastRenderedTargets = (decimal[])targets.Clone();
+        _lastRenderedActuals = (decimal[])actuals.Clone();
+        _lastRenderedLabels = (string[])labels.Clone();
+        _lastRenderedIsWeekly = IsWeeklyGoal;
     }
 
     public async Task LoadStatsAsync()
@@ -452,20 +504,20 @@ public partial class DashboardViewModel : ViewModelBase
         var stats = await _uow.GetDashboardStatsAsync();
         await InvokeOnUIThreadAsync(() => 
         {
-            GunlukSatis = stats.GunlukCiro;
-            ToplamTahsilat = stats.ToplamTahsilat; 
-            ToplamBorc = stats.ToplamBorc;
-            ToplamAlacak = stats.ToplamAlacak;
-            ToplamNakitVarligi = stats.ToplamNakitVarligi;
-            BugunOdenecek = stats.BugunOdenecek;
-            BugunTahsilat = stats.BugunTahsilat;
-            StokSayisi = stats.KritikStokSayisi;
-            BekleyenOdeme = stats.BekleyenOdeme;
-            StokDevirHizi = stats.StokDevirHizi;
-            CariTahsilatSuresi = stats.CariTahsilatSuresi;
-            Karlilik = stats.Karlilik;
-            KarlilikOrani = stats.KarlilikOrani;
-            ToplamMaliyet = stats.ToplamMaliyet;
+            if (GunlukSatis != stats.GunlukCiro) GunlukSatis = stats.GunlukCiro;
+            if (ToplamTahsilat != stats.ToplamTahsilat) ToplamTahsilat = stats.ToplamTahsilat; 
+            if (ToplamBorc != stats.ToplamBorc) ToplamBorc = stats.ToplamBorc;
+            if (ToplamAlacak != stats.ToplamAlacak) ToplamAlacak = stats.ToplamAlacak;
+            if (ToplamNakitVarligi != stats.ToplamNakitVarligi) ToplamNakitVarligi = stats.ToplamNakitVarligi;
+            if (BugunOdenecek != stats.BugunOdenecek) BugunOdenecek = stats.BugunOdenecek;
+            if (BugunTahsilat != stats.BugunTahsilat) BugunTahsilat = stats.BugunTahsilat;
+            if (StokSayisi != stats.KritikStokSayisi) StokSayisi = stats.KritikStokSayisi;
+            if (BekleyenOdeme != stats.BekleyenOdeme) BekleyenOdeme = stats.BekleyenOdeme;
+            if (StokDevirHizi != stats.StokDevirHizi) StokDevirHizi = stats.StokDevirHizi;
+            if (CariTahsilatSuresi != stats.CariTahsilatSuresi) CariTahsilatSuresi = stats.CariTahsilatSuresi;
+            if (Karlilik != stats.Karlilik) Karlilik = stats.Karlilik;
+            if (KarlilikOrani != stats.KarlilikOrani) KarlilikOrani = stats.KarlilikOrani;
+            if (ToplamMaliyet != stats.ToplamMaliyet) ToplamMaliyet = stats.ToplamMaliyet;
 
             UpdateNetDurum();
         });
@@ -504,16 +556,55 @@ public partial class DashboardViewModel : ViewModelBase
 
         await InvokeOnUIThreadAsync(() =>
         {
-            RecentTransactions = new ObservableCollection<RecentTransactionItem>(recents ?? new List<RecentTransactionItem>());
-            RiskyCaris = new ObservableCollection<CariAlertItem>(risks ?? new List<CariAlertItem>());
-            PayableCaris = new ObservableCollection<CariAlertItem>(payables ?? new List<CariAlertItem>());
-            
-            HasRecentTransactions = RecentTransactions.Any();
-            HasRiskyCaris = RiskyCaris.Any();
-            HasPayableCaris = PayableCaris.Any();
+            if (!AreRecentTransactionsEqual(RecentTransactions, recents))
+            {
+                RecentTransactions = new ObservableCollection<RecentTransactionItem>(recents ?? new List<RecentTransactionItem>());
+                HasRecentTransactions = RecentTransactions.Any();
+            }
+
+            if (!AreCariAlertsEqual(RiskyCaris, risks))
+            {
+                RiskyCaris = new ObservableCollection<CariAlertItem>(risks ?? new List<CariAlertItem>());
+                HasRiskyCaris = RiskyCaris.Any();
+            }
+
+            if (!AreCariAlertsEqual(PayableCaris, payables))
+            {
+                PayableCaris = new ObservableCollection<CariAlertItem>(payables ?? new List<CariAlertItem>());
+                HasPayableCaris = PayableCaris.Any();
+            }
         });
 
         await LoadNotesAsync();
+    }
+
+    private static bool AreRecentTransactionsEqual(IList<RecentTransactionItem> list1, IList<RecentTransactionItem>? list2)
+    {
+        if (list2 == null) return list1.Count == 0;
+        if (list1.Count != list2.Count) return false;
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (list1[i].Title != list2[i].Title ||
+                list1[i].Description != list2[i].Description ||
+                list1[i].Amount != list2[i].Amount ||
+                list1[i].Date != list2[i].Date)
+                return false;
+        }
+        return true;
+    }
+
+    private static bool AreCariAlertsEqual(IList<CariAlertItem> list1, IList<CariAlertItem>? list2)
+    {
+        if (list2 == null) return list1.Count == 0;
+        if (list1.Count != list2.Count) return false;
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (list1[i].CariId != list2[i].CariId ||
+                list1[i].Bakiye != list2[i].Bakiye ||
+                list1[i].OrtalamaVade != list2[i].OrtalamaVade)
+                return false;
+        }
+        return true;
     }
 
     private async Task LoadNotesAsync()
@@ -521,8 +612,26 @@ public partial class DashboardViewModel : ViewModelBase
         var notesList = await _uow.Notes.GetByRelatedAsync("General", 0);
         await InvokeOnUIThreadAsync(() =>
         {
-            Notes = new ObservableCollection<Note>(notesList);
-            HasNotes = Notes.Any();
+            if (!AreNotesEqual(Notes, notesList))
+            {
+                Notes = new ObservableCollection<Note>(notesList);
+                HasNotes = Notes.Any();
+            }
         });
+    }
+
+    private static bool AreNotesEqual(IList<Note> list1, IList<Note>? list2)
+    {
+        if (list2 == null) return list1.Count == 0;
+        if (list1.Count != list2.Count) return false;
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (list1[i].Id != list2[i].Id ||
+                list1[i].Title != list2[i].Title ||
+                list1[i].Content != list2[i].Content ||
+                list1[i].IsPinned != list2[i].IsPinned)
+                return false;
+        }
+        return true;
     }
 }

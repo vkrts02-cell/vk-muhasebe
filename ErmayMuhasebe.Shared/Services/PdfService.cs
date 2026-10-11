@@ -216,9 +216,69 @@ namespace ErmayMuhasebe.Services
             return isLandscape ? pageSize.Landscape() : pageSize.Portrait();
         }
 
-        private string GetReportOrientation(string title)
+        public string GetReportOrientation(string title)
         {
-            return "Landscape";
+            return GetReportOrientation(title, (string[]?)null);
+        }
+
+        public string GetReportOrientation(string title, string[]? headers)
+        {
+            // Akıllı Dinamik Yönlendirme (Smart Dynamic Orientation):
+            // Sadece dikey A4 sayfasına sığmayan geniş raporlar Yatay (Landscape), diğerleri Dikey (Portrait) basılır.
+
+            // 1. Başlık bazlı kesin yatay gerektiren çok sütunlu raporlar (Örn: 9 sütun veya 13 sütun)
+            if (!string.IsNullOrEmpty(title))
+            {
+                var t = title.ToLower(new CultureInfo("tr-TR"));
+                if (t.Contains("detaylı gelir ve maliyet") || 
+                    t.Contains("detayli gelir ve maliyet") ||
+                    t.Contains("aylık tahsilat ve ödeme") ||
+                    t.Contains("aylik tahsilat ve odeme"))
+                {
+                    return "Landscape";
+                }
+            }
+
+            // 2. Sütun sayısı kontrolü: 8 veya daha fazla sütun dikey A4'e (538 pt) sığmaz, yatay olmalıdır.
+            if (headers != null && headers.Length >= 8)
+            {
+                return "Landscape";
+            }
+
+            // 3. 7 veya daha az sütun içeren tüm tablolar dikey sayfaya ferah şekilde sığar.
+            return "Portrait";
+        }
+
+        public string GetReportOrientation(string title, List<ReportSection>? sections)
+        {
+            // Konsolide / çok bölümlü raporlarda:
+            // Herhangi bir bölüm 8 veya daha fazla sütun içeriyorsa veya yan yana çift grafik varsa yatay olmalı
+            if (sections != null && sections.Any())
+            {
+                bool hasWideTable = sections.Any(s => s.Headers != null && s.Headers.Length >= 8);
+                if (hasWideTable) return "Landscape";
+
+                bool hasDualOrExtraCharts = sections.Any(s => s.ExtraCharts != null && s.ExtraCharts.Any()) ||
+                                           sections.Any(s => (s.ChartData != null && s.ChartData.Any() || s.SingleBarData != null && s.SingleBarData.Any()) &&
+                                                             s.HorizontalBarData != null && s.HorizontalBarData.Any());
+                if (hasDualOrExtraCharts) return "Landscape";
+            }
+
+            if (!string.IsNullOrEmpty(title))
+            {
+                var t = title.ToLower(new CultureInfo("tr-TR"));
+                if (t.Contains("genel rapor paketi") || t.Contains("360 derece"))
+                {
+                    return "Landscape";
+                }
+                if (t.Contains("detaylı gelir ve maliyet") || t.Contains("detayli gelir ve maliyet") ||
+                    t.Contains("aylık tahsilat ve ödeme") || t.Contains("aylik tahsilat ve odeme"))
+                {
+                    return "Landscape";
+                }
+            }
+
+            return "Portrait";
         }
 
         private class StandardPdfItem
@@ -2276,7 +2336,7 @@ namespace ErmayMuhasebe.Services
             {
                 container.Page(page =>
                 {
-                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title)));
+                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title, headers)));
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(QuestPDF.Helpers.Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(8).FontFamily(DefaultFontFamily));
@@ -2452,7 +2512,7 @@ namespace ErmayMuhasebe.Services
             {
                 container.Page(page =>
                 {
-                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title)));
+                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title, sections)));
                     page.Margin(1, QuestPDF.Infrastructure.Unit.Centimetre);
                     page.PageColor(QuestPDF.Helpers.Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(DefaultFontFamily));
@@ -2545,7 +2605,7 @@ namespace ErmayMuhasebe.Services
                                                     else if (chart.BarData != null)
                                                         img = ChartHelper.GetBarChartImage(400, 250, chart.BarData, "", chart.ActualLabel, chart.TargetLabel);
                                                     
-                                                    if (img != null) c.Item().Image(img);
+                                                    if (img != null) c.Item().Image(img).FitArea();
                                                 });
                                             }
                                         });
@@ -2567,7 +2627,7 @@ namespace ErmayMuhasebe.Services
                                                     else if (hasBar && section.ChartData != null) 
                                                         img = ChartHelper.GetBarChartImage(400, 180, section.ChartData, "", section.ActualLabel, section.TargetLabel);
                                                     
-                                                    if (img != null) c.Item().Image(img);
+                                                    if (img != null) c.Item().Image(img).FitArea();
                                                 });
                                             }
 
@@ -2578,7 +2638,7 @@ namespace ErmayMuhasebe.Services
                                                     c.Item().PaddingBottom(5).Text(section.RightChartTitle.ToUpper()).FontSize(8).Bold().FontColor("#1e40af");
                                                     int hh = Math.Min(section.HorizontalBarData.Count * 20 + 30, 200);
                                                     var img = ChartHelper.GetHorizontalBarChartImage(400, hh, section.HorizontalBarData, "", section.HorizontalBarColor ?? "#8b5cf6");
-                                                    if (img != null) c.Item().Image(img);
+                                                    if (img != null) c.Item().Image(img).FitArea();
                                                 });
                                             }
                                         });
@@ -2719,7 +2779,7 @@ namespace ErmayMuhasebe.Services
             {
                 container.Page(page =>
                 {
-                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title)));
+                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title, new[] { "Ödeme Türü", "Tahsilat", "Ödeme", "Net" })));
                     page.Margin(1.5f, QuestPDF.Infrastructure.Unit.Centimetre);
                     page.PageColor(QuestPDF.Helpers.Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(10).FontFamily(DefaultFontFamily));
@@ -3118,7 +3178,7 @@ namespace ErmayMuhasebe.Services
             {
                 container.Page(page =>
                 {
-                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title)));
+                    page.Size(GetPageSize(RaporSize, GetReportOrientation(title, new[] { "Dönem", "Hedef", "Gerçekleşen", "Fark", "%" })));
                     page.Margin(1.5f, Unit.Centimetre);
                     page.PageColor(QuestPDF.Helpers.Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(10).FontFamily(DefaultFontFamily));

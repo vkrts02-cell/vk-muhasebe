@@ -254,6 +254,7 @@ public abstract partial class FaturaDetayViewModel : ViewModelBase
             item.BirimFiyat = d.BirimFiyat;
             item.KdvOrani = d.KDVOrani;
             item.Aciklama = d.Aciklama;
+            item.IskontoOrani = d.IskontoOrani;
             item.AmountChanged += CalculateTotals;
             Items.Add(item);
         }
@@ -396,6 +397,7 @@ public abstract partial class FaturaDetayViewModel : ViewModelBase
                 Aciklama = Aciklama,
                 AraToplam = AraToplam,
                 ToplamKDV = KdvToplam,
+                IskontoToplam = Items.Sum(i => i.IskontoTutari),
                 GenelToplam = GenelToplam,
                 OdemeSekli = OdemeSekli,
                 KasaId = OdemeSekli == "Nakit" ? SelectedKasaId : null,
@@ -413,7 +415,9 @@ public abstract partial class FaturaDetayViewModel : ViewModelBase
                 KDVOrani = (int)(i.KdvOrani ?? 0),
                 ToplamTutar = i.Tutar,
                 KDVTutari = i.KdvTutari,
-                Aciklama = i.Aciklama ?? ""
+                Aciklama = i.Aciklama ?? "",
+                IskontoOrani = i.IskontoOrani ?? 0m,
+                IskontoTutari = i.IskontoTutari
             }).ToList();
 
             await _uow.Faturalar.SaveWithTransactionAsync(fatura, detaylar, Cari, SettCariIsle, SettStokIsle, SettStokFiyat);

@@ -10,6 +10,21 @@ using ErmayMuhasebe.Repositories.DataProviders;
 
 namespace ErmayMuhasebe.Avalonia.ViewModels;
 
+public class YearItemModel
+{
+    public int Year { get; set; }
+    public string DisplayText => $"{Year} Mali Yılı";
+
+    public YearItemModel(int year)
+    {
+        Year = year;
+    }
+
+    public override bool Equals(object? obj) => obj is YearItemModel other && other.Year == Year;
+    public override int GetHashCode() => Year.GetHashCode();
+    public override string ToString() => DisplayText;
+}
+
 public partial class YearSelectionViewModel : ViewModelBase
 {
     private readonly IYearContext _yearContext;
@@ -25,10 +40,22 @@ public partial class YearSelectionViewModel : ViewModelBase
     public string ActionButtonText => IsAlreadyAuthenticated ? "Seçilen Yıla Geç" : "Uygulamayı Başlat";
 
     [ObservableProperty]
-    private ObservableCollection<int> _years = new();
+    private ObservableCollection<YearItemModel> _years = new();
 
     [ObservableProperty]
-    private int? _selectedYear;
+    [NotifyPropertyChangedFor(nameof(SelectedYear))]
+    private YearItemModel? _selectedYearItem;
+
+    public int? SelectedYear
+    {
+        get => SelectedYearItem?.Year;
+        set => SelectYearByNumber(value);
+    }
+
+    public void SelectYearByNumber(int? year)
+    {
+        SelectedYearItem = year.HasValue ? Years.FirstOrDefault(y => y.Year == year.Value) : null;
+    }
 
     [ObservableProperty]
     private bool _isBusy;
@@ -50,6 +77,9 @@ public partial class YearSelectionViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _hasNoYears;
+
+    [ObservableProperty]
+    private bool _isAddingNewYear;
 
     // Rollover Dialog State
     [ObservableProperty]
@@ -112,14 +142,25 @@ public partial class YearSelectionViewModel : ViewModelBase
         var available = _rolloverService.GetAvailableYears();
         foreach (var y in available)
         {
-            Years.Add(y);
+            Years.Add(new YearItemModel(y));
         }
 
         HasNoYears = !Years.Any();
 
-        SelectedYear = _yearContext.CurrentYear > 0 && Years.Contains(_yearContext.CurrentYear) 
+        if (HasNoYears)
+        {
+            // İlk kurulum: Kullanıcıya kolaylık olması için mevcut takvim yılını varsayılan doldur (ama kullanıcı değiştirebilir)
+            if (string.IsNullOrWhiteSpace(NewYearToCreateText))
+            {
+                NewYearToCreateText = DateTime.Now.Year.ToString();
+            }
+        }
+
+        var targetYear = _yearContext.CurrentYear > 0 && available.Contains(_yearContext.CurrentYear) 
             ? _yearContext.CurrentYear 
-            : (Years.Any() ? Years.FirstOrDefault() : null);
+            : (available.Any() ? available.FirstOrDefault() : (int?)null);
+
+        SelectYearByNumber(targetYear);
 
         RolloverSourceYear = SelectedYear ?? DateTime.Now.Year;
         RolloverTargetYear = RolloverSourceYear + 1;
@@ -138,6 +179,21 @@ public partial class YearSelectionViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void OpenAddNewYear()
+    {
+        IsAddingNewYear = true;
+        NewYearToCreateText = Years.Any() ? (Years.Max(y => y.Year) + 1).ToString() : DateTime.Now.Year.ToString();
+        FeedbackMessage = "";
+    }
+
+    [RelayCommand]
+    private void CancelAddNewYear()
+    {
+        IsAddingNewYear = false;
+        FeedbackMessage = "";
+    }
+
+    [RelayCommand]
     private async Task SelectYearAsync()
     {
         if (SelectedYear == null) return;
@@ -148,11 +204,15 @@ public partial class YearSelectionViewModel : ViewModelBase
         
         try
         {
-            _yearContext.CurrentYear = SelectedYear.Value;
-            var dbName = $"ermay_{SelectedYear.Value}.db";
-            await _dataProvider.InitializeAsync(dbName);
+            var yearVal = SelectedYear.Value;
+            _yearContext.CurrentYear = yearVal;
+            var dbName = $"ermay_{yearVal}.db";
+            await Task.Run(async () =>
+            {
+                await _dataProvider.InitializeAsync(dbName);
+            });
             
-            _onYearSelected?.Invoke(SelectedYear.Value);
+            _onYearSelected?.Invoke(yearVal);
         }
         catch (Exception ex)
         {
@@ -176,7 +236,7 @@ public partial class YearSelectionViewModel : ViewModelBase
             return;
         }
         
-        if (Years.Contains(yearToCreate))
+        if (Years.Any(y => y.Year == yearToCreate))
         {
             FeedbackMessage = $"{yearToCreate} yılı zaten mevcut!";
             IsFeedbackSuccess = false;
@@ -199,6 +259,8 @@ public partial class YearSelectionViewModel : ViewModelBase
                 await _dbService.SyncService.SyncMaliYilAsync(yearToCreate);
             }
             catch { }
+
+            IsAddingNewYear = false;
 
             // Automatically switch to the newly created year and pass back to login/main
             _onYearSelected?.Invoke(yearToCreate);

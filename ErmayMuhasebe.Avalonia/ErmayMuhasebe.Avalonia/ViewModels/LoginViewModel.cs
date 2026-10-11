@@ -264,6 +264,7 @@ public partial class LoginViewModel : ViewModelBase
                         {
                             try
                             {
+                                if (!_dbService.IsInitialized) return;
                                 var profil = await _dbService.GetFirmaProfiliAsync();
                                 bool profilUpdated = false;
 

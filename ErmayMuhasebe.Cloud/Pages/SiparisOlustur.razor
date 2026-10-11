@@ -430,7 +430,7 @@
                             <td style="text-align:center; padding: 2px;">
                                 <input type="number" 
                                        value="@line.Miktar" 
-                                       @oninput="@(e => { string val = e.Value?.ToString() ?? "0"; if(double.TryParse(val, out var v)) { line.Miktar = v; RecalculateLine(line); StateHasChanged(); } })"
+                                       @oninput="@(e => { string val = e.Value?.ToString() ?? "0"; if(decimal.TryParse(val, out var v)) { line.Miktar = v; RecalculateLine(line); StateHasChanged(); } })"
                                        class="table-input" style="text-align:center; width: 60px;" />
                             </td>
                             <td style="text-align:center; padding: 2px;">

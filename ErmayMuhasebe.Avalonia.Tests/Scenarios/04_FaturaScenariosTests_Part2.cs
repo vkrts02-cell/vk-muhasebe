@@ -352,14 +352,14 @@ public partial class FaturaScenariosTests
         {
             StokAdi = "Kumaş",
             Birim = "Metre",
-            Miktar = 8.5,
+            Miktar = 8.5m,
             BirimFiyat = 50m,
             ToplamTutar = 425m
         };
         await _uow.Faturalar.SaveWithDetailsAsync(fatura, new List<FaturaDetay> { line });
 
         var lines = await _uow.Faturalar.GetDetaylarAsync(fatura.Id);
-        Assert.Equal(8.5, lines.First().Miktar);
+        Assert.Equal(8.5m, lines.First().Miktar);
     }
 
     [Fact]

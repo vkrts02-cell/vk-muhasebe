@@ -62,7 +62,7 @@ public abstract class HeadlessTestBase : IAsyncLifetime, IDisposable
         var yearContext = new YearContext();
         services.AddSingleton<IYearContext>(yearContext);
 
-        _dbService = new DatabaseService(yearContext) { IsTestMode = true };
+        _dbService = new DatabaseService(yearContext, _testDbPath) { IsTestMode = true };
         services.AddSingleton(_dbService);
 
         var dataProvider = new SqliteDataProvider(_dbService);

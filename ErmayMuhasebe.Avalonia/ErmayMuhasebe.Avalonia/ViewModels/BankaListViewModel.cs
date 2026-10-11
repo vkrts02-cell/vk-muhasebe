@@ -16,12 +16,16 @@ public partial class BankaListViewModel : ErmayMuhasebe.Shared.ViewModels.BankaL
 
     public BankaListViewModel(IUnitOfWork uow, IPdfService pdfService) : base(uow, pdfService)
     {
-        WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => _ = LoadBankalarAsync());
+        WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => 
+        {
+            if (m.Sender == this) return;
+            _ = LoadBankalarAsync();
+        });
     }
 
     protected override void NotifyFinancialDataChanged()
     {
-        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage(this));
     }
 
     protected override async Task InvokeOnUIThreadAsync(Action action)

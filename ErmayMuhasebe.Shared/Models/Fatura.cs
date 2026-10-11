@@ -32,6 +32,7 @@ namespace ErmayMuhasebe.Models
         public decimal AraToplam { get; set; }
         public decimal ToplamKDV { get; set; } 
         public decimal KdvToplam { get => ToplamKDV; set => ToplamKDV = value; }
+        public decimal IskontoToplam { get; set; }
         public decimal GenelToplam { get; set; }
         public decimal Odenen { get; set; } 
         public decimal Kalan => GenelToplam - Odenen; 

@@ -15,12 +15,16 @@ public partial class CekSenetListViewModel : ErmayMuhasebe.Shared.ViewModels.Cek
 {
     public CekSenetListViewModel(IUnitOfWork uow, IPdfService pdfService) : base(uow, pdfService)
     {
-        WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => _ = LoadDataAsync());
+        WeakReferenceMessenger.Default.Register<FinancialDataChangedMessage>(this, (r, m) => 
+        {
+            if (m.Sender == this) return;
+            _ = LoadDataAsync();
+        });
     }
 
     protected override void NotifyFinancialDataChanged(Cek? cek)
     {
-        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage());
+        WeakReferenceMessenger.Default.Send(new FinancialDataChangedMessage(this));
         if (cek != null) WeakReferenceMessenger.Default.Send(new CekSavedMessage(cek));
     }
 

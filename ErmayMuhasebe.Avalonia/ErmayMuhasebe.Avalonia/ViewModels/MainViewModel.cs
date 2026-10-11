@@ -922,12 +922,44 @@ public partial class MainViewModel : ViewModelBase
         LoadSavedNotifications();
         AddNotification("Giriş Yapıldı", $"{CurrentUserName} kullanıcısı {selectedYear} yılına başarıyla giriş yaptı.", "Person", typeof(DashboardViewModel));
         
-        // Start Services after login & year selection
-        _dbService.StartRealtimeSync();
-        _ = StartAutoSync();
-        _ = RunAutoBackupWithNotificationAsync();
-        
-        _ = RunAlertChecksAsync();
+        // Start Background Services smoothly after UI and Dashboard have fully rendered
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2500);
+            try { _dbService.StartRealtimeSync(); } catch { }
+            try { _ = StartAutoSync(); } catch { }
+            try { _ = RunAutoBackupWithNotificationAsync(); } catch { }
+            try { _ = RunAlertChecksAsync(); } catch { }
+        });
+
+        // Firma profili ve PDF ayarlarını seçilen yıla göre yükle
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var pdf = _serviceProvider.GetService<ErmayMuhasebe.Services.PdfService>();
+                if (pdf != null)
+                {
+                    var profil = await _uow.GetFirmaProfiliAsync();
+                    if (profil != null)
+                    {
+                        pdf.ShowLogoFatura = profil.LogoFatura;
+                        pdf.ShowLogoSiparis = profil.LogoSiparis;
+                        pdf.ShowLogoTeklif = profil.LogoTeklif;
+                        pdf.ShowLogoEkstre = profil.LogoEkstre;
+                        pdf.ShowLogoRaporlar = profil.LogoRaporlar;
+                        pdf.ShowLogoTahsilat = profil.LogoTahsilat;
+                        pdf.ShowLogoOdeme = profil.LogoOdeme;
+                        pdf.ShowLogoAcilisBakiye = profil.LogoAcilisBakiye;
+                        if (!string.IsNullOrEmpty(profil.LogoBase64))
+                        {
+                            try { pdf.LogoBytes = Convert.FromBase64String(profil.LogoBase64); } catch { }
+                        }
+                    }
+                }
+            }
+            catch { }
+        });
         
         // Start Cron Timer
         StartCronTimer();

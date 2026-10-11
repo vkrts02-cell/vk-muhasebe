@@ -362,3 +362,199 @@ CREATE TABLE IF NOT EXISTS public.user_security_states (
 ALTER TABLE public.user_security_states ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "user_security_states_all_policy" ON public.user_security_states;
 CREATE POLICY "user_security_states_all_policy" ON public.user_security_states FOR ALL USING (true) WITH CHECK (true);
+
+-- ==============================================================================
+-- 17. REALTIME YAYIN ETKİNLEŞTİRME (POSTGRES CHANGES WEBSOCKET)
+-- ==============================================================================
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE 
+        public.cariler, 
+        public.faturalar, 
+        public.fatura_detaylar, 
+        public.stoklar, 
+        public.stok_hareketler, 
+        public.cari_hareketler,
+        public.siparisler,
+        public.siparis_detaylar,
+        public.teklifler,
+        public.teklif_detaylar,
+        public.kasa_hareketler,
+        public.banka_hareketler,
+        public.mobil_gelen_kutusu;
+EXCEPTION WHEN OTHERS THEN
+    NULL; -- Tablolar yayında zaten ekliyse sessizce geç
+END $$;
+
+-- ==============================================================================
+-- 18. POSTGREST VE MOBIL BIRLEŞIK SORGULAR İÇİN PERFORMANS İNDEKSLERİ
+-- ==============================================================================
+CREATE INDEX IF NOT EXISTS idx_faturalar_mali_yil_active ON public.faturalar (mali_yil, is_deleted, tarih DESC);
+CREATE INDEX IF NOT EXISTS idx_stoklar_mali_yil_active ON public.stoklar (mali_yil, is_deleted);
+CREATE INDEX IF NOT EXISTS idx_cariler_mali_yil_active ON public.cariler (mali_yil, is_deleted);
+CREATE INDEX IF NOT EXISTS idx_fatura_detaylar_fatura_id ON public.fatura_detaylar (fatura_id);
+CREATE INDEX IF NOT EXISTS idx_stok_hareketler_stok_id ON public.stok_hareketler (stok_id, tarih DESC);
+CREATE INDEX IF NOT EXISTS idx_cari_hareketler_cari_id ON public.cari_hareketler (cari_id, tarih DESC);
+CREATE INDEX IF NOT EXISTS idx_siparisler_mali_yil_active ON public.siparisler (mali_yil, is_deleted, tarih DESC);
+CREATE INDEX IF NOT EXISTS idx_teklifler_mali_yil_active ON public.teklifler (mali_yil, is_deleted, tarih DESC);
+
+-- ==============================================================================
+-- 19. ATOMİK BATCH YAZMA PROSEDÜRÜ (TRANSACTION RPC - DIRTY STATE ENGELLEYICI)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.exec_batch_updates(updates_payload JSONB)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_path TEXT;
+    v_val JSONB;
+    v_table TEXT;
+    v_id TEXT;
+    v_parts TEXT[];
+BEGIN
+    FOR v_path, v_val IN SELECT * FROM jsonb_each(updates_payload)
+    LOOP
+        v_parts := string_to_array(v_path, '/');
+        v_table := lower(v_parts[1]);
+        
+        IF v_table = 'faturalar' THEN
+            INSERT INTO public.faturalar (id, fatura_no, fatura_turu, cari_id, cari_unvan, tarih, vade_tarihi, ara_toplam, kdv_toplam, iskonto_toplam, genel_toplam, odenen, aciklama, doviz_turu, doviz_kuru, odeme_sekli, is_kapali, kasa_id, banka_id, is_deleted, mali_yil, updated_at)
+            VALUES (
+                (v_val->>'id')::BIGINT,
+                v_val->>'faturaNo',
+                COALESCE(v_val->>'faturaTuru', v_val->>'tur'),
+                (v_val->>'cariId')::BIGINT,
+                v_val->>'cariUnvan',
+                COALESCE((v_val->>'tarih')::TIMESTAMPTZ, NOW()),
+                COALESCE((v_val->>'vadeTarihi')::TIMESTAMPTZ, NOW()),
+                COALESCE((v_val->>'araToplam')::NUMERIC, 0),
+                COALESCE((v_val->>'kdvToplam')::NUMERIC, 0),
+                COALESCE((v_val->>'iskontoToplam')::NUMERIC, 0),
+                COALESCE((v_val->>'genelToplam')::NUMERIC, 0),
+                COALESCE((v_val->>'odenen')::NUMERIC, 0),
+                v_val->>'aciklama',
+                v_val->>'dovizTuru',
+                COALESCE((v_val->>'dovizKuru')::NUMERIC, 1),
+                v_val->>'odemeSekli',
+                COALESCE((v_val->>'isKapali')::BOOLEAN, false),
+                (v_val->>'kasaId')::BIGINT,
+                (v_val->>'bankaId')::BIGINT,
+                COALESCE((v_val->>'isDeleted')::BOOLEAN, false),
+                COALESCE((v_val->>'maliYil')::INT, EXTRACT(YEAR FROM CURRENT_DATE)),
+                NOW()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                fatura_no = EXCLUDED.fatura_no,
+                fatura_turu = EXCLUDED.fatura_turu,
+                cari_id = EXCLUDED.cari_id,
+                cari_unvan = EXCLUDED.cari_unvan,
+                tarih = EXCLUDED.tarih,
+                vade_tarihi = EXCLUDED.vade_tarihi,
+                ara_toplam = EXCLUDED.ara_toplam,
+                kdv_toplam = EXCLUDED.kdv_toplam,
+                iskonto_toplam = EXCLUDED.iskonto_toplam,
+                genel_toplam = EXCLUDED.genel_toplam,
+                odenen = EXCLUDED.odenen,
+                aciklama = EXCLUDED.aciklama,
+                is_kapali = EXCLUDED.is_kapali,
+                kasa_id = EXCLUDED.kasa_id,
+                banka_id = EXCLUDED.banka_id,
+                is_deleted = EXCLUDED.is_deleted,
+                updated_at = NOW();
+
+        ELSIF v_table = 'faturadetaylar' THEN
+            IF jsonb_typeof(v_val) = 'array' THEN
+                DELETE FROM public.fatura_detaylar WHERE fatura_id = (v_parts[2])::BIGINT;
+                INSERT INTO public.fatura_detaylar (id, fatura_id, stok_id, stok_kodu, stok_adi, miktar, birim, birim_fiyat, kdv_orani, kdv_tutari, toplam_tutar, iskonto_orani, iskonto_tutari, aciklama)
+                SELECT 
+                    COALESCE((d->>'id')::BIGINT, (v_parts[2])::BIGINT * 1000 + row_number() over()),
+                    (v_parts[2])::BIGINT,
+                    (d->>'stokId')::BIGINT,
+                    d->>'stokKodu',
+                    d->>'stokAdi',
+                    COALESCE((d->>'miktar')::NUMERIC, 0),
+                    COALESCE(d->>'birim', 'Adet'),
+                    COALESCE((d->>'birimFiyat')::NUMERIC, 0),
+                    COALESCE((d->>'kdvOrani')::NUMERIC, 0),
+                    COALESCE((d->>'kdvTutari')::NUMERIC, 0),
+                    COALESCE((d->>'toplamTutar')::NUMERIC, 0),
+                    COALESCE((d->>'iskontoOrani')::NUMERIC, 0),
+                    COALESCE((d->>'iskontoTutari')::NUMERIC, 0),
+                    d->>'aciklama'
+                FROM jsonb_array_elements(v_val) d;
+            END IF;
+
+        ELSIF v_table = 'stokhareketler' THEN
+            INSERT INTO public.stok_hareketler (id, stok_id, stok_kodu, stok_adi, tarih, islem_turu, evrak_no, fatura_id, miktar, fiyat, giren, cikan, aciklama, is_deleted, mali_yil)
+            VALUES (
+                (v_val->>'id')::BIGINT,
+                (v_val->>'stokId')::BIGINT,
+                v_val->>'stokKodu',
+                v_val->>'stokAdi',
+                COALESCE((v_val->>'tarih')::TIMESTAMPTZ, NOW()),
+                v_val->>'islemTuru',
+                v_val->>'evrakNo',
+                (v_val->>'faturaId')::BIGINT,
+                COALESCE((v_val->>'miktar')::NUMERIC, 0),
+                COALESCE((v_val->>'fiyat')::NUMERIC, 0),
+                COALESCE((v_val->>'giren')::NUMERIC, 0),
+                COALESCE((v_val->>'cikan')::NUMERIC, 0),
+                v_val->>'aciklama',
+                COALESCE((v_val->>'isDeleted')::BOOLEAN, false),
+                COALESCE((v_val->>'maliYil')::INT, EXTRACT(YEAR FROM CURRENT_DATE))
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                miktar = EXCLUDED.miktar,
+                giren = EXCLUDED.giren,
+                cikan = EXCLUDED.cikan,
+                fiyat = EXCLUDED.fiyat,
+                is_deleted = EXCLUDED.is_deleted;
+
+        ELSIF v_table = 'stoklar' THEN
+            UPDATE public.stoklar
+            SET 
+                miktar = COALESCE((v_val->>'miktar')::NUMERIC, miktar),
+                alis_fiyati = COALESCE((v_val->>'alisFiyati')::NUMERIC, alis_fiyati),
+                ortalama_alis_fiyati = COALESCE((v_val->>'ortAlisFiyati')::NUMERIC, (v_val->>'ortalamaAlisFiyati')::NUMERIC, ortalama_alis_fiyati),
+                satis_fiyati = COALESCE((v_val->>'satisFiyati')::NUMERIC, satis_fiyati),
+                is_deleted = COALESCE((v_val->>'isDeleted')::BOOLEAN, is_deleted),
+                updated_at = NOW()
+            WHERE id = (v_parts[2])::BIGINT;
+
+        ELSIF v_table = 'cariler' THEN
+            UPDATE public.cariler
+            SET 
+                borc = COALESCE((v_val->>'borc')::NUMERIC, borc),
+                alacak = COALESCE((v_val->>'alacak')::NUMERIC, alacak),
+                bakiye = COALESCE((v_val->>'bakiye')::NUMERIC, bakiye),
+                updated_at = NOW()
+            WHERE id = (v_parts[2])::BIGINT;
+
+        ELSIF v_table = 'carihareketler' THEN
+            INSERT INTO public.cari_hareketler (id, cari_id, cari_unvan, tarih, islem_turu, evrak_no, fatura_id, borc, alacak, aciklama, is_deleted, mali_yil)
+            VALUES (
+                (v_val->>'id')::BIGINT,
+                (v_val->>'cariId')::BIGINT,
+                v_val->>'cariUnvan',
+                COALESCE((v_val->>'tarih')::TIMESTAMPTZ, NOW()),
+                v_val->>'islemTuru',
+                v_val->>'evrakNo',
+                (v_val->>'faturaId')::BIGINT,
+                COALESCE((v_val->>'borc')::NUMERIC, 0),
+                COALESCE((v_val->>'alacak')::NUMERIC, 0),
+                v_val->>'aciklama',
+                COALESCE((v_val->>'isDeleted')::BOOLEAN, false),
+                COALESCE((v_val->>'maliYil')::INT, EXTRACT(YEAR FROM CURRENT_DATE))
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                borc = EXCLUDED.borc,
+                alacak = EXCLUDED.alacak,
+                is_deleted = EXCLUDED.is_deleted;
+        END IF;
+    END LOOP;
+    
+    RETURN TRUE;
+END;
+$$;
+

@@ -231,9 +231,40 @@ public partial class App : Application, IRecipient<ShowCariDetailMessage>, IReci
             return;
         }
 
-        // 1. Firma Logosunu ve PDF Ayarlarını Başlangıçta Yükle
+        // 0. Temiz Kurulum Bayrağı Kontrolü (Installer veya Setup tarafından tetiklenmişse)
+        try
+        {
+            var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            var pendingFlag1 = System.IO.Path.Combine(configDir, "clean_install_pending.flag");
+            var pendingFlag2 = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "clean_install_pending.flag");
+            if (System.IO.File.Exists(pendingFlag1) || System.IO.File.Exists(pendingFlag2))
+            {
+                var cleanDbService = Services?.GetService<DatabaseService>();
+                if (cleanDbService != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await cleanDbService.SyncService.ClearCloudTablesAsync();
+                        }
+                        catch { }
+                        finally
+                        {
+                            try { if (System.IO.File.Exists(pendingFlag1)) System.IO.File.Delete(pendingFlag1); } catch { }
+                            try { if (System.IO.File.Exists(pendingFlag2)) System.IO.File.Delete(pendingFlag2); } catch { }
+                        }
+                    });
+                }
+            }
+        }
+        catch { }
+
+        // 1. Firma Logosunu ve PDF Ayarlarını Başlangıçta Yükle (Yalnızca veritabanı zaten açıksa)
         _ = Task.Run(async () => {
             try {
+                var db = Services?.GetService<DatabaseService>();
+                if (db == null || !db.IsInitialized) return;
                 var uow = Services?.GetService<ErmayMuhasebe.Repositories.IUnitOfWork>();
                 var pdf = Services?.GetService<PdfService>();
                 if (uow != null && pdf != null) {
@@ -318,7 +349,7 @@ public partial class App : Application, IRecipient<ShowCariDetailMessage>, IReci
                 debounceCts?.Cancel();
                 debounceCts = new System.Threading.CancellationTokenSource();
                 var token = debounceCts.Token;
-                Task.Delay(300, token).ContinueWith(t =>
+                Task.Delay(800, token).ContinueWith(t =>
                 {
                     if (t.IsCanceled) return;
                     System.Diagnostics.Debug.WriteLine("[App] OnDatabaseChanged event received. Dispatching FinancialDataChangedMessage...");

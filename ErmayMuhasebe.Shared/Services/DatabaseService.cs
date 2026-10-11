@@ -17,6 +17,7 @@ namespace ErmayMuhasebe.Services
         private SQLiteAsyncConnection? _globalDb;
         private string _dbPath;
         private bool _isInitialized = false;
+        public bool IsInitialized => _isInitialized;
         private static bool _sqlitePclInitialized = false;
         private static readonly object _sqlitePclLock = new();
         private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -85,24 +86,39 @@ namespace ErmayMuhasebe.Services
         private readonly IYearContext _yearContext;
         public IYearContext YearContext => _yearContext;
 
-        public DatabaseService(IYearContext yearContext)
+        public DatabaseService(IYearContext yearContext, string? customDbPath = null)
         {
             _yearContext = yearContext;
             _sync = new CloudSyncService(yearContext);
-            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-            if (_yearContext.CurrentYear > 0)
+            if (!string.IsNullOrEmpty(customDbPath))
             {
-                _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
-            }
-            else if (!string.IsNullOrEmpty(ErmayMuhasebe.Data.Constants.DatabasePath))
-            {
-                _dbPath = ErmayMuhasebe.Data.Constants.DatabasePath;
+                _dbPath = customDbPath;
             }
             else
             {
-                _dbPath = Path.Combine(dir, ErmayMuhasebe.Data.Constants.DatabaseFilename);
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                if (_yearContext.CurrentYear > 0)
+                {
+                    var candidate = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+                    if (File.Exists(candidate) || IsTestMode)
+                    {
+                        _dbPath = candidate;
+                    }
+                    else
+                    {
+                        _dbPath = "";
+                    }
+                }
+                else if (!string.IsNullOrEmpty(ErmayMuhasebe.Data.Constants.DatabasePath))
+                {
+                    _dbPath = ErmayMuhasebe.Data.Constants.DatabasePath;
+                }
+                else
+                {
+                    _dbPath = Path.Combine(dir, ErmayMuhasebe.Data.Constants.DatabaseFilename);
+                }
             }
         }
 
@@ -125,7 +141,9 @@ namespace ErmayMuhasebe.Services
 
         public SQLiteAsyncConnection GetGlobalConnection()
         {
-            var dbPath = ErmayMuhasebe.Data.Constants.DatabasePath;
+            var dbPath = (IsTestMode && !string.IsNullOrEmpty(_dbPath)) 
+                ? _dbPath 
+                : ErmayMuhasebe.Data.Constants.DatabasePath;
             if (string.IsNullOrEmpty(dbPath))
             {
                 string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
@@ -209,13 +227,36 @@ namespace ErmayMuhasebe.Services
 
         public virtual async Task InitializeAsync()
         {
-            if (_isInitialized) return;
-            if (_yearContext.CurrentYear <= 0) return;
+            if (_isInitialized && _db != null) return;
+            if (_yearContext.CurrentYear <= 0)
+            {
+                _yearContext.CurrentYear = DateTime.Now.Year;
+            }
 
             if (string.IsNullOrWhiteSpace(_dbPath))
             {
                 string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                // Temiz kurulum veya ilk kurulum kontrolü:
+                // Kullanıcı açıkça bir yıl seçmeden veya parametreli InitializeAsync çağrılmadan 
+                // arkada sessizce otomatik ermay_YYYY.db oluşturulmasını engelle.
+                if (!IsTestMode)
+                {
+                    var existingFiles = Directory.Exists(dir) ? Directory.GetFiles(dir, "ermay_*.db") : Array.Empty<string>();
+                    if (existingFiles.Length == 0)
+                    {
+                        // Henüz hiçbir mali yıl veritabanı yok. Kullanıcının ilk kurulumda yılı kendisi belirlemesi bekleniyor.
+                        return;
+                    }
+
+                    var targetFile = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+                    if (!File.Exists(targetFile))
+                    {
+                        return;
+                    }
+                }
+
                 _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
             }
             
@@ -442,49 +483,19 @@ namespace ErmayMuhasebe.Services
                     {
                         System.Diagnostics.Debug.WriteLine($"[DatabaseService] Index Creation Warning: {idxEx.Message}");
                     }
-                    // --- FIX LEGACY REVERSED STOCK MOVEMENTS ---
+                    // --- QUICK ONE-TIME MIGRATIONS ---
                     try
                     {
-                        var malformedMovements = syncDb.Query<StokHareket>("SELECT * FROM StokHareket WHERE IslemTuru IS NOT NULL");
-                        bool anyFixed = false;
-                        var affectedStoks = new HashSet<int>();
-                        foreach (var sm in malformedMovements)
+                        var userVersion = syncDb.ExecuteScalar<int>("PRAGMA user_version;");
+                        if (userVersion < 2)
                         {
-                            bool inflow = StokHareket.IsStockInflow(sm.IslemTuru);
-                            decimal qty = sm.Miktar > 0 ? sm.Miktar : (inflow ? (sm.Giren > 0 ? sm.Giren : sm.Cikan) : (sm.Cikan > 0 ? sm.Cikan : sm.Giren));
-                            decimal expectedGiren = inflow ? qty : 0;
-                            decimal expectedCikan = !inflow ? qty : 0;
-
-                            if (sm.Giren != expectedGiren || sm.Cikan != expectedCikan)
-                            {
-                                sm.Giren = expectedGiren;
-                                sm.Cikan = expectedCikan;
-                                sm.Miktar = qty;
-                                syncDb.Update(sm);
-                                anyFixed = true;
-                                affectedStoks.Add(sm.StokId);
-                            }
-                        }
-
-                        if (anyFixed)
-                        {
-                            foreach (var stkId in affectedStoks)
-                            {
-                                var stk = syncDb.Find<StokKart>(stkId);
-                                if (stk != null)
-                                {
-                                    var mvms = syncDb.Table<StokHareket>().Where(x => x.StokId == stkId).ToList();
-                                    decimal sumG = mvms.Sum(h => h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Giren > 0 ? h.Giren : h.Cikan)) : 0);
-                                    decimal sumC = mvms.Sum(h => !h.IsGiris ? (h.Miktar > 0 ? h.Miktar : (h.Cikan > 0 ? h.Cikan : h.Giren)) : 0);
-                                    stk.Miktar = sumG - sumC;
-                                    syncDb.Update(stk);
-                                }
-                            }
+                            syncDb.Execute("UPDATE BankaKart SET KartTuru = CASE WHEN IBAN IS NULL OR TRIM(IBAN) = '' THEN 'Kasa' ELSE 'Vadesiz' END WHERE KartTuru IS NULL OR KartTuru = '';");
+                            syncDb.Execute("PRAGMA user_version = 2;");
                         }
                     }
                     catch (Exception exFix)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[DatabaseService] Movement fix warning: {exFix.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[DatabaseService] Quick migration warning: {exFix.Message}");
                     }
                 }
                 catch (Exception schemaEx)
@@ -522,28 +533,7 @@ namespace ErmayMuhasebe.Services
                     }
                 }
 
-                // BankaKart KartTuru Migration (Sync)
-                try
-                {
-                    var allBankas = syncDb.Table<BankaKart>().ToList();
-                    foreach (var b in allBankas)
-                    {
-                        if (string.IsNullOrEmpty(b.KartTuru))
-                        {
-                            b.KartTuru = string.IsNullOrWhiteSpace(b.IBAN) ? "Kasa" : "Vadesiz";
-                            syncDb.Update(b);
-                        }
-                    }
-                }
-                catch { }
-                
                 _isInitialized = true;
-
-                // Check if this is a clean install (first run after installer)
-                // The installer creates setup_initial_user.json which gets deleted after processing
-                var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-                var setupUserPath = Path.Combine(configDir, "setup_initial_user.json");
-                bool isCleanInstall = File.Exists(setupUserPath);
 
                 if (!IsTestMode && !DisableCloudSync)
                 {
@@ -560,11 +550,6 @@ namespace ErmayMuhasebe.Services
                     // Bulut dinleyicilerini ve başlangıç senkronizasyonunu başlat
                     System.Diagnostics.Debug.WriteLine("[DatabaseService] Başlangıç - bulut dinleyicileri başlatılıyor");
                     StartCloudListeners();
-
-                    _ = Task.Run(async () =>
-                    {
-                        try { await RecalculateSystemBalancesAsync(); } catch { }
-                    });
                 }
             }
             catch (Exception ex)
@@ -625,6 +610,16 @@ namespace ErmayMuhasebe.Services
             await EnsureInitializedAsync();
             if (_db == null)
             {
+                try
+                {
+                    var globalConn = GetGlobalConnection();
+                    if (globalConn != null)
+                    {
+                        var gItem = await globalConn.Table<FirmaProfili>().FirstOrDefaultAsync(x => x.Id == 1);
+                        if (gItem != null) return gItem;
+                    }
+                }
+                catch { }
                 return new FirmaProfili { Id = 1, FirmaAdi = "Ermay Muhasebe" };
             }
             var item = await _db.Table<FirmaProfili>().FirstOrDefaultAsync(x => x.Id == 1);
@@ -633,31 +628,49 @@ namespace ErmayMuhasebe.Services
                 item = new FirmaProfili { Id = 1, FirmaAdi = "Ermay Muhasebe" };
             }
 
-            if (string.IsNullOrWhiteSpace(item.FactoryResetPassword) || item.FactoryResetPassword == "ERMAY2025" || item.FactoryResetPassword == "VK2026")
+            try
             {
-                try
+                var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                var setupPath = Path.Combine(configDir, "setup_initial_user.json");
+                var permPath = Path.Combine(configDir, "setup_config.json");
+                var fileToRead = File.Exists(setupPath) ? setupPath : (File.Exists(permPath) ? permPath : null);
+                if (fileToRead != null)
                 {
-                    var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-                    var setupPath = Path.Combine(configDir, "setup_initial_user.json");
-                    var permPath = Path.Combine(configDir, "setup_config.json");
-                    var fileToRead = File.Exists(setupPath) ? setupPath : (File.Exists(permPath) ? permPath : null);
-                    if (fileToRead != null)
+                    var json = await File.ReadAllTextAsync(fileToRead);
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    bool profilUpdated = false;
+
+                    if (doc.RootElement.TryGetProperty("FactoryResetPassword", out var frpElem) && frpElem.ValueKind == System.Text.Json.JsonValueKind.String)
                     {
-                        var json = await File.ReadAllTextAsync(fileToRead);
-                        using var doc = System.Text.Json.JsonDocument.Parse(json);
-                        if (doc.RootElement.TryGetProperty("FactoryResetPassword", out var frpElem) && frpElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                        var pass = frpElem.GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(pass) && (string.IsNullOrWhiteSpace(item.FactoryResetPassword) || item.FactoryResetPassword == "ERMAY2025" || item.FactoryResetPassword == "VK2026"))
                         {
-                            var pass = frpElem.GetString()?.Trim();
-                            if (!string.IsNullOrEmpty(pass))
-                            {
-                                item.FactoryResetPassword = pass;
-                                await SaveFirmaProfiliAsync(item);
-                            }
+                            item.FactoryResetPassword = pass;
+                            profilUpdated = true;
                         }
                     }
+
+                    if (string.IsNullOrEmpty(item.SmtpUser) && doc.RootElement.TryGetProperty("SmtpEmail", out var smtpEmailElem))
+                    {
+                        var sEmail = smtpEmailElem.GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(sEmail))
+                        {
+                            item.SmtpUser = sEmail;
+                            if (doc.RootElement.TryGetProperty("SmtpHost", out var sh)) item.SmtpHost = sh.GetString()?.Trim();
+                            if (doc.RootElement.TryGetProperty("SmtpPort", out var sp) && int.TryParse(sp.GetString(), out int pVal)) item.SmtpPort = pVal;
+                            if (doc.RootElement.TryGetProperty("SmtpSsl", out var ss) && bool.TryParse(ss.GetString(), out bool sslVal)) item.SmtpSsl = sslVal;
+                            if (doc.RootElement.TryGetProperty("SmtpPassword", out var spass)) item.SmtpPass = spass.GetString()?.Trim();
+                            profilUpdated = true;
+                        }
+                    }
+
+                    if (profilUpdated)
+                    {
+                        await SaveFirmaProfiliAsync(item);
+                    }
                 }
-                catch { }
             }
+            catch { }
 
             return item;
         }
@@ -835,8 +848,11 @@ namespace ErmayMuhasebe.Services
 
         public async Task EnsureInitializedAsync()
         {
-            if (_isInitialized) return;
-            if (_yearContext.CurrentYear <= 0) return;
+            if (_isInitialized && _db != null) return;
+            if (_yearContext.CurrentYear <= 0)
+            {
+                _yearContext.CurrentYear = DateTime.Now.Year;
+            }
             await InitializeAsync();
         }
 
@@ -1075,7 +1091,11 @@ namespace ErmayMuhasebe.Services
 
         public SQLiteAsyncConnection GetConnection() 
         {
-            if (!_isInitialized) throw new InvalidOperationException("Database not initialized. Call EnsureInitializedAsync first.");
+            if (!_isInitialized || _db == null)
+            {
+                EnsureInitializedAsync().GetAwaiter().GetResult();
+            }
+            if (_db == null) throw new InvalidOperationException("Database not initialized. Call EnsureInitializedAsync first.");
             return _db;
         }
 
@@ -5275,6 +5295,12 @@ namespace ErmayMuhasebe.Services
                 item.OdemeOrientation = existing.OdemeOrientation;
                 item.AcilisBakiyeSize = existing.AcilisBakiyeSize;
                 item.AcilisBakiyeOrientation = existing.AcilisBakiyeOrientation;
+
+                // Eğer buluttan gelen profil yereldeki ile birebir aynıysa veritabanını ve UI'ı gereksiz tetikleme
+                if (AreObjectsEqual(existing, item))
+                {
+                    return;
+                }
             }
 
             if (existing == null)
@@ -7720,6 +7746,7 @@ namespace ErmayMuhasebe.Services
 
         private async Task MigrateMissingDataFromGlobalDbAsync()
         {
+            if (IsResetting) return;
             var currentFileName = Path.GetFileName(_dbPath);
             if (string.IsNullOrEmpty(currentFileName) || !currentFileName.StartsWith("ermay_") || !currentFileName.EndsWith(".db"))
             {
@@ -7751,6 +7778,13 @@ namespace ErmayMuhasebe.Services
 
                 try { await globalConn.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
                 try { await globalConn.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
+
+                var hasCariTable = await globalConn.ExecuteScalarAsync<int>("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='CariKart';");
+                if (hasCariTable == 0)
+                {
+                    await globalConn.CloseAsync();
+                    return;
+                }
 
                 // Check if global DB has meaningful data (more than just default admin user)
                 var globalUserCount = await globalConn.Table<User>().CountAsync();
