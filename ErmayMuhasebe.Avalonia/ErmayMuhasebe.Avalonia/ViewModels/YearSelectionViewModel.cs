@@ -230,7 +230,7 @@ public partial class YearSelectionViewModel : ViewModelBase
     {
         if (!int.TryParse(NewYearToCreateText?.Trim(), out int yearToCreate) || yearToCreate < 2000 || yearToCreate > 2100)
         {
-            FeedbackMessage = "Lütfen geçerli bir mali yıl giriniz (Örn: 2030).";
+            FeedbackMessage = "Lütfen geçerli bir mali yıl giriniz.";
             IsFeedbackSuccess = false;
             return;
         }

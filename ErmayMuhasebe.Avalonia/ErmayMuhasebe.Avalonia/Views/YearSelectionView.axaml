@@ -224,7 +224,6 @@
                                                  BorderThickness="0"
                                                  Background="Transparent"
                                                  Foreground="{DynamicResource TextBrush}"
-                                                 Watermark="Örn: 2030"
                                                  MaxLength="4"/>
                                     </Grid>
                                 </Border>
@@ -293,7 +292,6 @@
                                          BorderThickness="0"
                                          Background="Transparent"
                                          Foreground="{DynamicResource TextBrush}"
-                                         Watermark="Örn: 2030"
                                          MaxLength="4"/>
                             </Grid>
                         </Border>
