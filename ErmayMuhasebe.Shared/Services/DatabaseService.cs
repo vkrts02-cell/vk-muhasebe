@@ -299,8 +299,8 @@ namespace ErmayMuhasebe.Services
                     
                     if (UseEncryption)
                     {
-                        // Set memory security OFF immediately after opening handle
-                        try { await _db.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                        // Set memory security ON for SQLCipher key safety
+                        try { await _db.ExecuteAsync("PRAGMA cipher_memory_security = ON;"); } catch { }
                         
                         try 
                         {
@@ -411,7 +411,7 @@ namespace ErmayMuhasebe.Services
                         
                         if (UseEncryption)
                         {
-                            try { await _db.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                            try { await _db.ExecuteAsync("PRAGMA cipher_memory_security = ON;"); } catch { }
                             try { await _db.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
                         }
                         
@@ -1289,7 +1289,7 @@ namespace ErmayMuhasebe.Services
                 var globalConn = GetGlobalConnection();
                 if (globalConn != null)
                 {
-                    try { await globalConn.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                    try { await globalConn.ExecuteAsync("PRAGMA cipher_memory_security = ON;"); } catch { }
                     try { await globalConn.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
                     try { await globalConn.ExecuteAsync("PRAGMA foreign_keys = OFF;"); } catch { }
 
@@ -7325,6 +7325,7 @@ namespace ErmayMuhasebe.Services
 
             try
             {
+                await FixSqliteSequencesAsync();
                 if (hasAnyChanges)
                 {
                     await RecalculateSystemBalancesAsync();
@@ -7341,6 +7342,29 @@ namespace ErmayMuhasebe.Services
             _syncGate.Release();
         }
     }
+
+        public async Task FixSqliteSequencesAsync()
+        {
+            try
+            {
+                await EnsureInitializedAsync();
+                var tables = new[]
+                {
+                    "Fatura", "FaturaDetay", "CariHareket", "StokHareket",
+                    "KasaHareket", "BankaHareket", "Siparis", "SiparisDetay",
+                    "Teklif", "TeklifDetay", "CariKart", "StokKart"
+                };
+                foreach (var tbl in tables)
+                {
+                    try
+                    {
+                        await _db.ExecuteAsync($"UPDATE sqlite_sequence SET seq = COALESCE((SELECT MAX(Id) FROM {tbl} WHERE Id < 100000000), 0) WHERE name = '{tbl}';");
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
 
         // --- ANALYTICS ---
         public async Task<List<IncomeExpenseItem>> GetMonthlyIncomeExpenseAsync()
@@ -7776,7 +7800,7 @@ namespace ErmayMuhasebe.Services
                 var globalOptions = new SQLiteConnectionString(globalDbPath, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex, true, key: pwd);
                 var globalConn = new SQLiteAsyncConnection(globalOptions);
 
-                try { await globalConn.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                try { await globalConn.ExecuteAsync("PRAGMA cipher_memory_security = ON;"); } catch { }
                 try { await globalConn.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
 
                 var hasCariTable = await globalConn.ExecuteScalarAsync<int>("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='CariKart';");

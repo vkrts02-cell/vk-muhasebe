@@ -116,7 +116,7 @@ namespace ErmayMuhasebe.Services
             var conn = new SQLiteAsyncConnection(options);
             if (_dbService.UseEncryption)
             {
-                try { await conn.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                try { await conn.ExecuteAsync("PRAGMA cipher_memory_security = ON;"); } catch { }
                 try { await conn.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
             }
             return conn;
@@ -126,7 +126,7 @@ namespace ErmayMuhasebe.Services
         {
             if (_dbService.UseEncryption)
             {
-                try { await db.ExecuteAsync("PRAGMA cipher_memory_security = OFF;"); } catch { }
+                try { await db.ExecuteAsync("PRAGMA cipher_memory_security = ON;"); } catch { }
                 try { await db.ExecuteAsync("PRAGMA busy_timeout = 30000;"); } catch { }
             }
 

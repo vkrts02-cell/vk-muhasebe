@@ -105,7 +105,16 @@ namespace ErmayMuhasebe.Services
             var cari = await _dbService.GetCariKartAsync(cariId);
             if (cari == null) throw new InvalidOperationException($"Cari bulunamadı (ID: {cariId})");
 
-            string evrakNo = $"TS-{_yearContext.CurrentYear}-{DateTime.Now:MMddHHmmss}";
+            string evrakNo = root.TryGetProperty("evrakNo", out var enElem) && !string.IsNullOrWhiteSpace(enElem.GetString())
+                ? enElem.GetString()!.Trim()
+                : $"TS-{_yearContext.CurrentYear}-{DateTime.Now:MMddHHmmss}";
+
+            // İdempotency: Eğer bu evrak numaralı hareket yerelde zaten mevcutsa mükerrer kayıt oluşturma
+            var existingTahsilat = await _dbService.GetCariHareketleriAsync(cariId);
+            if (existingTahsilat != null && existingTahsilat.Any(x => !string.IsNullOrEmpty(x.EvrakNo) && x.EvrakNo == evrakNo))
+            {
+                return evrakNo;
+            }
 
             var bankalar = await _dbService.GetBankalarAsync();
             var targetBanka = bankalar.Find(b => method.Contains("Nakit") ? b.KartTuru == "Kasa" : b.KartTuru != "Kasa") ?? bankalar.FirstOrDefault();
@@ -166,7 +175,16 @@ namespace ErmayMuhasebe.Services
             var cari = await _dbService.GetCariKartAsync(cariId);
             if (cari == null) throw new InvalidOperationException($"Cari bulunamadı (ID: {cariId})");
 
-            string evrakNo = $"OD-{_yearContext.CurrentYear}-{DateTime.Now:MMddHHmmss}";
+            string evrakNo = root.TryGetProperty("evrakNo", out var enElemOd) && !string.IsNullOrWhiteSpace(enElemOd.GetString())
+                ? enElemOd.GetString()!.Trim()
+                : $"OD-{_yearContext.CurrentYear}-{DateTime.Now:MMddHHmmss}";
+
+            // İdempotency: Eğer bu evrak numaralı hareket yerelde zaten mevcutsa mükerrer kayıt oluşturma
+            var existingOdeme = await _dbService.GetCariHareketleriAsync(cariId);
+            if (existingOdeme != null && existingOdeme.Any(x => !string.IsNullOrEmpty(x.EvrakNo) && x.EvrakNo == evrakNo))
+            {
+                return evrakNo;
+            }
 
             var bankalar = await _dbService.GetBankalarAsync();
             var targetBanka = bankalar.Find(b => method.Contains("Nakit") ? b.KartTuru == "Kasa" : b.KartTuru != "Kasa") ?? bankalar.FirstOrDefault();

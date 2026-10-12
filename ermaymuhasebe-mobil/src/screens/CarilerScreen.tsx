@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, FlatList, TextInput, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Alert, Switch, PanResponder, Platform } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, FlatList, TextInput, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Alert, Switch, PanResponder, Platform, KeyboardAvoidingView } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Search, UserCircle2, Plus, X, Save, Edit3, Trash2, Phone, Mail, MapPin, Coins, ArrowUpRight, ArrowDownRight, FileText, Table, BarChart4 } from 'lucide-react-native';
 import { subscribeToPath, writeData, deleteData, readData, mapAppToDatabase, splitAccounts, mergeKasalar, updateCariBaseInfoInAllYears } from '../services/firebase';
@@ -1261,10 +1261,9 @@ export default function CarilerScreen({ route, navigation }: any) {
       {/* Cari Ekle/Düzenle Form Modalı */}
 
       <Modal visible={isFormOpen} animationType="slide" transparent={true}>
-
         <SafeAreaView style={styles.modalOverlay} {...formPanResponder.panHandlers}>
-
-          <View style={styles.modalContent}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, width: '100%' }}>
+            <View style={styles.modalContent}>
 
             <View style={styles.modalHeader}>
 
@@ -1478,8 +1477,9 @@ export default function CarilerScreen({ route, navigation }: any) {
             </ScrollView>
 
 
-          </View>
-          <KeyboardDismissBar inModal={true} />
+            </View>
+            <KeyboardDismissBar inModal={true} />
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
 
@@ -1752,7 +1752,8 @@ export default function CarilerScreen({ route, navigation }: any) {
       {/* Hızlı Finans Tahsilat / Ödeme Giriş Modalı */}
       <Modal visible={isTransactionOpen} transparent={true} animationType="slide">
         <SafeAreaView style={styles.modalOverlay} {...transPanResponder.panHandlers}>
-          <View style={styles.modalContent}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, width: '100%' }}>
+            <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{transType} Ekle</Text>
               <TouchableOpacity onPress={() => { setIsTransactionOpen(false); setIsDetailOpen(true); }}>
@@ -1818,8 +1819,9 @@ export default function CarilerScreen({ route, navigation }: any) {
                 <Text style={styles.saveButtonText}>{isSavingTransaction ? 'Kaydediliyor...' : 'Kaydet'}</Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
-          <KeyboardDismissBar inModal={true} />
+            </View>
+            <KeyboardDismissBar inModal={true} />
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
 

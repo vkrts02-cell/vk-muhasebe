@@ -19,7 +19,7 @@ Write-Host "`nGitHub Actions derlemesi bekleniyor..." -ForegroundColor Cyan
 
 $maxWaitSeconds = 1800 # 30 dakika
 $elapsed = 0
-$startTimeUtc = (Get-Date).ToUniversalTime().AddHours(-12)
+$startTimeUtc = [DateTime]"2026-10-11T19:55:00Z"
 
 $targetCommits = @($latestLocalCommit)
 

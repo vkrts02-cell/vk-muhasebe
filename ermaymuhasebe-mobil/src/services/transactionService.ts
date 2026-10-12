@@ -273,7 +273,9 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
           selectedHesapId: req.selectedHesap?.id,
           bankaAdi: req.bankaAdi,
           kartHesapNo: req.kartHesapNo,
-          yonlendirilenTedarikciId: req.directedSupplier?.id
+          yonlendirilenTedarikciId: req.directedSupplier?.id,
+          evrakNo,
+          refId
         }
       });
     } catch (inboxErr) {

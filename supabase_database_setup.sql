@@ -319,6 +319,22 @@ CREATE TABLE IF NOT EXISTS public.mali_yillar (
 ALTER TABLE public.mali_yillar ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "mali_yillar_all_policy" ON public.mali_yillar FOR ALL USING (true) WITH CHECK (true);
 
+-- 19. MOBİL GELEN KUTUSU TABLOSU (Asenkron Masaüstü Kuyruğu)
+CREATE TABLE IF NOT EXISTS public.mobil_gelen_kutusu (
+    id TEXT PRIMARY KEY,
+    islem_turu TEXT NOT NULL,
+    kaynak_cihaz TEXT DEFAULT 'mobil-app',
+    payload JSONB,
+    durum TEXT DEFAULT 'Bekliyor',
+    mali_yil INTEGER DEFAULT EXTRACT(YEAR FROM CURRENT_DATE),
+    resmi_evrak_no TEXT,
+    hata_mesaji TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.mobil_gelen_kutusu ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "mobil_gelen_kutusu_all_policy" ON public.mobil_gelen_kutusu FOR ALL USING (true) WITH CHECK (true);
+
 -- ==============================================================================
 -- 19. SUPABASE REALTIME (CANLI YAYIN) YETKİLERİ
 -- Mobil ve masaüstü arasında saniyelik canlı senkronizasyon için tabloları realtime yayınına ekler.
