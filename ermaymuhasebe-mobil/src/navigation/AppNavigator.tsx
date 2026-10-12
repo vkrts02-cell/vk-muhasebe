@@ -1,9 +1,8 @@
 import React from 'react';
-import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
-import { Home, Users, FileText, Settings, Package } from 'lucide-react-native';
+import FloatingTabBar from '../components/FloatingTabBar';
 
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -68,41 +67,11 @@ function MoreStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }: any) => ({
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: '#000000' },
-        tabBarStyle: {
-          backgroundColor: '#000000',
-          borderTopColor: 'transparent',
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: '#38BDF8',
-        tabBarInactiveTintColor: '#64748B',
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-        },
-        tabBarIcon: ({ color, focused }: any) => {
-          let IconComponent = Home;
-          if (route.name === 'Dashboard') {
-            IconComponent = Home;
-          } else if (route.name === 'Cariler') {
-            IconComponent = Users;
-          } else if (route.name === 'Faturalar') {
-            IconComponent = FileText;
-          } else if (route.name === 'Stoklar') {
-            IconComponent = Package;
-          } else if (route.name === 'DahaFazla') {
-            IconComponent = Settings;
-          }
-          return <IconComponent color={color} size={22} strokeWidth={focused ? 2.4 : 1.8} />;
-        },
-      })}
+      }}
     >
       <Tab.Screen 
         name="Dashboard" 

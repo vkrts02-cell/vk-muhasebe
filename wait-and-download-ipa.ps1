@@ -1,128 +1,113 @@
+param(
+    [string]$runId = ""
+)
+
 # VK Muhasebe - GitHub Actions Takip ve Otomatik Indirme Scripti
-$repo = "vkrts2/vk-muhasebe"
+$repo = "vkrts02-cell/vk-muhasebe"
+
+if ([string]::IsNullOrWhiteSpace($runId) -and $args.Count -gt 0) {
+    $runId = $args[0]
+}
+
+if ([string]::IsNullOrWhiteSpace($runId)) {
+    Write-Host "En guncel workflow run tespit ediliyor..." -ForegroundColor Yellow
+    $latestRun = gh run list --repo $repo --limit 1 --json databaseId | ConvertFrom-Json
+    if ($latestRun -and $latestRun.Count -gt 0) {
+        $runId = [string]$latestRun[0].databaseId
+    }
+}
+
 $desktopPaths = @(
     [Environment]::GetFolderPath('Desktop'),
     "C:\Users\mazik\OneDrive\Masaüstü",
     "C:\Users\mazik\Desktop"
 ) | Where-Object { ! [string]::IsNullOrEmpty($_) -and (Test-Path $_) } | Select-Object -Unique
-$targetFile = Join-Path ($desktopPaths | Select-Object -First 1) "VK.ipa"
+
+$primaryDesktop = $desktopPaths | Select-Object -First 1
+$targetFile = Join-Path $primaryDesktop "VK.ipa"
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  VK Muhasebe - Otomatik iOS IPA Derleme Takipcisi" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
-
-# 1. En son commit'i al
-$latestLocalCommit = (git rev-parse HEAD).Trim()
-Write-Host "Yerel En Guncel Commit: $latestLocalCommit" -ForegroundColor Yellow
-
-Write-Host "`nGitHub Actions derlemesi bekleniyor..." -ForegroundColor Cyan
+Write-Host "Hedef Repo: $repo | Run ID: $runId" -ForegroundColor Yellow
+Write-Host "Hedef Konum: $targetFile" -ForegroundColor Yellow
 
 $maxWaitSeconds = 1800 # 30 dakika
 $elapsed = 0
-$startTimeUtc = [DateTime]"2026-10-11T19:55:00Z"
-
-$targetCommits = @($latestLocalCommit)
 
 while ($elapsed -lt $maxWaitSeconds) {
     try {
-        $runs = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/actions/runs?per_page=10" -UserAgent "Mozilla/5.0"
-        if ($runs.workflow_runs.Count -gt 0) {
-            # Target commit'i iceren veya son tetiklenen iOS kosusunu bul
-            $matchedRuns = $runs.workflow_runs | Where-Object { 
-                $sha = $_.head_sha
-                ($targetCommits | Where-Object { $sha.StartsWith($_.Substring(0,7)) }).Count -gt 0
-            }
-            
-            # Eger commit tam eslesmiyorsa ama son baslatilan iOS kosusu varsa onu da degerlendir
-            if (-not $matchedRuns -or $matchedRuns.Count -eq 0) {
-                $matchedRuns = $runs.workflow_runs | Where-Object {
-                    $_.name -like "*iOS*" -and ([DateTime]$_.created_at -gt $startTimeUtc)
-                }
-            }
+        $runJson = gh run view $runId --repo $repo --json status,conclusion | ConvertFrom-Json
+        $status = $runJson.status
+        $conclusion = $runJson.conclusion
 
-            # Eger tamamlanmis basarili bir run varsa onu sec, yoksa en son run'i sec
-            $matchedRun = ($matchedRuns | Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } | Select-Object -First 1)
-            if (-not $matchedRun) {
-                $matchedRun = ($matchedRuns | Select-Object -First 1)
-            }
+        Write-Host "[$elapsed sn] Durum: $status | Sonuc: $conclusion" -ForegroundColor Gray
 
-            if ($matchedRun) {
-                $status = $matchedRun.status
-                $conclusion = $matchedRun.conclusion
-                $headSha = $matchedRun.head_sha
-                $runUrl = $matchedRun.html_url
-                $runId = $matchedRun.id
+        if ($status -eq "completed") {
+            if ($conclusion -eq "success") {
+                Write-Host "`n[HARIKA] Derleme basariyla tamamlandi! IPA indiriliyor..." -ForegroundColor Green
+                Start-Sleep -Seconds 5
 
-                Write-Host "[$elapsed sn] Run #$($matchedRun.run_number) ($runId) - Durum: $status | Sonuc: $conclusion | Commit: $($headSha.Substring(0,7))" -ForegroundColor Gray
+                $tempDir = Join-Path $env:TEMP "vk-ipa-download-$(Get-Random)"
+                New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+                
+                # 1. gh run download dene
+                Write-Host "Artifact indiriliyor (gh run download)..." -ForegroundColor Cyan
+                gh run download $runId --repo $repo --name VK-iOS-IPA --dir $tempDir
 
-                if ($status -eq "completed") {
-                    if ($conclusion -eq "success") {
-                        Write-Host "`n[HARIKA] Derleme basariyla tamamlandi! Yeni IPA indiriliyor..." -ForegroundColor Green
-                        Start-Sleep -Seconds 3
-                        
-                        $downloaded = $false
-                        for ($retry = 0; $retry -lt 15; $retry++) {
-                            try {
-                                # Release asset guncellenme zamanini kontrol et
-                                $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/latest-ios" -UserAgent "Mozilla/5.0"
-                                $asset = $rel.assets | Where-Object { $_.name -eq "VK.ipa" } | Select-Object -First 1
-                                if ($asset -and ([DateTime]$asset.updated_at -gt $startTimeUtc)) {
-                                    Write-Host "En guncel asset bulundu ($($asset.updated_at)), indiriliyor..." -ForegroundColor Cyan
-                                    $releaseUrl = if ($asset.browser_download_url) { $asset.browser_download_url } else { "https://github.com/$repo/releases/download/latest-ios/VK.ipa" }
-                                    Invoke-WebRequest -Uri $releaseUrl -OutFile $targetFile -UserAgent "Mozilla/5.0"
-                                    if ((Test-Path $targetFile) -and ((Get-Item $targetFile).Length -gt 1000000)) {
-                                        $downloaded = $true
-                                        break
-                                    }
-                                }
-                            } catch { }
-                            Write-Host "Release dosyasinin guncellenmesi bekleniyor... ($($retry + 1)/15)" -ForegroundColor Yellow
-                            Start-Sleep -Seconds 5
-                        }
-
-                        if (-not $downloaded) {
-                            Write-Host "GitHub Releases dogrudan URL deneniyor..." -ForegroundColor Cyan
-                            try {
-                                $directUrl = "https://github.com/$repo/releases/download/latest-ios/VK.ipa"
-                                Invoke-WebRequest -Uri $directUrl -OutFile $targetFile -UserAgent "Mozilla/5.0"
-                                if ((Test-Path $targetFile) -and ((Get-Item $targetFile).Length -gt 1000000)) {
-                                    $downloaded = $true
-                                }
-                            } catch { }
-                        }
-
-                        if ($downloaded) {
-                            $sizeMB = [math]::Round((Get-Item $targetFile).Length / 1MB, 2)
-                            foreach ($dp in $desktopPaths) {
-                                $dest = Join-Path $dp "VK.ipa"
-                                if ($dest -ne $targetFile) {
-                                    Copy-Item -Path $targetFile -Destination $dest -Force -ErrorAction SilentlyContinue
-                                }
+                $downloadedIpa = Get-ChildItem -Path $tempDir -Filter "*.ipa" -Recurse | Select-Object -First 1
+                
+                # 2. Release asset dene (eger artifactten gelmediyse)
+                if (-not $downloadedIpa) {
+                    Write-Host "Release asset deneniyor..." -ForegroundColor Cyan
+                    try {
+                        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/latest-ios" -UserAgent "Mozilla/5.0"
+                        $asset = $rel.assets | Where-Object { $_.name -eq "VK.ipa" } | Select-Object -First 1
+                        if ($asset -and $asset.browser_download_url) {
+                            $assetDest = Join-Path $tempDir "VK.ipa"
+                            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $assetDest -UserAgent "Mozilla/5.0"
+                            if (Test-Path $assetDest) {
+                                $downloadedIpa = Get-Item $assetDest
                             }
-                            Write-Host "`n[TAMAMLANDI] Yeni VK.ipa Masaustune kaydedildi! ($sizeMB MB)" -ForegroundColor Green
-                            Write-Host "Konum: $targetFile" -ForegroundColor Green
-                            explorer.exe /select,"$targetFile"
-                            exit 0
-                        } else {
-                            Write-Host "`n[UYARI] VK.ipa release dosyasina ulasilamadi." -ForegroundColor Red
-                            exit 1
                         }
-                    } else {
-                        Write-Host "`n[UYARI] Derleme basarisiz oldu: $conclusion. Link: $runUrl" -ForegroundColor Red
-                        exit 1
+                    } catch {
+                        Write-Host "Release kontrol hatasi: $($_.Exception.Message)" -ForegroundColor DarkGray
                     }
                 }
+
+                if ($downloadedIpa -and (Test-Path $downloadedIpa.FullName) -and ((Get-Item $downloadedIpa.FullName).Length -gt 1000000)) {
+                    Copy-Item -Path $downloadedIpa.FullName -Destination $targetFile -Force
+                    $sizeMB = [math]::Round((Get-Item $targetFile).Length / 1MB, 2)
+                    
+                    foreach ($dp in $desktopPaths) {
+                        $dest = Join-Path $dp "VK.ipa"
+                        if ($dest -ne $targetFile) {
+                            Copy-Item -Path $targetFile -Destination $dest -Force -ErrorAction SilentlyContinue
+                        }
+                    }
+
+                    Write-Host "`n[TAMAMLANDI] Yeni VK.ipa Masaustune kaydedildi! ($sizeMB MB)" -ForegroundColor Green
+                    Write-Host "Konum: $targetFile" -ForegroundColor Green
+                    explorer.exe /select,"$targetFile"
+                    
+                    Remove-Item -Recurse -Force $tempDir -ErrorAction SilentlyContinue
+                    exit 0
+                } else {
+                    Write-Host "`n[HATA] IPA dosyasi indirilemedi veya boyutu cok kucuk." -ForegroundColor Red
+                    exit 1
+                }
             } else {
-                Write-Host "[$elapsed sn] Henuz eslesen derleme bulunamadi. GitHub Actions baslatilmasi bekleniyor..." -ForegroundColor Yellow
+                Write-Host "`n[HATA] Derleme basarisiz oldu: $conclusion" -ForegroundColor Red
+                exit 1
             }
         }
     } catch {
-        Write-Host "GitHub API kontrol edilirken hata: $($_.Exception.Message)" -ForegroundColor DarkGray
+        Write-Host "Kontrol sirasinda hata: $($_.Exception.Message)" -ForegroundColor DarkGray
     }
 
-    Start-Sleep -Seconds 20
-    $elapsed += 20
+    Start-Sleep -Seconds 30
+    $elapsed += 30
 }
 
-Write-Host "`nZaman asimi: 30 dakika icinde derleme tamamlanmadi." -ForegroundColor Red
+Write-Host "`nZaman asimi: 30 dakika icinde tamamlanmadi." -ForegroundColor Red
 exit 1

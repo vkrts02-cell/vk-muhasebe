@@ -11,6 +11,7 @@ import { loadFirmaProfili } from './src/services/pdfService';
 import { initNotifications } from './src/services/alertService';
 
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardDismissBar } from './src/components/KeyboardDismissBar';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, errorText: string }> {
@@ -172,10 +173,12 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        {content}
-        <KeyboardDismissBar isRoot={true} />
-      </ErrorBoundary>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          {content}
+          <KeyboardDismissBar isRoot={true} />
+        </ErrorBoundary>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
