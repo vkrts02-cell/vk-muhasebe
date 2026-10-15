@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Key, Link, Calendar, ShieldAlert, LogIn, Settings, CheckCircle2, User, History, ChevronRight, Send, Mail, Globe, Shield, Smartphone } from 'lucide-react-native';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil } from '../services/firebase';
+import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, getSupabaseClient } from '../services/firebase';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -51,6 +51,9 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
           setPassword(savedPassword);
           setRememberMe(true);
         }
+
+        // Mobilde doğrudan kullanıcı giriş ekranına geç (kurulum/ayar ekranını atla)
+        setMode('user');
       } catch (err) {
         console.error('Ayarlar yüklenemedi:', err);
       }
@@ -184,6 +187,97 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     } catch (err: any) {
       console.error('[LOGIN] Hata:', err?.message || err);
       setError('Sistem hatası. Lütfen daha sonra tekrar deneyin.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Deep link listener for Google OAuth callback
+  useEffect(() => {
+    const { Linking } = require('react-native');
+
+    const handleDeepLink = async (event: { url: string }) => {
+      if (!event || !event.url) return;
+      try {
+        const rawUrl = event.url;
+        console.log('[LoginScreen] Deep link received:', rawUrl);
+
+        const hashIndex = rawUrl.indexOf('#');
+        const queryIndex = rawUrl.indexOf('?');
+        const paramStr = hashIndex !== -1 ? rawUrl.substring(hashIndex + 1) : (queryIndex !== -1 ? rawUrl.substring(queryIndex + 1) : '');
+
+        if (paramStr) {
+          const params: Record<string, string> = {};
+          paramStr.split('&').forEach(part => {
+            const [k, v] = part.split('=');
+            if (k && v) params[k] = decodeURIComponent(v);
+          });
+
+          if (params.access_token) {
+            setLoading(true);
+            setError('');
+            const client = getSupabaseClient();
+            const { data, error } = await client.auth.setSession({
+              access_token: params.access_token,
+              refresh_token: params.refresh_token || ''
+            });
+
+            if (!error && data?.user) {
+              const userEmail = data.user.email || '';
+              const tenant = deriveTenantIdFromEmail(userEmail);
+              await setActiveTenantId(tenant);
+              const sessionUser = {
+                id: userEmail,
+                email: userEmail,
+                username: userEmail,
+                tenantId: tenant,
+                user_metadata: { role: 'Admin', fullName: userEmail, tenantId: tenant }
+              };
+              await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
+              setLoggedInUser(sessionUser);
+              setMode('year_selection');
+              await loadYearSelectionData();
+              return;
+            } else if (error) {
+              setError('Google ile oturum açılamadı: ' + error.message);
+            }
+          }
+        }
+      } catch (linkErr: any) {
+        console.warn('[LoginScreen] Deep link error:', linkErr);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    Linking.getInitialURL().then((initUrl: string | null) => {
+      if (initUrl) handleDeepLink({ url: initUrl });
+    });
+
+    return () => {
+      sub?.remove();
+    };
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const currentUrl = url || 'https://fqgbdymffknglqeqoogt.supabase.co';
+      const redirectUri = 'vkmuhasebe://auth/callback';
+      const authUrl = `${currentUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}&prompt=select_account`;
+      
+      const { Linking } = require('react-native');
+      const supported = await Linking.canOpenURL(authUrl);
+      if (supported) {
+        await Linking.openURL(authUrl);
+        setError('Tarayıcı açıldı. Lütfen Google hesabınızı seçerek girişi tamamlayınız.');
+      } else {
+        setError('Tarayıcı açılamadı.');
+      }
+    } catch (err: any) {
+      setError('Google ile giriş başlatılamadı: ' + (err?.message || ''));
     } finally {
       setLoading(false);
     }
@@ -364,6 +458,20 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
                   )}
                 </TouchableOpacity>
 
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>VEYA</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.googleButton}
+                  onPress={handleGoogleLogin}
+                  disabled={loading}
+                >
+                  <Text style={styles.googleIconText}>G</Text>
+                  <Text style={styles.googleButtonText}>Google ile Giriş Yap</Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.switchModeButton}

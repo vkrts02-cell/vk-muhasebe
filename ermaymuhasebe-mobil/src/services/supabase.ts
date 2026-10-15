@@ -238,16 +238,39 @@ export const isConfiguredInStorage = async (): Promise<boolean> => {
 
 export const getIsExplicitlyConfigured = () => isExplicitlyConfigured;
 
+export const deriveTenantIdFromEmail = (emailOrUsername?: string): string => {
+  if (!emailOrUsername) return 'default';
+  const clean = emailOrUsername.trim().toLowerCase();
+  if (clean.includes('@')) {
+    const cleanTenant = clean.replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
+    return `tenant_${cleanTenant}`;
+  }
+  return clean === 'admin' ? 'default' : `tenant_${clean.replace(/[^a-z0-9]/g, '_')}`;
+};
+
+export const getActiveTenantId = (): string => cachedConfig.tenantId || 'default';
+
+export const setActiveTenantId = async (tenantId: string) => {
+  const finalTenant = tenantId || 'default';
+  cachedConfig.tenantId = finalTenant;
+  cachedExtendedConfig.tenantId = finalTenant;
+  await AsyncStorage.setItem('ermay_active_tenant_id', finalTenant);
+  notifyConfigListeners();
+};
+
 export const loadConfigFromStorage = async (): Promise<boolean> => {
   try {
     const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
     const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
     const yr = await AsyncStorage.getItem('ermay_active_year');
+    const storedTenant = await AsyncStorage.getItem('ermay_active_tenant_id');
+    const tenantId = storedTenant || 'default';
+
     if (rawUrl && key && rawUrl.trim() && key.trim()) {
       const url = cleanSupabaseUrl(rawUrl);
       const cleanKey = key.trim();
-      cachedConfig = { url, anonKey: cleanKey, tenantId: 'default' };
-      cachedExtendedConfig = { url, secret: cleanKey, tenantId: 'default' };
+      cachedConfig = { url, anonKey: cleanKey, tenantId };
+      cachedExtendedConfig = { url, secret: cleanKey, tenantId };
       supabase = createClient(url, cleanKey);
       if (yr) cachedYear = yr;
       isExplicitlyConfigured = true;
@@ -263,17 +286,19 @@ export const loadConfigFromStorage = async (): Promise<boolean> => {
   }
 };
 
-export const saveSupabaseConfig = async (rawUrl: string, anonKey: string) => {
+export const saveSupabaseConfig = async (rawUrl: string, anonKey: string, tenantId?: string) => {
   const url = cleanSupabaseUrl(rawUrl);
   const cleanKey = (anonKey || '').trim();
-  cachedConfig = { url, anonKey: cleanKey, tenantId: 'default' };
-  cachedExtendedConfig = { url, secret: cleanKey, tenantId: 'default' };
+  const currentTenant = tenantId || cachedConfig.tenantId || 'default';
+  cachedConfig = { url, anonKey: cleanKey, tenantId: currentTenant };
+  cachedExtendedConfig = { url, secret: cleanKey, tenantId: currentTenant };
   supabase = createClient(url, cleanKey);
   isExplicitlyConfigured = true;
   await AsyncStorage.setItem('ermay_supabase_url', url);
   await AsyncStorage.setItem('ermay_supabase_key', cleanKey);
   await AsyncStorage.setItem('ermay_firebase_url', url);
   await AsyncStorage.setItem('ermay_firebase_secret', cleanKey);
+  await AsyncStorage.setItem('ermay_active_tenant_id', currentTenant);
   notifyConfigListeners();
 };
 
@@ -315,7 +340,7 @@ export const saveFirebaseConfig = async (
   extra?: Partial<ExtendedFirebaseConfig>
 ) => {
   if (url) {
-    await saveSupabaseConfig(url, secret || '');
+    await saveSupabaseConfig(url, secret || '', tenantId);
   }
   cachedExtendedConfig = {
     url,
@@ -328,13 +353,15 @@ export const saveFirebaseConfig = async (
 export const fetchAvailableYears = async (): Promise<string[]> => {
   try {
     const distinctYears = new Set<string>();
+    const currentTenant = cachedConfig.tenantId || 'default';
+    const noteTitle = currentTenant === 'default' ? '__MALI_YILLAR__' : `__MALI_YILLAR_${currentTenant}__`;
 
-    // 1. notlar tablosundaki __MALI_YILLAR__ kaydını sorgula (Masaüstü doğrudan buraya senkronize ediyor)
+    // 1. notlar tablosundaki tenant-scoped mali yıllar kaydını sorgula
     try {
       const { data: noteData } = await supabase
         .from('notlar')
         .select('icerik')
-        .eq('id', '999998')
+        .eq('baslik', noteTitle)
         .maybeSingle();
 
       if (noteData && noteData.icerik) {
@@ -345,16 +372,48 @@ export const fetchAvailableYears = async (): Promise<string[]> => {
             if (/^\d{4}$/.test(strY)) distinctYears.add(strY);
           });
         }
+      } else if (currentTenant === 'default') {
+        // Eski kayıtlardan geriye dönük uyumluluk
+        const { data: legacyNote } = await supabase
+          .from('notlar')
+          .select('icerik')
+          .eq('id', '999998')
+          .maybeSingle();
+        if (legacyNote && legacyNote.icerik) {
+          const parsed = typeof legacyNote.icerik === 'string' ? JSON.parse(legacyNote.icerik) : legacyNote.icerik;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            parsed.forEach((y: any) => {
+              const strY = String(y);
+              if (/^\d{4}$/.test(strY)) distinctYears.add(strY);
+            });
+          }
+        }
       }
     } catch {}
 
-    // 2. Doğrudan mali_yillar tablosunu sorgula (varsa)
+    // 2. mali_yillar tablosunu bu tenant için sorgula
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('mali_yillar')
         .select('yil')
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .order('yil', { ascending: true });
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (currentTenant) {
+        q = q.eq('tenant_id', currentTenant);
+      }
+
+      let { data, error } = await q.order('yil', { ascending: true });
+
+      // Fallback: tenant_id kolonu henüz eklenmemişse filtresiz dene
+      if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
+        const fbRes = await supabase
+          .from('mali_yillar')
+          .select('yil')
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .order('yil', { ascending: true });
+        data = fbRes.data;
+        error = fbRes.error;
+      }
 
       if (!error && data && data.length > 0) {
         data.forEach((r: any) => {
@@ -364,57 +423,25 @@ export const fetchAvailableYears = async (): Promise<string[]> => {
       }
     } catch {}
 
-    // 3. Tablo yoksa hareketler ve faturalardaki tarihlerden distinct yılları bul
-    try {
-      const { data: faturaData } = await supabase
-        .from('faturalar')
-        .select('tarih')
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .limit(200);
+    // 3. Tablo yoksa ve default tenant ise fatura ve hareketlerden distinct yılları bul
+    if (distinctYears.size === 0 && currentTenant === 'default') {
+      try {
+        const { data: faturaData } = await supabase
+          .from('faturalar')
+          .select('tarih')
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .limit(200);
 
-      if (faturaData) {
-        faturaData.forEach((f: any) => {
-          if (f.tarih) {
-            const yr = new Date(f.tarih).getFullYear();
-            if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
-          }
-        });
-      }
-    } catch {}
-
-    try {
-      const { data: chData } = await supabase
-        .from('cari_hareketler')
-        .select('tarih')
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .limit(200);
-
-      if (chData) {
-        chData.forEach((h: any) => {
-          if (h.tarih) {
-            const yr = new Date(h.tarih).getFullYear();
-            if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
-          }
-        });
-      }
-    } catch {}
-
-    try {
-      const { data: shData } = await supabase
-        .from('stok_hareketler')
-        .select('tarih')
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .limit(200);
-
-      if (shData) {
-        shData.forEach((h: any) => {
-          if (h.tarih) {
-            const yr = new Date(h.tarih).getFullYear();
-            if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
-          }
-        });
-      }
-    } catch {}
+        if (faturaData) {
+          faturaData.forEach((f: any) => {
+            if (f.tarih) {
+              const yr = new Date(f.tarih).getFullYear();
+              if (yr >= 2000 && yr <= 2100) distinctYears.add(yr.toString());
+            }
+          });
+        }
+      } catch {}
+    }
 
     if (distinctYears.size > 0) {
       return Array.from(distinctYears).sort();
@@ -432,22 +459,55 @@ export const createNewMaliYil = async (year: string): Promise<boolean> => {
     const yrNum = parseInt(year, 10);
     if (isNaN(yrNum) || yrNum < 2000 || yrNum > 2100) return false;
 
-    const { error } = await supabase.from('mali_yillar').upsert({
+    const currentTenant = cachedConfig.tenantId || 'default';
+
+    const payload: any = {
       yil: yrNum,
       is_active: true,
       is_deleted: false,
-      olusturma_tarihi: new Date().toISOString()
-    });
+      olusturma_tarihi: new Date().toISOString(),
+      tenant_id: currentTenant
+    };
+
+    let { error } = await supabase.from('mali_yillar').upsert(payload);
+
+    if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload.tenant_id;
+      const res = await supabase.from('mali_yillar').upsert(fallbackPayload);
+      error = res.error;
+    }
 
     if (error) {
       console.warn('[Supabase] createNewMaliYil upsert error, fallback to insert:', error.message);
-      await supabase.from('mali_yillar').insert({
-        yil: yrNum,
-        is_active: true,
-        is_deleted: false,
-        olusturma_tarihi: new Date().toISOString()
-      });
+      let insPayload: any = { ...payload };
+      let insRes = await supabase.from('mali_yillar').insert(insPayload);
+      if (insRes.error && (insRes.error.code === 'PGRST204' || insRes.error.message?.includes('tenant_id'))) {
+        delete insPayload.tenant_id;
+        await supabase.from('mali_yillar').insert(insPayload);
+      }
     }
+
+    // notlar tablosundaki tenant-scoped mali yıllar listesini de güncelle
+    try {
+      const existingYears = await fetchAvailableYears();
+      if (!existingYears.includes(year)) existingYears.push(year);
+      existingYears.sort();
+
+      const noteTitle = currentTenant === 'default' ? '__MALI_YILLAR__' : `__MALI_YILLAR_${currentTenant}__`;
+      const noteId = currentTenant === 'default'
+        ? 999998
+        : (Math.abs(currentTenant.split('').reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0) % 800000) + 100000);
+
+      await supabase.from('notlar').upsert({
+        id: noteId,
+        baslik: noteTitle,
+        icerik: JSON.stringify(existingYears.map(y => parseInt(y, 10))),
+        renk: '#0061FF',
+        tenant_id: currentTenant,
+        is_deleted: false
+      }, { onConflict: 'id' });
+    } catch {}
 
     await saveActiveYear(year);
     return true;
@@ -462,13 +522,35 @@ export const deleteMaliYil = async (year: string): Promise<boolean> => {
     const yrNum = parseInt(year, 10);
     if (isNaN(yrNum)) return false;
 
-    // 1. mali_yillar tablosundan soft-delete ve kalıcı silme
+    const currentTenant = cachedConfig.tenantId || 'default';
+
+    // 1. mali_yillar tablosundan sil
     try {
-      await supabase.from('mali_yillar').update({ is_deleted: true, is_active: false }).eq('yil', yrNum);
-      await supabase.from('mali_yillar').delete().eq('yil', yrNum);
+      let q = supabase.from('mali_yillar').delete().eq('yil', yrNum);
+      if (currentTenant) q = q.eq('tenant_id', currentTenant);
+      await q;
     } catch {}
 
-    // 2. Eğer silinen yıl aktif yıl ise storage'ı temizle
+    // 2. notlar tablosundaki tenant listesinden çıkar
+    try {
+      const existingYears = await fetchAvailableYears();
+      const updated = existingYears.filter(y => y !== year);
+      const noteTitle = currentTenant === 'default' ? '__MALI_YILLAR__' : `__MALI_YILLAR_${currentTenant}__`;
+      const noteId = currentTenant === 'default'
+        ? 999998
+        : (Math.abs(currentTenant.split('').reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0) % 800000) + 100000);
+
+      await supabase.from('notlar').upsert({
+        id: noteId,
+        baslik: noteTitle,
+        icerik: JSON.stringify(updated.map(y => parseInt(y, 10))),
+        renk: '#0061FF',
+        tenant_id: currentTenant,
+        is_deleted: false
+      }, { onConflict: 'id' });
+    } catch {}
+
+    // 3. Eğer silinen yıl aktif yıl ise storage'ı temizle
     const currentActive = await AsyncStorage.getItem('ermay_active_year');
     if (currentActive === year) {
       await AsyncStorage.removeItem('ermay_active_year');
@@ -536,7 +618,7 @@ export const toDec = (val: any): number => {
   return Math.round(num * 100) / 100; // SQLite Decimal precision fix for Mobile
 };
 
-export const sanitizePayloadForTable = (table: string, data: any): any => {
+const sanitizePayloadForTableInternal = (table: string, data: any): any => {
   if (!data || typeof data !== 'object') return data;
   const t = table.toLowerCase();
 
@@ -868,6 +950,18 @@ export const sanitizePayloadForTable = (table: string, data: any): any => {
   }
 
   return toSnakeCase(data);
+};
+
+export const sanitizePayloadForTable = (table: string, data: any): any => {
+  const sanitized = sanitizePayloadForTableInternal(table, data);
+  if (!sanitized || typeof sanitized !== 'object') return sanitized;
+  const currentTenant = cachedConfig.tenantId || 'default';
+  const t = (table || '').toLowerCase();
+  const nonTenantTables = ['kullanicilar', 'users'];
+  if (!nonTenantTables.includes(t) && sanitized.tenant_id === undefined) {
+    sanitized.tenant_id = currentTenant;
+  }
+  return sanitized;
 };
 
 export const normalizeRowFromSupabase = (table: string, row: any): any => {
@@ -1272,12 +1366,27 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
     }
 
     const { table, id, isDetail, foreignKey } = parsePath(path);
+    const currentTenant = cachedConfig.tenantId || 'default';
+    const nonTenantTables = ['kullanicilar', 'users'];
+    const isTenantTable = !nonTenantTables.includes(table);
 
     if (isDetail && foreignKey && id) {
-      const { data, error } = await supabase
+      let q = supabase
         .from(table)
         .select('*')
         .eq(foreignKey, id);
+
+      if (isTenantTable && currentTenant) {
+        q = q.eq('tenant_id', currentTenant);
+      }
+
+      let { data, error } = await q;
+
+      if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
+        const fbRes = await supabase.from(table).select('*').eq(foreignKey, id);
+        data = fbRes.data;
+        error = fbRes.error;
+      }
 
       if (error) {
         console.warn(`[Supabase] readData error on ${table}:`, error.message);
@@ -1287,11 +1396,22 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
     }
 
     if (id) {
-      const { data, error } = await supabase
+      let q = supabase
         .from(table)
         .select('*')
-        .eq('id', id)
-        .maybeSingle();
+        .eq('id', id);
+
+      if (isTenantTable && currentTenant) {
+        q = q.eq('tenant_id', currentTenant);
+      }
+
+      let { data, error } = await q.maybeSingle();
+
+      if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
+        const fbRes = await supabase.from(table).select('*').eq('id', id).maybeSingle();
+        data = fbRes.data;
+        error = fbRes.error;
+      }
 
       if (error) {
         console.warn(`[Supabase] readData single error on ${table}/${id}:`, error.message);
@@ -1308,7 +1428,22 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
     if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler', 'mali_yillar', 'cekler', 'senetler', 'kredi_karti_islemler', 'eft_islemler', 'belge_arsiv', 'doviz_kurlari', 'portfoy_kartlar', 'musteri_takip_klasorler', 'musteri_takip_detaylar', 'gorevler', 'personeller', 'stok_sayim_fisileri', 'stok_sayim_detaylari'].includes(table)) {
       query = query.or('is_deleted.is.null,is_deleted.eq.false');
     }
-    const { data, error } = await query;
+
+    if (isTenantTable && currentTenant) {
+      query = query.eq('tenant_id', currentTenant);
+    }
+
+    let { data, error } = await query;
+
+    if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
+      let fbQuery = supabase.from(table).select('*');
+      if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler', 'mali_yillar', 'cekler', 'senetler', 'kredi_karti_islemler', 'eft_islemler', 'belge_arsiv', 'doviz_kurlari', 'portfoy_kartlar', 'musteri_takip_klasorler', 'musteri_takip_detaylar', 'gorevler', 'personeller', 'stok_sayim_fisileri', 'stok_sayim_detaylari'].includes(table)) {
+        fbQuery = fbQuery.or('is_deleted.is.null,is_deleted.eq.false');
+      }
+      const fbRes = await fbQuery;
+      data = fbRes.data;
+      error = fbRes.error;
+    }
 
     if (error) {
       console.warn(`[Supabase] readData list error on ${table}:`, error.message);
@@ -1870,11 +2005,14 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 
           if (passwordMatched) {
             console.log('[loginUser] kullanicilar tablosu eşleşmesi başarılı:', matchUser.kullanici_adi);
+            const tenantCandidate = matchUser.tenant_id || matchUser.tenantId || deriveTenantIdFromEmail(matchUser.email || matchUser.kullanici_adi);
+            await setActiveTenantId(tenantCandidate);
             const sessionUser = {
               id: matchUser.kullanici_adi,
               email: matchUser.email || targetEmail,
               username: matchUser.kullanici_adi,
-              user_metadata: { role: matchUser.rol || 'Admin', fullName: matchUser.ad_soyad || matchUser.kullanici_adi }
+              tenantId: tenantCandidate,
+              user_metadata: { role: matchUser.rol || 'Admin', fullName: matchUser.ad_soyad || matchUser.kullanici_adi, tenantId: tenantCandidate }
             };
             cachedSessionUser = sessionUser;
             await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
@@ -1923,11 +2061,14 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 
             if (passwordMatched) {
               console.log('[loginUser] Bulut kullanıcı eşleşmesi başarılı:', matchUser.username);
+              const tenantCandidate = matchUser.tenant_id || matchUser.tenantId || deriveTenantIdFromEmail(matchUser.email || matchUser.username);
+              await setActiveTenantId(tenantCandidate);
               const sessionUser = {
                 id: matchUser.username,
                 email: matchUser.email || targetEmail,
                 username: matchUser.username,
-                user_metadata: { role: matchUser.role || 'Admin', fullName: matchUser.username }
+                tenantId: tenantCandidate,
+                user_metadata: { role: matchUser.role || 'Admin', fullName: matchUser.username, tenantId: tenantCandidate }
               };
               cachedSessionUser = sessionUser;
               await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
@@ -1949,11 +2090,14 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
       const isUserMatch = cleanUser.toLowerCase() === localUsername.toLowerCase() || targetEmail.toLowerCase() === `${localUsername.toLowerCase()}@ermay.local`;
       if (isUserMatch && cleanPass === localPassword) {
         console.log('[loginUser] Yerel kullanıcı doğrulandı:', localUsername);
+        const tenantCandidate = deriveTenantIdFromEmail(targetEmail || localUsername);
+        await setActiveTenantId(tenantCandidate);
         const sessionUser = {
           id: localUsername,
           email: targetEmail,
           username: localUsername,
-          user_metadata: { role: 'Admin', fullName: localUsername }
+          tenantId: tenantCandidate,
+          user_metadata: { role: 'Admin', fullName: localUsername, tenantId: tenantCandidate }
         };
         cachedSessionUser = sessionUser;
         await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
@@ -1970,6 +2114,8 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 
       if (data?.user) {
         console.log('[loginUser] Supabase Auth başarılı:', data.user.email);
+        const tenantCandidate = deriveTenantIdFromEmail(data.user.email || cleanUser);
+        await setActiveTenantId(tenantCandidate);
         cachedSessionUser = data.user;
         await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(data.user));
         return { success: true, user: data.user };
@@ -1980,13 +2126,16 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
     // Eğer telefonda henüz hiçbir yerel kullanıcı kaydedilmemişse, girilen bilgileri ilk yönetici olarak kabul et
     if (!localUsername) {
       console.log('[loginUser] İlk açılış tespit edildi, kullanıcı ilk yönetici olarak kaydediliyor:', cleanUser);
+      const tenantCandidate = deriveTenantIdFromEmail(targetEmail || cleanUser);
+      await setActiveTenantId(tenantCandidate);
       await AsyncStorage.setItem('ermay_saved_username', cleanUser);
       await AsyncStorage.setItem('ermay_saved_password', cleanPass);
       const sessionUser = {
         id: cleanUser,
         email: targetEmail,
         username: cleanUser,
-        user_metadata: { role: 'Admin', fullName: cleanUser }
+        tenantId: tenantCandidate,
+        user_metadata: { role: 'Admin', fullName: cleanUser, tenantId: tenantCandidate }
       };
       cachedSessionUser = sessionUser;
       await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
@@ -2003,8 +2152,12 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 export const logoutUser = async () => {
   try {
     cachedSessionUser = null;
+    cachedConfig.tenantId = 'default';
+    cachedExtendedConfig.tenantId = 'default';
     await AsyncStorage.removeItem('ermay_active_session_user');
+    await AsyncStorage.removeItem('ermay_active_tenant_id');
     await supabase.auth.signOut();
+    notifyConfigListeners();
   } catch (e) {}
 };
 
