@@ -217,10 +217,28 @@ export const parsePath = (path: string): { table: string; id?: string; field?: s
 export const cleanSupabaseUrl = (rawUrl?: string): string => {
   if (!rawUrl) return '';
   let clean = rawUrl.trim();
-  while (clean.endsWith('/')) clean = clean.substring(0, clean.length - 1);
-  if (clean.toLowerCase().endsWith('/rest/v1'))
-    clean = clean.substring(0, clean.length - '/rest/v1'.length);
-  while (clean.endsWith('/')) clean = clean.substring(0, clean.length - 1);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    while (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+      changed = true;
+    }
+    const lower = clean.toLowerCase();
+    if (lower.endsWith('/rest/v1')) {
+      clean = clean.substring(0, clean.length - 8);
+      changed = true;
+    } else if (lower.endsWith('/rest')) {
+      clean = clean.substring(0, clean.length - 5);
+      changed = true;
+    } else if (lower.endsWith('/auth/v1')) {
+      clean = clean.substring(0, clean.length - 8);
+      changed = true;
+    } else if (lower.endsWith('/auth')) {
+      clean = clean.substring(0, clean.length - 5);
+      changed = true;
+    }
+  }
   return clean;
 };
 
@@ -272,6 +290,10 @@ export const loadConfigFromStorage = async (): Promise<boolean> => {
       cachedConfig = { url, anonKey: cleanKey, tenantId };
       cachedExtendedConfig = { url, secret: cleanKey, tenantId };
       supabase = createClient(url, cleanKey);
+      if (rawUrl !== url) {
+        await AsyncStorage.setItem('ermay_supabase_url', url);
+        await AsyncStorage.setItem('ermay_firebase_url', url);
+      }
       if (yr) cachedYear = yr;
       isExplicitlyConfigured = true;
       return true;

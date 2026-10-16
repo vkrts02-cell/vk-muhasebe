@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Key, Link, Calendar, ShieldAlert, LogIn, Settings, CheckCircle2, User, History, ChevronRight, Send, Mail, Globe, Shield, Smartphone } from 'lucide-react-native';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, getSupabaseClient } from '../services/firebase';
+import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, getSupabaseClient, cleanSupabaseUrl, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY } from '../services/firebase';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -13,8 +13,8 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
   const [mode, setMode] = useState<'config' | 'user' | 'year_selection'>(initialMode);
   
   // Config Mode States (Sadece Supabase URL ve Key)
-  const [url, setUrl] = useState('https://fqgbdymffknglqeqoogt.supabase.co');
-  const [secret, setSecret] = useState('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxZ2JkeW1mZmtuZ2xxZXFvb2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODUzMDEsImV4cCI6MjEwNTE2MTMwMX0.pBeE2ivWpbkAd8KSN1y2pXNZPIr_1mGMLXXHYPzjTDg');
+  const [url, setUrl] = useState(DEFAULT_SUPABASE_URL);
+  const [secret, setSecret] = useState(DEFAULT_SUPABASE_KEY);
 
   // User Mode States
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -37,10 +37,17 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     
     const loadSavedSettings = async () => {
       try {
-        const savedUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
+        const rawSavedUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
         const savedSecret = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
-        if (savedUrl) setUrl(savedUrl);
-        if (savedSecret) setSecret(savedSecret);
+        if (rawSavedUrl) {
+          const cleaned = cleanSupabaseUrl(rawSavedUrl) || DEFAULT_SUPABASE_URL;
+          setUrl(cleaned);
+          if (cleaned !== rawSavedUrl) {
+            await AsyncStorage.setItem('ermay_supabase_url', cleaned);
+            await AsyncStorage.setItem('ermay_firebase_url', cleaned);
+          }
+        }
+        if (savedSecret) setSecret(savedSecret.trim());
 
         const savedUsername = await AsyncStorage.getItem('ermay_saved_username');
         const savedPassword = await AsyncStorage.getItem('ermay_saved_password');
@@ -133,11 +140,13 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     setError('');
 
     try {
-      await saveFirebaseConfig(url.trim(), secret.trim(), 'default');
-      await AsyncStorage.setItem('ermay_supabase_url', url.trim());
-      await AsyncStorage.setItem('ermay_supabase_key', secret.trim());
-      await AsyncStorage.setItem('ermay_firebase_url', url.trim());
-      await AsyncStorage.setItem('ermay_firebase_secret', secret.trim());
+      const cleanedUrl = cleanSupabaseUrl(url) || DEFAULT_SUPABASE_URL;
+      const cleanSecret = secret.trim() || DEFAULT_SUPABASE_KEY;
+      await saveFirebaseConfig(cleanedUrl, cleanSecret, 'default');
+      await AsyncStorage.setItem('ermay_supabase_url', cleanedUrl);
+      await AsyncStorage.setItem('ermay_supabase_key', cleanSecret);
+      await AsyncStorage.setItem('ermay_firebase_url', cleanedUrl);
+      await AsyncStorage.setItem('ermay_firebase_secret', cleanSecret);
 
       // 1. Adım Tamamlandı -> 2. Adıma (Kullanıcı Adı ve Şifre Ekranı) Geç
       setMode('user');
@@ -264,9 +273,41 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     setLoading(true);
     setError('');
     try {
-      const currentUrl = url || 'https://fqgbdymffknglqeqoogt.supabase.co';
+      const rawUrl = url || DEFAULT_SUPABASE_URL;
+      const cleanUrl = cleanSupabaseUrl(rawUrl) || DEFAULT_SUPABASE_URL;
       const redirectUri = 'vkmuhasebe://auth/callback';
-      const authUrl = `${currentUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}&prompt=select_account`;
+
+      let authUrl = '';
+      try {
+        const client = getSupabaseClient();
+        const { data, error: oauthErr } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUri,
+            skipBrowserRedirect: true,
+            queryParams: {
+              prompt: 'select_account'
+            }
+          }
+        });
+        if (data?.url) {
+          authUrl = data.url;
+        }
+      } catch (clientErr) {
+        console.warn('[LoginScreen] signInWithOAuth fallback:', clientErr);
+      }
+
+      if (!authUrl) {
+        authUrl = `${cleanUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}&prompt=select_account`;
+      }
+
+      // Kesin Koruma: Kong API Gateway'in PostgREST zannedip "No API key found" dönmesini engellemek için /rest/v1 asla auth yolunda olamaz
+      while (authUrl.includes('/rest/v1/')) {
+        authUrl = authUrl.replace('/rest/v1/', '/');
+      }
+      while (authUrl.includes('/rest/')) {
+        authUrl = authUrl.replace('/rest/', '/');
+      }
       
       const { Linking } = require('react-native');
       const supported = await Linking.canOpenURL(authUrl);

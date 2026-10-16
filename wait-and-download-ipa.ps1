@@ -1,9 +1,9 @@
 param(
-    [string]$runId = ""
+    [string]$runId = "",
+    [string]$repo = "vkrts2/vk-muhasebe"
 )
 
 # VK Muhasebe - GitHub Actions Takip ve Otomatik Indirme Scripti
-$repo = "vkrts02-cell/vk-muhasebe"
 
 if ([string]::IsNullOrWhiteSpace($runId) -and $args.Count -gt 0) {
     $runId = $args[0]

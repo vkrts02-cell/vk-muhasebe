@@ -4,7 +4,7 @@ import { Settings, Globe, Key, Calendar, Wifi, Save, Database, User, MapPin, Pho
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveSupabaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil } from '../services/firebase';
+import { saveFirebaseConfig, saveSupabaseConfig, saveActiveYear, getFirebaseConfig, loadConfigFromStorage, goOfflineMode, writeData, subscribeToPath, logoutUser, deleteData, readData, fetchAvailableYears, createNewMaliYil, deleteMaliYil, cleanSupabaseUrl } from '../services/firebase';
 import { getLockSettings, savePin, setLockEnabled, clearLock, setLockTimeout, DEFAULT_LOCK_MINUTES } from '../services/lockService';
 import { resetPdfServiceCache, cleanBase64Logo } from '../services/pdfService';
 import {
@@ -242,11 +242,9 @@ export default function AyarlarScreen() {
 
     setLoading(true);
     try {
-      await saveSupabaseConfig(dbUrl.trim(), secret.trim());
-      await AsyncStorage.setItem('ermay_supabase_url', dbUrl.trim());
-      await AsyncStorage.setItem('ermay_supabase_key', secret.trim());
-      await AsyncStorage.setItem('ermay_firebase_url', dbUrl.trim());
-      await AsyncStorage.setItem('ermay_firebase_secret', secret.trim());
+      const cleanUrl = cleanSupabaseUrl(dbUrl.trim());
+      const cleanSecret = secret.trim();
+      await saveSupabaseConfig(cleanUrl, cleanSecret);
       await saveActiveYear(activeYear);
       if (pdfServerUrl.trim()) {
         await AsyncStorage.setItem('pdf_server_url', pdfServerUrl.trim());
