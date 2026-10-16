@@ -10,10 +10,17 @@ if ([string]::IsNullOrWhiteSpace($runId) -and $args.Count -gt 0) {
 }
 
 if ([string]::IsNullOrWhiteSpace($runId)) {
-    Write-Host "En guncel workflow run tespit ediliyor..." -ForegroundColor Yellow
-    $latestRun = gh run list --repo $repo --limit 1 --json databaseId | ConvertFrom-Json
-    if ($latestRun -and $latestRun.Count -gt 0) {
-        $runId = [string]$latestRun[0].databaseId
+    Write-Host "En guncel workflow run tespit ediliyor ($repo)..." -ForegroundColor Yellow
+    try {
+        $headers = @{ "User-Agent" = "Mozilla/5.0" }
+        $runs = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/actions/runs?per_page=5" -Headers $headers
+        if ($runs -and $runs.workflow_runs -and $runs.workflow_runs.Count -gt 0) {
+            $latest = $runs.workflow_runs[0]
+            $runId = [string]$latest.id
+            Write-Host "Tespit edilen Run ID: $runId ($($latest.name))" -ForegroundColor Cyan
+        }
+    } catch {
+        Write-Host "Workflow run tespit hatasi: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
@@ -37,7 +44,8 @@ $elapsed = 0
 
 while ($elapsed -lt $maxWaitSeconds) {
     try {
-        $runJson = gh run view $runId --repo $repo --json status,conclusion | ConvertFrom-Json
+        $headers = @{ "User-Agent" = "Mozilla/5.0" }
+        $runJson = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/actions/runs/$runId" -Headers $headers
         $status = $runJson.status
         $conclusion = $runJson.conclusion
 
@@ -46,16 +54,11 @@ while ($elapsed -lt $maxWaitSeconds) {
         if ($status -eq "completed") {
             if ($conclusion -eq "success") {
                 Write-Host "`n[HARIKA] Derleme basariyla tamamlandi! IPA indiriliyor..." -ForegroundColor Green
-                Start-Sleep -Seconds 5
+                Start-Sleep -Seconds 10
 
                 $tempDir = Join-Path $env:TEMP "vk-ipa-download-$(Get-Random)"
                 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-                
-                # 1. gh run download dene
-                Write-Host "Artifact indiriliyor (gh run download)..." -ForegroundColor Cyan
-                gh run download $runId --repo $repo --name VK-iOS-IPA --dir $tempDir
-
-                $downloadedIpa = Get-ChildItem -Path $tempDir -Filter "*.ipa" -Recurse | Select-Object -First 1
+                $downloadedIpa = $null
                 
                 # 2. Release asset dene (eger artifactten gelmediyse)
                 if (-not $downloadedIpa) {
