@@ -148,10 +148,7 @@ public abstract partial class CariListViewModel : ViewModelBase
     // Grup Sorting & Filtering Properties
     [ObservableProperty] private int _grupSortState; // 0: None, 1: Müşteri First, 2: Tedarikçi First
     [ObservableProperty] private string _grupSortIcon = "ArrowSort";
-    [ObservableProperty] private string _selectedGrupFilter = "Tümü"; // "Tümü", "Müşteri", "Tedarikçi"
-    [ObservableProperty] private string _grupHeaderText = "Grup";
-    [ObservableProperty] private bool _isGrupFilterActive;
-    [ObservableProperty] private string _grupFilterIconColor = "#94A3B8";
+    [ObservableProperty] private string _selectedGrupFilter = "Tüm Gruplar";
 
     public static bool IsMusteri(string? grup)
     {
@@ -180,7 +177,6 @@ public abstract partial class CariListViewModel : ViewModelBase
         {
             GrupSortState = 0;
             GrupSortIcon = "ArrowSort";
-            GrupHeaderText = SelectedGrupFilter != "Tümü" ? $"Grup: {SelectedGrupFilter}" : "Grup";
         }
 
         if (!IsBakiyeSortActive)
@@ -216,13 +212,6 @@ public abstract partial class CariListViewModel : ViewModelBase
             BakiyeSortIcon = "ArrowSort";
         }
 
-        if (SelectedGrupFilter != "Tümü")
-        {
-            SelectedGrupFilter = "Tümü";
-            IsGrupFilterActive = false;
-            GrupFilterIconColor = "#94A3B8";
-        }
-
         // 0 -> 1 (Müşteriler Önce) -> 2 (Tedarikçiler Önce) -> 0 (Sıfırla)
         GrupSortState = (GrupSortState + 1) % 3;
 
@@ -230,15 +219,12 @@ public abstract partial class CariListViewModel : ViewModelBase
         {
             case 1:
                 GrupSortIcon = "ArrowUp";
-                GrupHeaderText = "Grup (Müşteri)";
                 break;
             case 2:
                 GrupSortIcon = "ArrowDown";
-                GrupHeaderText = "Grup (Tedarikçi)";
                 break;
             default:
                 GrupSortIcon = "ArrowSort";
-                GrupHeaderText = "Grup";
                 break;
         }
 
@@ -266,30 +252,16 @@ public abstract partial class CariListViewModel : ViewModelBase
     [RelayCommand]
     public async Task FilterGrupAsync(string? grup)
     {
-        SelectedGrupFilter = string.IsNullOrWhiteSpace(grup) ? "Tümü" : grup;
-        GrupSortState = 0;
-        if (SelectedGrupFilter == "Müşteri")
+        if (string.IsNullOrWhiteSpace(grup) || grup == "Tümü" || grup == "Tüm Gruplar")
         {
-            GrupHeaderText = "Grup: Müşteri";
-            GrupSortIcon = "ArrowSort";
-            IsGrupFilterActive = true;
-            GrupFilterIconColor = "#38BDF8";
-        }
-        else if (SelectedGrupFilter == "Tedarikçi")
-        {
-            GrupHeaderText = "Grup: Tedarikçi";
-            GrupSortIcon = "ArrowSort";
-            IsGrupFilterActive = true;
-            GrupFilterIconColor = "#FB923C";
+            SelectedGrupFilter = "Tüm Gruplar";
         }
         else
         {
-            SelectedGrupFilter = "Tümü";
-            GrupHeaderText = "Grup";
-            GrupSortIcon = "ArrowSort";
-            IsGrupFilterActive = false;
-            GrupFilterIconColor = "#94A3B8";
+            SelectedGrupFilter = grup;
         }
+        GrupSortState = 0;
+        GrupSortIcon = "ArrowSort";
         CurrentPageIndex = 0;
         await LoadCarilerAsync();
     }
@@ -297,26 +269,21 @@ public abstract partial class CariListViewModel : ViewModelBase
     [RelayCommand]
     public async Task SetGrupSortAsync(string? grup)
     {
-        SelectedGrupFilter = "Tümü";
-        IsGrupFilterActive = false;
-        GrupFilterIconColor = "#94A3B8";
+        SelectedGrupFilter = "Tüm Gruplar";
         if (grup == "Müşteri")
         {
             GrupSortState = 1;
             GrupSortIcon = "ArrowUp";
-            GrupHeaderText = "Grup (Müşteri)";
         }
         else if (grup == "Tedarikçi")
         {
             GrupSortState = 2;
             GrupSortIcon = "ArrowDown";
-            GrupHeaderText = "Grup (Tedarikçi)";
         }
         else
         {
             GrupSortState = 0;
             GrupSortIcon = "ArrowSort";
-            GrupHeaderText = "Grup";
         }
         if (IsBakiyeSortActive)
         {
@@ -438,8 +405,8 @@ public abstract partial class CariListViewModel : ViewModelBase
             if (!isSilent) IsLoading = true;
             var selectedId = SelectedCari?.Id;
 
-            bool filterMusteri = SelectedGrupFilter == "Müşteri";
-            bool filterTedarikci = SelectedGrupFilter == "Tedarikçi";
+            bool filterMusteri = SelectedGrupFilter == "Müşteri" || SelectedGrupFilter == "Sadece Müşteriler";
+            bool filterTedarikci = SelectedGrupFilter == "Tedarikçi" || SelectedGrupFilter == "Sadece Tedarikçiler";
 
             Expression<Func<CariKart, bool>>? filter = null;
             if (filterMusteri)
