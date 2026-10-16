@@ -211,45 +211,65 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
         const rawUrl = event.url;
         console.log('[LoginScreen] Deep link received:', rawUrl);
 
-        const hashIndex = rawUrl.indexOf('#');
+        const params: Record<string, string> = {};
         const queryIndex = rawUrl.indexOf('?');
-        const paramStr = hashIndex !== -1 ? rawUrl.substring(hashIndex + 1) : (queryIndex !== -1 ? rawUrl.substring(queryIndex + 1) : '');
+        const hashIndex = rawUrl.indexOf('#');
 
-        if (paramStr) {
-          const params: Record<string, string> = {};
-          paramStr.split('&').forEach(part => {
+        if (queryIndex !== -1) {
+          const qStr = hashIndex > queryIndex ? rawUrl.substring(queryIndex + 1, hashIndex) : rawUrl.substring(queryIndex + 1);
+          qStr.split('&').forEach(part => {
             const [k, v] = part.split('=');
             if (k && v) params[k] = decodeURIComponent(v);
           });
+        }
+        if (hashIndex !== -1) {
+          const hStr = rawUrl.substring(hashIndex + 1);
+          hStr.split('&').forEach(part => {
+            const [k, v] = part.split('=');
+            if (k && v) params[k] = decodeURIComponent(v);
+          });
+        }
 
-          if (params.access_token) {
-            setLoading(true);
-            setError('');
-            const client = getSupabaseClient();
+        if (params.code || params.access_token) {
+          setLoading(true);
+          setError('');
+          const client = getSupabaseClient();
+          let authUser: any = null;
+          let authError: any = null;
+
+          if (params.code) {
+            console.log('[LoginScreen] Exchanging PKCE code for session...');
+            const { data, error } = await client.auth.exchangeCodeForSession(params.code);
+            authUser = data?.user;
+            authError = error;
+          } else if (params.access_token) {
+            console.log('[LoginScreen] Setting session via access_token...');
             const { data, error } = await client.auth.setSession({
               access_token: params.access_token,
               refresh_token: params.refresh_token || ''
             });
+            authUser = data?.user;
+            authError = error;
+          }
 
-            if (!error && data?.user) {
-              const userEmail = data.user.email || '';
-              const tenant = deriveTenantIdFromEmail(userEmail);
-              await setActiveTenantId(tenant);
-              const sessionUser = {
-                id: userEmail,
-                email: userEmail,
-                username: userEmail,
-                tenantId: tenant,
-                user_metadata: { role: 'Admin', fullName: userEmail, tenantId: tenant }
-              };
-              await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
-              setLoggedInUser(sessionUser);
-              setMode('year_selection');
-              await loadYearSelectionData();
-              return;
-            } else if (error) {
-              setError('Google ile oturum açılamadı: ' + error.message);
-            }
+          if (!authError && authUser) {
+            const userEmail = authUser.email || '';
+            const tenant = deriveTenantIdFromEmail(userEmail);
+            await setActiveTenantId(tenant);
+            const sessionUser = {
+              id: userEmail,
+              email: userEmail,
+              username: userEmail,
+              tenantId: tenant,
+              user_metadata: { role: 'Admin', fullName: userEmail, tenantId: tenant }
+            };
+            await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
+            setLoggedInUser(sessionUser);
+            setMode('year_selection');
+            await loadYearSelectionData();
+            return;
+          } else if (authError) {
+            setError('Google ile oturum açılamadı: ' + authError.message);
           }
         }
       } catch (linkErr: any) {
