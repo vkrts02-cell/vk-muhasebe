@@ -871,6 +871,7 @@ public partial class MainViewModel : ViewModelBase
                 }
                 else
                 {
+                    db.CurrentTenantId = "default";
                     ActiveAuthView = LoginViewModel;
                 }
             },
@@ -925,7 +926,7 @@ public partial class MainViewModel : ViewModelBase
         // Start Background Services smoothly after UI and Dashboard have fully rendered
         _ = Task.Run(async () =>
         {
-            await Task.Delay(2500);
+            try { await _dbService.SyncFromCloudAsync(); } catch { }
             try { _dbService.StartRealtimeSync(); } catch { }
             try { _ = StartAutoSync(); } catch { }
             try { _ = RunAutoBackupWithNotificationAsync(); } catch { }

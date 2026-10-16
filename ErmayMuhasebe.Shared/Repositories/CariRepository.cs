@@ -79,8 +79,19 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
             await db.InsertAsync(entity);
         }
 
-        // Bulut senkronizasyonu
-        await _syncService.SyncCariAsync(entity);
+        // Bulut senkronizasyonu - Akıllı Hibrit (Push + Offline Outbox)
+        bool synced = false;
+        try
+        {
+            synced = await _syncService.SyncCariAsync(entity);
+        }
+        catch { }
+
+        if (!synced)
+        {
+            await _dbService.EnqueueSyncItemAsync("Cari", entity.Id, "Put");
+        }
+
         _dbService.AutoReflectCari(entity.Id);
         
         return entity.Id;
@@ -91,7 +102,16 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
         var hCount = await GetCountAsync<CariHareket>(h => h.CariId == entity.Id);
         if (hCount > 0) throw new System.Exception("Bu carinin hareketleri bulunmaktadır. Hareket görmüş bir cari silinemez! Önce hareketleri temizlemeli veya cariyi Pasif yapmalısınız.");
         
-        return await _dbService.DeleteCariAsync(entity);
+        var result = await _dbService.DeleteCariAsync(entity);
+        try
+        {
+            await _syncService.DeleteCariAsync(entity.Id);
+        }
+        catch
+        {
+            await _dbService.EnqueueSyncItemAsync("Cari", entity.Id, "Delete");
+        }
+        return result;
     }
 
     public override async Task<int> DeleteAsync(int id)

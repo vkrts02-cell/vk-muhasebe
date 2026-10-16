@@ -918,23 +918,32 @@
                                     </StackPanel>
                                 </Border>
                                 
-                                <Grid ColumnDefinitions="*, *" ColumnSpacing="20" Margin="0,5,0,0">
-                                    <Button Grid.Column="0" Command="{Binding SyncCloudCommand}" IsEnabled="{Binding !IsBusy}"
+                                <Grid ColumnDefinitions="*, *, *" ColumnSpacing="15" Margin="0,5,0,0">
+                                    <Button Grid.Column="0" Command="{Binding TestCloudConnectionCommand}" IsEnabled="{Binding !IsBusy}"
+                                            Background="rgba(59, 130, 246, 0.15)" BorderBrush="#3B82F6" BorderThickness="1"
+                                            Height="52" CornerRadius="12"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="20" Foreground="#3B82F6" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Bağlantıyı Test Et" FontWeight="SemiBold" Foreground="#3B82F6" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="1" Command="{Binding SyncCloudCommand}" IsEnabled="{Binding !IsBusy}"
                                             Background="rgba(245, 158, 11, 0.15)" BorderBrush="#F59E0B" BorderThickness="1"
                                             Height="52" CornerRadius="12"
                                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <ic:SymbolIcon Symbol="ArrowSync" FontSize="20" Foreground="#F59E0B" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Verileri Bulut ile Eşitle" FontWeight="SemiBold" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Verileri Eşitle" FontWeight="SemiBold" Foreground="#F59E0B" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="1" Command="{Binding SaveCloudAndApiSettingsCommand}" IsEnabled="{Binding !IsBusy}"
+                                    <Button Grid.Column="2" Command="{Binding SaveCloudAndApiSettingsCommand}" IsEnabled="{Binding !IsBusy}"
                                             Background="rgba(16, 185, 129, 0.2)" BorderBrush="#10B981" BorderThickness="1.5"
                                             Height="52" CornerRadius="12"
                                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <ic:SymbolIcon Symbol="Save" FontSize="20" Foreground="#10B981" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Bulut ve API Ayarlarını Kaydet" FontWeight="Bold" Foreground="#10B981" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Ayarları Kaydet" FontWeight="Bold" Foreground="#10B981" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
@@ -953,43 +962,83 @@
                                 
                                 <TextBlock Text="Uygulama Görünümü Seçin" FontSize="16" FontWeight="SemiBold" Foreground="#9CA3AF" Margin="0,10,0,0"/>
                                 
-                                <Grid ColumnDefinitions="*, *" RowDefinitions="Auto" ColumnSpacing="20">
-                                    <!-- Modern SaaS Theme -->
+                                <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto" ColumnSpacing="20" RowSpacing="20">
+                                    <!-- 1. Modern SaaS (Mevcut Standart Tasarım) -->
                                     <Button Grid.Row="0" Grid.Column="0" Command="{Binding SetThemeCommand}" CommandParameter="ModernSaaS"
                                             Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
                                         <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{Binding SelectedTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='ModernSaaS', Converter={StaticResource BoolToBlueBrushConverter}}" BorderThickness="2" CornerRadius="16" Padding="20">
                                             <StackPanel Spacing="10" HorizontalAlignment="Center">
-                                                <Border Width="160" Height="80" Background="{DynamicResource BackgroundBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                                                <Border Width="160" Height="80" Background="#0A0A0A" CornerRadius="8" BorderBrush="#1FFFFFFF" BorderThickness="1">
                                                     <Grid ColumnDefinitions="30, *">
-                                                        <Border Grid.Column="0" Background="Transparent" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,1,0"/>
+                                                        <Border Grid.Column="0" Background="#0F0F0F" BorderBrush="#1FFFFFFF" BorderThickness="0,0,1,0"/>
                                                         <StackPanel Grid.Column="1" Margin="10" Spacing="5">
                                                             <Border Width="30" Height="5" Background="#0061FF" CornerRadius="2" HorizontalAlignment="Left"/>
-                                                            <Border Height="30" Background="rgba(255,255,255,0.05)" CornerRadius="4"/>
+                                                            <Border Height="30" Background="#161616" CornerRadius="4"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>
-                                                <TextBlock Text="Ermay Premium" FontWeight="Black" FontSize="16" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Modern ve akıcı cam tasarımı." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Standart (Orijinal)" FontWeight="Black" FontSize="16" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Mevcut klasik tasarım ve nötr koyu mod." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
                                     </Button>
- 
-                                    <!-- IDE Professional Theme -->
-                                    <Button Grid.Row="0" Grid.Column="1" Command="{Binding SetThemeCommand}" CommandParameter="IDEProfessional"
+
+                                    <!-- 2. Obsidian Glow (Konsept 1: Ultra Modern Koyu Lüks) -->
+                                    <Button Grid.Row="0" Grid.Column="1" Command="{Binding SetThemeCommand}" CommandParameter="ObsidianGlow"
+                                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
+                                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{Binding SelectedTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='ObsidianGlow', Converter={StaticResource BoolToBlueBrushConverter}}" BorderThickness="2" CornerRadius="16" Padding="20">
+                                            <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                                <Border Width="160" Height="80" Background="#0D1117" CornerRadius="8" BorderBrush="#3300E5FF" BorderThickness="1">
+                                                    <Grid ColumnDefinitions="30, *">
+                                                        <Border Grid.Column="0" Background="#080B10" BorderBrush="#2000E5FF" BorderThickness="0,0,1,0"/>
+                                                        <StackPanel Grid.Column="1" Margin="10" Spacing="5">
+                                                            <Border Width="35" Height="5" Background="#00E5FF" CornerRadius="2" HorizontalAlignment="Left"/>
+                                                            <Border Height="30" Background="#161B22" CornerRadius="4" BorderBrush="#2000E5FF" BorderThickness="1"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Text="Obsidian Glow" FontWeight="Black" FontSize="16" Foreground="#00E5FF" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Koyu obsidyen, neon turkuaz &amp; çivit lüksü." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+
+                                    <!-- 3. Cupertino Frosted Glass (Konsept 2: Apple macOS Akrilik Cam) -->
+                                    <Button Grid.Row="1" Grid.Column="0" Command="{Binding SetThemeCommand}" CommandParameter="CupertinoGlass"
+                                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
+                                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{Binding SelectedTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='CupertinoGlass', Converter={StaticResource BoolToBlueBrushConverter}}" BorderThickness="2" CornerRadius="16" Padding="20">
+                                            <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                                <Border Width="160" Height="80" Background="#0F172A" CornerRadius="8" BorderBrush="#3838BDF8" BorderThickness="1">
+                                                    <Grid ColumnDefinitions="30, *">
+                                                        <Border Grid.Column="0" Background="#0A101D" BorderBrush="#2538BDF8" BorderThickness="0,0,1,0"/>
+                                                        <StackPanel Grid.Column="1" Margin="10" Spacing="5">
+                                                            <Border Width="30" Height="5" Background="#0A84FF" CornerRadius="2" HorizontalAlignment="Left"/>
+                                                            <Border Height="30" Background="#1E293B" CornerRadius="6" BorderBrush="#2538BDF8" BorderThickness="1"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Text="Cupertino Glass" FontWeight="Black" FontSize="16" Foreground="#38BDF8" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Apple macOS buzlu akrilik cam &amp; safir mavi." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+
+                                    <!-- 4. IDE Professional Theme -->
+                                    <Button Grid.Row="1" Grid.Column="1" Command="{Binding SetThemeCommand}" CommandParameter="IDEProfessional"
                                             Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
                                         <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{Binding SelectedTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='IDEProfessional', Converter={StaticResource BoolToBlueBrushConverter}}" BorderThickness="2" CornerRadius="16" Padding="20">
                                             <StackPanel Spacing="10" HorizontalAlignment="Center">
-                                                <Border Width="160" Height="80" Background="{DynamicResource BackgroundBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                                                <Border Width="160" Height="80" Background="#1E1E1E" CornerRadius="8" BorderBrush="#25FFFFFF" BorderThickness="1">
                                                     <Grid ColumnDefinitions="30, *">
-                                                        <Border Grid.Column="0" Background="rgba(255,255,255,0.05)" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,1,0"/>
+                                                        <Border Grid.Column="0" Background="#333333" BorderBrush="#25FFFFFF" BorderThickness="0,0,1,0"/>
                                                         <StackPanel Grid.Column="1" Margin="10" Spacing="5">
-                                                            <Border Width="20" Height="5" Background="#007acc" CornerRadius="1" HorizontalAlignment="Left"/>
-                                                            <Border Height="30" Background="rgba(255,255,255,0.02)" CornerRadius="0"/>
+                                                            <Border Width="20" Height="5" Background="#007ACC" CornerRadius="1" HorizontalAlignment="Left"/>
+                                                            <Border Height="30" Background="#252526" CornerRadius="0"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>
                                                 <TextBlock Text="IDE Profesyonel" FontWeight="Black" FontSize="16" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Teknik ve odaklanmış yapı." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Teknik ve odaklanmış VS Code yapısı." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
                                     </Button>
@@ -1194,15 +1243,14 @@
                                             <ic:SymbolIcon Symbol="Warning" FontSize="28" Foreground="#ef4444"/>
                                             <TextBlock Text="Fabrika Ayarlarına Dön" FontSize="20" FontWeight="Black" Foreground="#ef4444" VerticalAlignment="Center"/>
                                         </StackPanel>
-                                        <TextBlock Text="Bu işlem tüm verileri, kayıtları ve yapılandırmaları kalıcı olarak silecektir! Bu işlemin geri dönüşü mümkün değildir." FontSize="14" Foreground="#ef4444" Opacity="0.9" TextWrapping="Wrap"/>
-                                        <TextBlock Text="Kurulum esnasında belirlediğiniz Fabrika Ayarları Sıfırlama Onay Şifresini girmelisiniz." FontSize="13" FontWeight="Black" Foreground="#ef4444" Opacity="0.8"/>
+                                        <TextBlock Text="Bu işlem tüm verileri, kayıtları, mali yılları ve yerel/bulut veritabanını kalıcı olarak silecektir! Bu işlemin geri dönüşü mümkün değildir." FontSize="14" Foreground="#ef4444" Opacity="0.9" TextWrapping="Wrap"/>
                                         
-                                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="20">
-                                            <TextBox Grid.Column="0" PasswordChar="*" Watermark="Sıfırlama Onay Şifresini Yazın" Text="{Binding ResetPassword}" Height="55" CornerRadius="12" BorderBrush="#ef4444"/>
-                                            <Button Grid.Column="1" Command="{Binding FactoryResetCommand}" Classes="Danger" Height="55" Padding="40,0" CornerRadius="12">
-                                                <TextBlock Text="SİSTEMİ TAMAMEN SIFIRLA" FontWeight="Black" FontSize="14"/>
-                                            </Button>
-                                        </Grid>
+                                        <Button Command="{Binding FactoryResetCommand}" Classes="Danger" Height="55" Padding="40,0" CornerRadius="12" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                                <ic:SymbolIcon Symbol="Delete" FontSize="20" Foreground="White"/>
+                                                <TextBlock Text="SİSTEMİ FABRİKA AYARLARINA DÖNDÜR (TÜM VERİLERİ SİL)" FontWeight="Black" FontSize="15"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
 

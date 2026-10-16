@@ -145,9 +145,44 @@ public abstract partial class CariListViewModel : ViewModelBase
     [ObservableProperty] private bool _isBakiyeDescending = true;
     [ObservableProperty] private string _bakiyeSortIcon = "ArrowSort";
 
+    // Grup Sorting & Filtering Properties
+    [ObservableProperty] private int _grupSortState; // 0: None, 1: Müşteri First, 2: Tedarikçi First
+    [ObservableProperty] private string _grupSortIcon = "ArrowSort";
+    [ObservableProperty] private string _selectedGrupFilter = "Tümü"; // "Tümü", "Müşteri", "Tedarikçi"
+    [ObservableProperty] private string _grupHeaderText = "Grup";
+    [ObservableProperty] private bool _isGrupFilterActive;
+    [ObservableProperty] private string _grupFilterIconColor = "#94A3B8";
+
+    public static bool IsMusteri(string? grup)
+    {
+        if (string.IsNullOrWhiteSpace(grup)) return false;
+        var g = grup.Trim();
+        return g.Equals("Müşteri", StringComparison.OrdinalIgnoreCase) ||
+               g.Equals("Musteri", StringComparison.OrdinalIgnoreCase) ||
+               g.Equals("Alıcı", StringComparison.OrdinalIgnoreCase) ||
+               g.Equals("Alici", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsTedarikci(string? grup)
+    {
+        if (string.IsNullOrWhiteSpace(grup)) return false;
+        var g = grup.Trim();
+        return g.Equals("Tedarikçi", StringComparison.OrdinalIgnoreCase) ||
+               g.Equals("Tedarikci", StringComparison.OrdinalIgnoreCase) ||
+               g.Equals("Satıcı", StringComparison.OrdinalIgnoreCase) ||
+               g.Equals("Satici", StringComparison.OrdinalIgnoreCase);
+    }
+
     [RelayCommand]
     public async Task SortByBakiyeAsync()
     {
+        if (GrupSortState != 0)
+        {
+            GrupSortState = 0;
+            GrupSortIcon = "ArrowSort";
+            GrupHeaderText = SelectedGrupFilter != "Tümü" ? $"Grup: {SelectedGrupFilter}" : "Grup";
+        }
+
         if (!IsBakiyeSortActive)
         {
             IsBakiyeSortActive = true;
@@ -170,6 +205,126 @@ public abstract partial class CariListViewModel : ViewModelBase
         }
 
         await LoadCarilerAsync(isSilent: true);
+    }
+
+    [RelayCommand]
+    public async Task SortByGrupAsync()
+    {
+        if (IsBakiyeSortActive)
+        {
+            IsBakiyeSortActive = false;
+            BakiyeSortIcon = "ArrowSort";
+        }
+
+        if (SelectedGrupFilter != "Tümü")
+        {
+            SelectedGrupFilter = "Tümü";
+            IsGrupFilterActive = false;
+            GrupFilterIconColor = "#94A3B8";
+        }
+
+        // 0 -> 1 (Müşteriler Önce) -> 2 (Tedarikçiler Önce) -> 0 (Sıfırla)
+        GrupSortState = (GrupSortState + 1) % 3;
+
+        switch (GrupSortState)
+        {
+            case 1:
+                GrupSortIcon = "ArrowUp";
+                GrupHeaderText = "Grup (Müşteri)";
+                break;
+            case 2:
+                GrupSortIcon = "ArrowDown";
+                GrupHeaderText = "Grup (Tedarikçi)";
+                break;
+            default:
+                GrupSortIcon = "ArrowSort";
+                GrupHeaderText = "Grup";
+                break;
+        }
+
+        if (Cariler != null && Cariler.Count > 0)
+        {
+            List<CariKart> sorted;
+            if (GrupSortState == 1)
+            {
+                sorted = Cariler.OrderBy(c => IsMusteri(c.Grup) ? 0 : 1).ThenBy(c => c.Unvan).ToList();
+            }
+            else if (GrupSortState == 2)
+            {
+                sorted = Cariler.OrderBy(c => IsTedarikci(c.Grup) ? 0 : 1).ThenBy(c => c.Unvan).ToList();
+            }
+            else
+            {
+                sorted = Cariler.OrderBy(c => c.Unvan).ToList();
+            }
+            Cariler = new ObservableCollection<CariKart>(sorted);
+        }
+
+        await LoadCarilerAsync(isSilent: true);
+    }
+
+    [RelayCommand]
+    public async Task FilterGrupAsync(string? grup)
+    {
+        SelectedGrupFilter = string.IsNullOrWhiteSpace(grup) ? "Tümü" : grup;
+        GrupSortState = 0;
+        if (SelectedGrupFilter == "Müşteri")
+        {
+            GrupHeaderText = "Grup: Müşteri";
+            GrupSortIcon = "ArrowSort";
+            IsGrupFilterActive = true;
+            GrupFilterIconColor = "#38BDF8";
+        }
+        else if (SelectedGrupFilter == "Tedarikçi")
+        {
+            GrupHeaderText = "Grup: Tedarikçi";
+            GrupSortIcon = "ArrowSort";
+            IsGrupFilterActive = true;
+            GrupFilterIconColor = "#FB923C";
+        }
+        else
+        {
+            SelectedGrupFilter = "Tümü";
+            GrupHeaderText = "Grup";
+            GrupSortIcon = "ArrowSort";
+            IsGrupFilterActive = false;
+            GrupFilterIconColor = "#94A3B8";
+        }
+        CurrentPageIndex = 0;
+        await LoadCarilerAsync();
+    }
+
+    [RelayCommand]
+    public async Task SetGrupSortAsync(string? grup)
+    {
+        SelectedGrupFilter = "Tümü";
+        IsGrupFilterActive = false;
+        GrupFilterIconColor = "#94A3B8";
+        if (grup == "Müşteri")
+        {
+            GrupSortState = 1;
+            GrupSortIcon = "ArrowUp";
+            GrupHeaderText = "Grup (Müşteri)";
+        }
+        else if (grup == "Tedarikçi")
+        {
+            GrupSortState = 2;
+            GrupSortIcon = "ArrowDown";
+            GrupHeaderText = "Grup (Tedarikçi)";
+        }
+        else
+        {
+            GrupSortState = 0;
+            GrupSortIcon = "ArrowSort";
+            GrupHeaderText = "Grup";
+        }
+        if (IsBakiyeSortActive)
+        {
+            IsBakiyeSortActive = false;
+            BakiyeSortIcon = "ArrowSort";
+        }
+        CurrentPageIndex = 0;
+        await LoadCarilerAsync();
     }
 
     public CariListViewModel(IUnitOfWork uow, IPdfService pdfService, IExcelService excelService, CekSenetListViewModel checkHelper, ExternalApiService externalApi, IFinansService finansService)
@@ -221,6 +376,17 @@ public abstract partial class CariListViewModel : ViewModelBase
         _ = LoadCarilerAsync();
         if (SelectedCari != null)
              _ = LoadHareketlerAsync(SelectedCari.Id);
+
+        // Buluttan yeni eklenen carileri anında çek ve listeyi sessizce güncelle
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _uow.SyncFromCloudAsync();
+                await InvokeOnUIThreadAsync(() => _ = LoadCarilerAsync(isSilent: true));
+            }
+            catch { }
+        });
     }
 
     [RelayCommand]
@@ -272,24 +438,80 @@ public abstract partial class CariListViewModel : ViewModelBase
             if (!isSilent) IsLoading = true;
             var selectedId = SelectedCari?.Id;
 
+            bool filterMusteri = SelectedGrupFilter == "Müşteri";
+            bool filterTedarikci = SelectedGrupFilter == "Tedarikçi";
+
             Expression<Func<CariKart, bool>>? filter = null;
-            if (!string.IsNullOrEmpty(SearchString))
+            if (filterMusteri)
             {
-                if (IsOnlyWithBalance)
-                    filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
-                        ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                         (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                if (!string.IsNullOrEmpty(SearchString))
+                {
+                    if (IsOnlyWithBalance)
+                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici") &&
+                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
+                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                    else
+                        filter = c => !c.IsDeleted && 
+                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici") &&
+                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
+                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                }
                 else
-                    filter = c => !c.IsDeleted && 
-                        ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                         (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                {
+                    if (IsOnlyWithBalance)
+                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici");
+                    else
+                        filter = c => !c.IsDeleted &&
+                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici");
+                }
+            }
+            else if (filterTedarikci)
+            {
+                if (!string.IsNullOrEmpty(SearchString))
+                {
+                    if (IsOnlyWithBalance)
+                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici") &&
+                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
+                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                    else
+                        filter = c => !c.IsDeleted && 
+                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici") &&
+                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
+                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                }
+                else
+                {
+                    if (IsOnlyWithBalance)
+                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici");
+                    else
+                        filter = c => !c.IsDeleted &&
+                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici");
+                }
             }
             else
             {
-                if (IsOnlyWithBalance)
-                    filter = c => !c.IsDeleted && (c.Borc != c.Alacak);
+                if (!string.IsNullOrEmpty(SearchString))
+                {
+                    if (IsOnlyWithBalance)
+                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
+                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                    else
+                        filter = c => !c.IsDeleted && 
+                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
+                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
+                }
                 else
-                    filter = c => !c.IsDeleted;
+                {
+                    if (IsOnlyWithBalance)
+                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak);
+                    else
+                        filter = c => !c.IsDeleted;
+                }
             }
 
             List<CariKart> pagedList;
@@ -300,6 +522,15 @@ public abstract partial class CariListViewModel : ViewModelBase
                 var sorted = IsBakiyeDescending 
                     ? allList.OrderByDescending(c => c.Bakiye).ThenBy(c => c.Unvan) 
                     : allList.OrderBy(c => c.Bakiye).ThenBy(c => c.Unvan);
+                pagedList = sorted.Skip(CurrentPageIndex * PageSize).Take(PageSize).ToList();
+            }
+            else if (GrupSortState != 0)
+            {
+                var allList = await _uow.Cariler.GetPagedAsync(0, 100000, filter);
+                TotalCount = allList.Count;
+                var sorted = GrupSortState == 1
+                    ? allList.OrderBy(c => IsMusteri(c.Grup) ? 0 : 1).ThenBy(c => c.Unvan)
+                    : allList.OrderBy(c => IsTedarikci(c.Grup) ? 0 : 1).ThenBy(c => c.Unvan);
                 pagedList = sorted.Skip(CurrentPageIndex * PageSize).Take(PageSize).ToList();
             }
             else

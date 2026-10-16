@@ -168,6 +168,7 @@ public class UnitOfWork : IUnitOfWork
     public void EnableAutoSync(bool enable) => _dbService.EnableAutoSync(enable);
     public async Task SyncToCloudAsync() => await _dbService.SyncToCloudAsync();
     public async Task SyncFromCloudAsync() => await _dbService.SyncFromCloudAsync();
+    public async Task<(bool Success, string Message)> TestCloudConnectionAsync() => await _dbService.TestCloudConnectionAsync();
     
     // IDataProvider implementation
     public virtual async Task InitializeAsync() => await _dbService.InitializeAsync();
@@ -216,6 +217,12 @@ public class UnitOfWork : IUnitOfWork
     {
         var service = new ErmayMuhasebe.Services.YearRolloverService(_dbService, _dbService.YearContext);
         return service.GetAvailableYears();
+    }
+
+    public async Task<List<int>> GetAvailableYearsAsync()
+    {
+        var service = new ErmayMuhasebe.Services.YearRolloverService(_dbService, _dbService.YearContext);
+        return await service.GetAvailableYearsAsync();
     }
 }
 

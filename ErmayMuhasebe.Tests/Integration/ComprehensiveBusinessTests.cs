@@ -19,7 +19,8 @@ namespace ErmayMuhasebe.Tests.Integration
         {
             _testDbPath = Path.Combine(Path.GetTempPath(), $"HeavyTestDb_{Guid.NewGuid()}.db3");
             ErmayMuhasebe.Data.Constants.DatabasePath = _testDbPath;
-            _dbService = new DatabaseService();
+            CloudSyncService.DisableCloudSync = true;
+            _dbService = new DatabaseService { IsTestMode = true, DisableCloudSync = true };
         }
 
         [Fact]

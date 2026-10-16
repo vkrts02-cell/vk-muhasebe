@@ -28,8 +28,8 @@ namespace ErmayMuhasebe.Tests.Integration
                 SQLitePCL.Batteries_V2.Init();
             }
 
-            _dbService = new DatabaseService();
-            _dbService.UseEncryption = false; // Test ortamında şifrelemeyi kapat
+            CloudSyncService.DisableCloudSync = true;
+            _dbService = new DatabaseService { IsTestMode = true, DisableCloudSync = true, UseEncryption = false };
             _dbService.InitializeAsync().Wait();
             
             _pdfService = new PdfService();

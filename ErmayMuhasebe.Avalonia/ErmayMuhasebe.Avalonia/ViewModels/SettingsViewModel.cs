@@ -384,7 +384,35 @@ public partial class SettingsViewModel : ErmayMuhasebe.Shared.ViewModels.Setting
         
         // Admin check 
         var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetRequiredService<MainViewModel>();
-        IsAdmin = mainVm?.CurrentUserName?.ToLower() == "admin";
+        var currentUsername = mainVm?.CurrentUserName?.Trim() ?? ActiveUsername?.Trim() ?? "admin";
+        bool isAdmin = currentUsername.Equals("admin", StringComparison.OrdinalIgnoreCase);
+        if (!isAdmin)
+        {
+            try
+            {
+                var db = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
+                if (db != null)
+                {
+                    var user = await db.GetUserByUsernameAsync(currentUsername);
+                    if (user != null)
+                    {
+                        isAdmin = string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(user.Role, "Yönetici", StringComparison.OrdinalIgnoreCase) ||
+                                  (!string.IsNullOrWhiteSpace(user.Email) && user.Email.Contains("@"));
+                    }
+                    else
+                    {
+                        var globalConn = db.GetGlobalConnection();
+                        var anyAdmin = await globalConn.Table<Models.User>().FirstOrDefaultAsync(u => 
+                            (u.Username == currentUsername || u.Email == currentUsername) &&
+                            (u.Role == "Admin" || u.Role == "Yönetici"));
+                        if (anyAdmin != null) isAdmin = true;
+                    }
+                }
+            }
+            catch { }
+        }
+        IsAdmin = isAdmin;
         
         if (IsAdmin)
         {
@@ -2062,13 +2090,208 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
     [RelayCommand]
     public override async Task FactoryResetAsync()
     {
-        var isAuthorized = await ValidateSetupSecurityPasswordAsync(ResetPassword);
-        if (!isAuthorized)
+        bool confirmed = await _fileService.ShowConfirmationAsync(
+            "Fabrika Ayarlarına Dön", 
+            "DİKKAT: Sistemi fabrika ayarlarına döndürerek tüm mali yılları ve verileri kalıcı olarak silmek istiyor musunuz?\n\nBu işlemin geri dönüşü yoktur!");
+        if (!confirmed) return;
+
+        await ExecuteFactoryResetInternalAsync();
+    }
+
+    [RelayCommand]
+    public async Task FactoryResetWithGoogleAsync()
+    {
+        if (IsBusy) return;
+
+        // 1. Kullanıcı zaten masaüstünde Google ile oturum açmış mı kontrol et
+        var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<MainViewModel>();
+        var dbService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
+        var currentGoogleUser = mainVm?.CurrentUserName?.Trim() ?? ActiveUsername?.Trim();
+
+        Models.User? activeUser = null;
+        if (dbService != null && !string.IsNullOrWhiteSpace(currentGoogleUser))
         {
-            ErrorMessage = "Hatalı sıfırlama şifresi! Fabrika ayarları için kurulumda belirlediğiniz şifreyi girmelisiniz.";
+            try { activeUser = await dbService.GetUserByUsernameAsync(currentGoogleUser); } catch { }
+        }
+
+        bool isAlreadyGoogleLoggedIn = (!string.IsNullOrWhiteSpace(currentGoogleUser) && 
+            (currentGoogleUser.Contains("@") || currentGoogleUser.Contains("google") || currentGoogleUser.EndsWith(".com") || currentGoogleUser.EndsWith(".net") || currentGoogleUser.EndsWith(".org")))
+            || (activeUser != null && !string.IsNullOrWhiteSpace(activeUser.Email) && activeUser.Email.Contains("@"))
+            || (dbService != null && !string.IsNullOrWhiteSpace(dbService.CurrentTenantId) && dbService.CurrentTenantId.StartsWith("tenant_") && dbService.CurrentTenantId != "default");
+
+        if (isAlreadyGoogleLoggedIn)
+        {
+            var displayAccount = !string.IsNullOrWhiteSpace(activeUser?.Email) ? $"{currentGoogleUser} ({activeUser.Email})" : currentGoogleUser;
+            bool confirmedDirect = await _fileService.ShowConfirmationAsync(
+                "Google Hesabıyla Fabrika Ayarlarına Dön", 
+                $"Şu anda aktif Google hesabınız ({displayAccount}) ile oturum açılmış durumdasınız.\n\nSistemi fabrika ayarlarına döndürerek tüm verileri kalıcı olarak silmek istiyor musunuz?\n\nBu işlemin geri dönüşü yoktur!");
+            
+            if (!confirmedDirect) return;
+
+            // Zaten Google ile oturum açılmış, doğrudan sıfırlama sürecini başlat
+            await ExecuteFactoryResetInternalAsync();
             return;
         }
 
+        // 2. Google oturumu aktif değilse tarayıcı üzerinden Google ile doğrulama yap
+        bool confirmed = await _fileService.ShowConfirmationAsync(
+            "Google ile Fabrika Ayarlarına Dön", 
+            "Google hesabınız ile doğrulama yapılarak sistem tamamen sıfırlanacak ve tüm veriler kalıcı olarak silinecektir.\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?");
+        if (!confirmed) return;
+
+        IsBusy = true;
+        ErrorMessage = "";
+        SuccessMessage = "Google ile kimlik doğrulaması başlatılıyor...";
+
+        try
+        {
+            var cleanBase = CloudSyncService.CleanSupabaseUrl(dbService?.SyncService?.Config?.BaseUrl);
+            if (string.IsNullOrWhiteSpace(cleanBase))
+            {
+                cleanBase = CloudConfig.DefaultSupabaseUrl;
+            }
+
+            int port = 54328; // Login ekranı ile aynı standart port
+            string redirectUri = $"http://localhost:{port}/auth/callback/";
+            string authUrl = $"{cleanBase}/auth/v1/authorize?provider=google&redirect_to={Uri.EscapeDataString(redirectUri)}&prompt=select_account";
+
+            using var listener = new System.Net.HttpListener();
+            listener.Prefixes.Add($"http://localhost:{port}/");
+            listener.Start();
+
+            // Tarayıcıyı aç
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = authUrl,
+                UseShellExecute = true
+            });
+
+            SuccessMessage = "Lütfen tarayıcınızdan Google hesabınızı seçerek sıfırlamayı onaylayınız...";
+
+            var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(90));
+            string? accessToken = null;
+            string? authErrorMessage = null;
+
+            while (!cts.IsCancellationRequested && string.IsNullOrEmpty(accessToken))
+            {
+                var contextTask = listener.GetContextAsync();
+                var completedTask = await Task.WhenAny(contextTask, Task.Delay(TimeSpan.FromSeconds(90), cts.Token));
+
+                if (completedTask != contextTask) break; // Timeout
+
+                HttpListenerContext? context = null;
+                try
+                {
+                    context = await contextTask;
+                }
+                catch { break; }
+
+                if (context == null) continue;
+
+                var req = context.Request;
+                var res = context.Response;
+
+                try
+                {
+                    var rawPath = req.Url?.AbsolutePath?.ToLowerInvariant() ?? "";
+                    if (rawPath.Contains("favicon.ico"))
+                    {
+                        res.StatusCode = 204;
+                        res.Close();
+                        continue;
+                    }
+
+                    var queryError = req.QueryString["error"];
+                    var queryErrorDesc = req.QueryString["error_description"] ?? req.QueryString["error_message"];
+
+                    if (!string.IsNullOrEmpty(queryError) || !string.IsNullOrEmpty(queryErrorDesc))
+                    {
+                        authErrorMessage = queryErrorDesc ?? queryError;
+                        string errorHtml = @"<!DOCTYPE html><html><body style='font-family:sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><div style='background:#1e293b;padding:30px;border-radius:12px;text-align:center;'><h2>Google Doğrulaması Başarısız</h2><p>Fabrika ayarlarına dönme işlemi iptal edildi.</p></div></body></html>";
+                        var buffer = System.Text.Encoding.UTF8.GetBytes(errorHtml);
+                        res.ContentType = "text/html; charset=utf-8";
+                        res.ContentLength64 = buffer.Length;
+                        await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                        await res.OutputStream.FlushAsync();
+                        res.Close();
+                        break;
+                    }
+
+                    var token = req.QueryString["access_token"];
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        accessToken = token;
+                        string successHtml = @"<!DOCTYPE html><html><body style='font-family:sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><div style='background:#1e293b;padding:30px;border-radius:12px;text-align:center;'><h2 style='color:#10b981;'>Google Doğrulaması Başarılı!</h2><p>Fabrika ayarlarına dönülüyor... Bu pencereyi kapatabilirsiniz.</p></div><script>setTimeout(function(){ window.close(); }, 2000);</script></body></html>";
+                        var buffer = System.Text.Encoding.UTF8.GetBytes(successHtml);
+                        res.ContentType = "text/html; charset=utf-8";
+                        res.ContentLength64 = buffer.Length;
+                        await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                        await res.OutputStream.FlushAsync();
+                        res.Close();
+                        await Task.Delay(1500);
+                        break;
+                    }
+                    else
+                    {
+                        string redirectHtml = @"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Kimlik Doğrulanıyor...</title>
+    <script>
+        if (window.location.hash) {
+            window.location.href = '/auth/token?' + window.location.hash.substring(1);
+        } else if (window.location.search) {
+            window.location.href = '/auth/token' + window.location.search;
+        } else {
+            window.location.href = '/auth/token?error=no_token';
+        }
+    </script>
+</head>
+<body style='font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: #94a3b8;'>
+    Google kimliği doğrulanıyor, lütfen bekleyin...
+</body>
+</html>";
+                        var buffer = System.Text.Encoding.UTF8.GetBytes(redirectHtml);
+                        res.ContentType = "text/html; charset=utf-8";
+                        res.ContentLength64 = buffer.Length;
+                        await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                        await res.OutputStream.FlushAsync();
+                        res.Close();
+                    }
+                }
+                catch (Exception reqEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[FactoryResetWithGoogle] İstek hatası: {reqEx.Message}");
+                    try { res.Close(); } catch { }
+                }
+            }
+
+            try { listener.Stop(); } catch { }
+
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                ErrorMessage = string.IsNullOrEmpty(authErrorMessage) ? "Google ile doğrulama zaman aşımına uğradı veya tamamlanamadı." : $"Google ile doğrulama başarısız: {authErrorMessage}";
+                SuccessMessage = "";
+                return;
+            }
+
+            // Google ile doğrulama başarılı! Şimdi fabrika ayarlarına dön
+            await ExecuteFactoryResetInternalAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Google ile sıfırlama hatası: {ex.Message}";
+            SuccessMessage = "";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ExecuteFactoryResetInternalAsync()
+    {
         bool wantsBackup = await _fileService.ShowConfirmationAsync("Yedek Alınsın Mı?", "Sistemi sıfırlamadan önce mevcut verilerin yedeğini almak ister misiniz?");
         if (wantsBackup)
         {
@@ -2104,7 +2327,59 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                 try { dbService.StopRealtimeSync(); } catch { }
             }
 
-            // 2. Buluttaki tüm verileri kalıcı olarak temizle (Supabase ve Firebase)
+            // 2. Sıfırlanacak tüm tenant'ları belirle
+            var tenantsToClear = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (dbService != null && !string.IsNullOrWhiteSpace(dbService.CurrentTenantId))
+            {
+                tenantsToClear.Add(dbService.CurrentTenantId);
+            }
+            tenantsToClear.Add("default");
+
+            string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            try
+            {
+                var setupCfgPath = System.IO.Path.Combine(appDir, "setup_config.json");
+                if (System.IO.File.Exists(setupCfgPath))
+                {
+                    var cfgJson = await System.IO.File.ReadAllTextAsync(setupCfgPath);
+                    var cfgDoc = System.Text.Json.JsonDocument.Parse(cfgJson);
+                    if (cfgDoc.RootElement.TryGetProperty("TenantId", out var tProp) && !string.IsNullOrWhiteSpace(tProp.GetString()))
+                    {
+                        tenantsToClear.Add(tProp.GetString()!);
+                    }
+                    if (cfgDoc.RootElement.TryGetProperty("GoogleEmail", out var geProp) && !string.IsNullOrWhiteSpace(geProp.GetString()))
+                    {
+                        var cleanEmail = new string(geProp.GetString()!.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+                        if (!string.IsNullOrEmpty(cleanEmail)) tenantsToClear.Add($"tenant_{cleanEmail}");
+                    }
+                }
+            }
+            catch { }
+
+            var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<MainViewModel>();
+            var currentUserStr = mainVm?.CurrentUserName?.Trim() ?? ActiveUsername?.Trim();
+            if (!string.IsNullOrWhiteSpace(currentUserStr))
+            {
+                try
+                {
+                    var u = dbService != null ? await dbService.GetUserByUsernameAsync(currentUserStr) : null;
+                    if (u != null && !string.IsNullOrWhiteSpace(u.Email))
+                    {
+                        var cleanEmail = new string(u.Email.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+                        if (!string.IsNullOrEmpty(cleanEmail)) tenantsToClear.Add($"tenant_{cleanEmail}");
+                    }
+                }
+                catch { }
+            }
+
+            // 3. Yerel SQLite tablolarındaki tüm verileri kalıcı olarak sıfırla (Doğrudan SQL ile truncate/vacuum)
+            if (dbService != null)
+            {
+                BackupStatus = "Yerel veritabanı kayıtları temizleniyor...";
+                try { await dbService.WipeAllLocalTablesAsync(); } catch { }
+            }
+
+            // 4. Buluttaki tüm verileri kalıcı olarak temizle (Supabase ve Firebase)
             if (dbService != null)
             {
                 if (!dbService.IsCloudConnected && !string.IsNullOrWhiteSpace(savedCloudUrl) && !string.IsNullOrWhiteSpace(savedCloudSecret))
@@ -2112,10 +2387,17 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                     try { dbService.SetCloudConfig(savedCloudUrl, savedCloudSecret); } catch { }
                 }
 
-                if (dbService.IsCloudConnected)
+                if (dbService.IsCloudConnected && dbService.SyncService != null)
                 {
-                    BackupStatus = "Bulut verileri (Supabase) tamamen temizleniyor...";
-                    try { await dbService.SyncService.ClearCloudTablesAsync(); } catch { }
+                    foreach (var tenant in tenantsToClear)
+                    {
+                        BackupStatus = $"Bulut verileri (Supabase - {tenant}) tamamen temizleniyor...";
+                        try 
+                        { 
+                            await dbService.SyncService.ClearCloudTablesAsync(tenant); 
+                        } 
+                        catch { }
+                    }
                 }
             }
 
@@ -2132,7 +2414,7 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                 catch { }
             }
 
-            // 3. Veritabanı bağlantılarını ve handle'ları kapat ki dosya kilitleri serbest kalsın
+            // 5. Veritabanı bağlantılarını ve handle'ları kapat ki dosya kilitleri serbest kalsın
             if (dbService != null)
             {
                 await dbService.CloseConnectionAsync();
@@ -2142,43 +2424,80 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
-            // 4. Oluşturulmuş tüm mali yılları (.db, .db-wal, .db-shm) diskten kalıcı olarak sil
-            string appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            // 6. Oluşturulmuş tüm veritabanlarını ve mali yılları diskten kalıcı olarak sil
             if (System.IO.Directory.Exists(appDir))
             {
-                var yearFiles = System.IO.Directory.GetFiles(appDir, "ermay_*.db*");
-                foreach (var file in yearFiles)
+                var patterns = new[] { "ermay_*.db*", "ErmayV4_Stable*", "*.db3*", "*.db-wal", "*.db-shm", "*.db", "login_settings.txt", "notifications_*.json", "dismissed_alerts_*.json" };
+                foreach (var pattern in patterns)
                 {
                     try
                     {
-                        System.IO.File.Delete(file);
+                        var matchedFiles = System.IO.Directory.GetFiles(appDir, pattern, System.IO.SearchOption.TopDirectoryOnly);
+                        foreach (var file in matchedFiles)
+                        {
+                            try
+                            {
+                                // Önce dosyayı 0 bayta küçült (FileShare ile açık handle olsa bile Windows'ta çalışır)
+                                using (var fs = new System.IO.FileStream(file, System.IO.FileMode.Open, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite | System.IO.FileShare.Delete))
+                                {
+                                    fs.SetLength(0);
+                                    fs.Flush();
+                                }
+                            }
+                            catch { }
+
+                            bool deleted = false;
+                            for (int a = 0; a < 5; a++)
+                            {
+                                try
+                                {
+                                    System.IO.File.Delete(file);
+                                    deleted = true;
+                                    break;
+                                }
+                                catch
+                                {
+                                    GC.Collect();
+                                    GC.WaitForPendingFinalizers();
+                                    await Task.Delay(100);
+                                }
+                            }
+
+                            // Kilit nedeniyle hemen silinemeyen dosyaları yeniden adlandır ki GetAvailableYears ve SQLite bir daha bulamasın
+                            if (!deleted && System.IO.File.Exists(file))
+                            {
+                                try
+                                {
+                                    var tempDeleted = file + ".deleted_" + Guid.NewGuid().ToString("N");
+                                    System.IO.File.Move(file, tempDeleted);
+                                    try { System.IO.File.Delete(tempDeleted); } catch { }
+                                }
+                                catch { }
+                            }
+                        }
                     }
-                    catch (Exception fEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[FactoryReset] Yıl dosyası silinemedi ({file}): {fEx.Message}");
-                    }
+                    catch { }
                 }
 
-                // Bildirim geçmişi dosyalarını sil
                 try
                 {
-                    var notifFiles = System.IO.Directory.GetFiles(appDir, "notifications_*.json");
-                    foreach (var nf in notifFiles)
+                    var corruptedDir = System.IO.Path.Combine(appDir, "Corrupted");
+                    if (System.IO.Directory.Exists(corruptedDir))
                     {
-                        try { System.IO.File.Delete(nf); } catch { }
+                        System.IO.Directory.Delete(corruptedDir, true);
                     }
                 }
                 catch { }
             }
 
-            // 5. Mali yıl durumunu tamamen sıfırla - Otomatik varsayılan yıl OLUŞTURULMAZ
+            // 7. Mali yıl durumunu tamamen sıfırla - Otomatik varsayılan yıl OLUŞTURULMAZ
             _yearContext.CurrentYear = 0;
             ActiveYear = 0;
 
-            // 6. Bulut (Supabase) yapılandırmasını kesin olarak koru ve yeniden uygula
+            // 8. Bulut (Supabase) yapılandırmasını dosyalarda koru (Arka plan dinleyicilerini tetiklemeden)
             if (!string.IsNullOrWhiteSpace(savedCloudUrl) && !string.IsNullOrWhiteSpace(savedCloudSecret))
             {
-                _uow.SetCloudConfig(savedCloudUrl, savedCloudSecret);
+                try { dbService?.SyncService?.SaveConfig(savedCloudUrl, savedCloudSecret); } catch { }
                 CloudUrl = savedCloudUrl;
                 CloudSecret = savedCloudSecret;
 
@@ -2205,18 +2524,18 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                 catch { }
             }
 
-            // 7. Profil ve yerel durumu yenile
+            // 9. Profil ve yerel durumu yenile
             LogoBytes = null;
             _dataProvider.InvalidateAllCache();
 
-            // 8. Sıfırlama modundan çık
+            // 10. Sıfırlama modundan çık
             DatabaseService.IsResetting = false;
 
             SuccessMessage = "Sistem başarıyla fabrika ayarlarına döndürüldü; tüm veriler tamamen temizlendi.";
             ErrorMessage = "";
             ResetPassword = "";
 
-            // 9. Oturumu temiz şekilde kapatarak kullanıcıyı ilk kurulum / mali yıl belirleme ekranına yönlendir
+            // 11. Oturumu temiz şekilde kapatarak kullanıcıyı ilk kurulum / mali yıl belirleme ekranına yönlendir
             WeakReferenceMessenger.Default.Send(new LogoutMessage());
         }
         catch (Exception ex)
@@ -2440,6 +2759,19 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
             var dbName = $"ermay_{SelectedYearToSwitch.Value}.db";
             await _dataProvider.InitializeAsync(dbName);
 
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var dbService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
+                    if (dbService != null)
+                    {
+                        await dbService.SyncService.SyncActiveMaliYilAsync(SelectedYearToSwitch.Value);
+                    }
+                }
+                catch { }
+            });
+
             ActiveYear = SelectedYearToSwitch.Value;
             SuccessMessage = $"{SelectedYearToSwitch} yılına başarıyla geçiş yapıldı.";
 
@@ -2556,12 +2888,17 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                 await Task.Delay(500); // UI ve background taskların oturumu kapatması için bekle
             }
 
-            // 5. Yerel veritabanı dosyasını ve tenant dosyalarını kesin olarak sil
+            // 5. Yerel veritabanı dosyasını kesin olarak sil
             string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-            string mainDbFile = System.IO.Path.Combine(dir, $"ermay_{yearToDelete}.db");
+            var rollover = dbService != null ? new YearRolloverService(dbService, _yearContext) : null;
+            string mainDbFile = rollover != null ? rollover.GetDbPathForYear(yearToDelete) : System.IO.Path.Combine(dir, $"ermay_{yearToDelete}.db");
             
             if (System.IO.Directory.Exists(dir))
             {
+                var targetPattern = rollover != null && dbService?.CurrentTenantId != "default"
+                    ? $"ermay_{yearToDelete}_{dbService?.CurrentTenantId}*.db*"
+                    : $"ermay_{yearToDelete}.db*";
+
                 for (int attempt = 1; attempt <= 12; attempt++)
                 {
                     try { SQLite.SQLiteAsyncConnection.ResetPool(); } catch { }
@@ -2571,9 +2908,19 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
                     try
                     {
-                        var matchingFiles = System.IO.Directory.GetFiles(dir, $"ermay_{yearToDelete}*.db*");
+                        var matchingFiles = System.IO.Directory.GetFiles(dir, targetPattern);
                         foreach (var f in matchingFiles)
                         {
+                            try
+                            {
+                                using (var fs = new System.IO.FileStream(f, System.IO.FileMode.Open, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite | System.IO.FileShare.Delete))
+                                {
+                                    fs.SetLength(0);
+                                    fs.Flush();
+                                }
+                            }
+                            catch { }
+
                             try { System.IO.File.Delete(f); } catch { }
                         }
                     }
@@ -2667,34 +3014,18 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
 
     private void LoadAvailableYears()
     {
-        var tempYears = new List<int>();
-        string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-        if (System.IO.Directory.Exists(dir))
+        var dbService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
+        List<int> sorted;
+        if (dbService != null)
         {
-            var files = System.IO.Directory.GetFiles(dir, "ermay_*.db");
-            foreach (var file in files)
-            {
-                try
-                {
-                    var fi = new System.IO.FileInfo(file);
-                    if (fi.Length <= 0)
-                    {
-                        try { System.IO.File.Delete(file); } catch { }
-                        continue;
-                    }
-                }
-                catch { continue; }
-
-                var fileName = System.IO.Path.GetFileNameWithoutExtension(file);
-                var parts = fileName.Split('_');
-                if (parts.Length >= 2 && int.TryParse(parts[1], out int year))
-                {
-                    tempYears.Add(year);
-                }
-            }
+            var rollover = new YearRolloverService(dbService, _yearContext);
+            sorted = rollover.GetAvailableYears();
+        }
+        else
+        {
+            sorted = new List<int>();
         }
 
-        var sorted = tempYears.Distinct().OrderByDescending(y => y).ToList();
         AvailableYears = new ObservableCollection<int>(sorted);
         AvailableYearsForDeletion = new ObservableCollection<int>(sorted);
         
@@ -2703,6 +3034,36 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
         SelectedYearToDelete = sorted.Contains(ActiveYear) ? ActiveYear : (sorted.FirstOrDefault() > 0 ? sorted.FirstOrDefault() : null);
         RolloverSourceYear = ActiveYear > 0 ? ActiveYear : (sorted.FirstOrDefault() > 0 ? sorted.FirstOrDefault() : DateTime.Now.Year);
         RolloverTargetYear = RolloverSourceYear + 1;
+
+        // Yalnızca varsayılan kiracıdaysa buluttan mali yılları çekip listeyi senkronize et
+        if (dbService != null && dbService.CurrentTenantId == "default")
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    if (dbService.IsCloudConnected || dbService.SyncService.IsConnected)
+                    {
+                        var cloudYears = await dbService.SyncService.PullMaliYillarAsync();
+                        if (cloudYears != null && cloudYears.Any())
+                        {
+                            await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                            {
+                                var merged = AvailableYears.Concat(cloudYears).Distinct().OrderByDescending(y => y).ToList();
+                                AvailableYears = new ObservableCollection<int>(merged);
+                                AvailableYearsForDeletion = new ObservableCollection<int>(merged);
+
+                                if (SelectedYearToSwitch == null || !merged.Contains(SelectedYearToSwitch.Value))
+                                {
+                                    SelectedYearToSwitch = merged.Contains(ActiveYear) ? ActiveYear : merged.FirstOrDefault();
+                                }
+                            });
+                        }
+                    }
+                }
+                catch { }
+            });
+        }
     }
 
     [RelayCommand]
@@ -3361,7 +3722,7 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
         }
         catch { }
 
-        // 2. setup_initial_user.json veya setup_config.json dosyasından kontrol
+        // 2. setup_initial_user.json veya setup_config.json dosyasından kontrol (FactoryResetPassword veya Users şifresi)
         try
         {
             var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
@@ -3392,6 +3753,52 @@ Bu geçici şifreyle giriş yaptıktan sonra Ayarlar alanından şifrenizi deği
                         if (frp == trimmed) return true;
                     }
                 }
+
+                // 2.b: Kurulum esnasında belirlenen ilk kullanıcı şifreleri (Users dizisi)
+                if (doc.RootElement.TryGetProperty("Users", out var usersElem) && usersElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var u in usersElem.EnumerateArray())
+                    {
+                        if (u.TryGetProperty("Password", out var passElem) && passElem.GetString()?.Trim() == trimmed)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 3. Veritabanındaki Admin veya ilk kullanıcıların şifresi ile kontrol
+        try
+        {
+            var dbService = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<DatabaseService>();
+            if (dbService != null)
+            {
+                var conn = await dbService.GetConnectionAsync();
+                var adminUsers = await conn.Table<Models.User>().ToListAsync();
+                foreach (var u in adminUsers)
+                {
+                    if (!string.IsNullOrEmpty(u.Password) && !string.IsNullOrEmpty(u.PasswordSalt))
+                    {
+                        if (AuthService.VerifyPassword(trimmed, u.Password, u.PasswordSalt))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 4. Aktif kullanıcı Google kullanıcısı ise ve kendi e-postasını veya adını girdiyse onay ver
+        try
+        {
+            var mainVm = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetService<MainViewModel>();
+            var currentUser = mainVm?.CurrentUserName?.Trim();
+            if (!string.IsNullOrWhiteSpace(currentUser) && currentUser.Contains("@") && currentUser.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
         }
         catch { }

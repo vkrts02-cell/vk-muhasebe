@@ -143,8 +143,28 @@ sealed class Program
                 Log($"[VK Clean Install CLI] CloudSyncService IsConnected: {sync.IsConnected}, BaseUrl: {sync.BaseUrl}");
                 if (sync.IsConnected)
                 {
-                    Log("[VK Clean Install CLI] Purging Supabase Cloud Tables...");
+                    Log("[VK Clean Install CLI] Purging Supabase Cloud Tables (default)...");
                     sync.ClearCloudTablesAsync("default").GetAwaiter().GetResult();
+
+                    try
+                    {
+                        var cfgFile = Path.Combine(appDir, "setup_config.json");
+                        if (File.Exists(cfgFile))
+                        {
+                            var cfgJson = File.ReadAllText(cfgFile);
+                            using var cfgDoc = System.Text.Json.JsonDocument.Parse(cfgJson);
+                            if (cfgDoc.RootElement.TryGetProperty("TenantId", out var tProp) && !string.IsNullOrWhiteSpace(tProp.GetString()))
+                            {
+                                var tId = tProp.GetString()!;
+                                Log($"[VK Clean Install CLI] Purging Supabase for tenant: {tId}...");
+                                sync.ClearCloudTablesAsync(tId).GetAwaiter().GetResult();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"[VK Clean Install CLI] Tenant cloud purge error: {ex.Message}");
+                    }
                     Log("[VK Clean Install CLI] Supabase Cloud Tables purged successfully.");
                 }
                 else
@@ -171,6 +191,16 @@ sealed class Program
                     var name = Path.GetFileName(f).ToLowerInvariant();
                     if (name.Contains(".db") || name.EndsWith(".wal") || name.EndsWith(".shm") || name == "clean_install_pending.flag")
                     {
+                        try
+                        {
+                            using (var fs = new FileStream(f, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+                            {
+                                fs.SetLength(0);
+                                fs.Flush();
+                            }
+                        }
+                        catch { }
+
                         try 
                         { 
                             File.Delete(f); 

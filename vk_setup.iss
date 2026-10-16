@@ -47,6 +47,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 var
   InfoPage: TOutputMsgWizardPage;
   SupabasePage: TInputQueryWizardPage;
+  SetupModePage: TInputOptionWizardPage;
   User1Page: TInputQueryWizardPage;
   User2Page: TInputQueryWizardPage;
 
@@ -112,21 +113,29 @@ begin
     SupabasePage.Values[1] := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
   end;
 
-  // 3. Kullanıcı 1 (Ana Yönetici) ve Sistem Sıfırlama Şifresi Belirleme Sayfası
-  User1Page := CreateInputQueryPage(SupabasePage.ID,
+  // 3. Kurulum Senaryosu Seçim Sayfası
+  SetupModePage := CreateInputOptionPage(SupabasePage.ID,
+    'Kurulum Türü ve Senaryosu',
+    'Bu bilgisayar için kurulum amacını belirleyiniz:',
+    'Lütfen durumunuza uygun seçeneği işaretleyiniz:',
+    True, False);
+  SetupModePage.Add('İlk Kurulum / Yeni Şirket (Yeni Yönetici kullanıcı adı ve şifre oluştur)');
+  SetupModePage.Add('Mevcut Şirkete / Buluta Bağlan (Ev/İş bilgisayarında zaten hesap var, kullanıcıları buluttan çek)');
+  SetupModePage.SelectedValueIndex := 0;
+
+  // 4. Kullanıcı 1 (Ana Yönetici) ve Sistem Sıfırlama Şifresi Belirleme Sayfası
+  User1Page := CreateInputQueryPage(SetupModePage.ID,
     'Kullanıcı Hesabı (Ana Yönetici) & Güvenlik Şifresi',
     'Sisteme giriş yapacak yönetici hesabınızı ve şifrenizi belirleyiniz.',
     'Yönetici bilgileri:');
 
   User1Page.Add('Yönetici Kullanıcı Adı (Zorunlu):', False);
   User1Page.Add('Yönetici Giriş Şifresi (Zorunlu):', True);
-  User1Page.Add('Yönetici E-Posta Adresi (Şifre kurtarma için):', False);
+  User1Page.Add('Yönetici Google Hesabı / E-Posta Adresi (Google ile Giriş için):', False);
   User1Page.Add('Fabrika Ayarları Sıfırlama Onay Şifresi (Zorunlu):', True);
   User1Page.Values[0] := '';
   User1Page.Values[1] := '';
   User1Page.Values[3] := '';
-
-  // (SMTP sayfası tamamen kaldırıldı)
 
   // 5. Kullanıcı 2 (Ek Personel / Yedek Kullanıcı) Belirleme Sayfası
   User2Page := CreateInputQueryPage(User1Page.ID,
@@ -155,10 +164,23 @@ begin
   end;
 end;
 
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  // Eğer kullanıcı 'Mevcut Şirkete / Buluta Bağlan' seçeneğini seçtiyse (Index = 1):
+  // Yeni kullanıcı oluşturma sayfalarını atla!
+  if (SetupModePage <> nil) and (SetupModePage.SelectedValueIndex = 1) then
+  begin
+    if (PageID = User1Page.ID) or (PageID = User2Page.ID) then
+      Result := True;
+  end;
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  if CurPageID = User1Page.ID then
+  // Sadece ilk kurulum modundaysa zorunlu kullanıcı adı/şifre kontrolü yap
+  if (SetupModePage <> nil) and (SetupModePage.SelectedValueIndex = 0) and (CurPageID = User1Page.ID) then
   begin
     if (Trim(User1Page.Values[0]) = '') or (Trim(User1Page.Values[1]) = '') then
     begin
@@ -275,53 +297,77 @@ begin
     SaveStringToFile(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json', JsonContent, False);
     SaveStringToFile(ExpandConstant('{app}') + '\ermay_cloud_config.json', JsonContent, False);
 
-    // 2. Kullanıcı/Şifre, SMTP, Supabase Bulut Bilgileri ve Fabrika Sıfırlama Şifresi Dosyası Kaydet
+    // 2. Kullanıcı/Şifre, Supabase Bulut Bilgileri ve Fabrika Sıfırlama Şifresi Dosyası Kaydet
     UserConfigPath := AppDataDir + '\ErmayMuhasebe\setup_initial_user.json';
     
-    if User1Name <> '' then
+    // Eğer 'Mevcut Şirkete / Buluta Bağlan' seçildiyse: setup_initial_user.json oluşturulmaz!
+    // Böylece program doğrudan buluttaki mevcut kullanıcıları ve şirket verilerini çeker.
+    if SetupModePage.SelectedValueIndex = 0 then
     begin
-      UserJsonContent := '{"Users":[' +
-        '{"Username":"' + User1Name + '","Password":"' + User1Pass + '","Email":"' + User1Email + '"}' ;
-      
-      if (User2Name <> '') and (User2Pass <> '') then
+      if User1Name <> '' then
       begin
-        UserJsonContent := UserJsonContent + ',{"Username":"' + User2Name + '","Password":"' + User2Pass + '","Email":"' + User2Email + '"}';
+        UserJsonContent := '{"Users":[' +
+          '{"Username":"' + User1Name + '","Password":"' + User1Pass + '","Email":"' + User1Email + '"}' ;
+        
+        if (User2Name <> '') and (User2Pass <> '') then
+        begin
+          UserJsonContent := UserJsonContent + ',{"Username":"' + User2Name + '","Password":"' + User2Pass + '","Email":"' + User2Email + '"}';
+        end;
+        
+        UserJsonContent := UserJsonContent + '],' ;
+      end
+      else
+      begin
+        UserJsonContent := '{"Users":[],' ;
       end;
       
-      UserJsonContent := UserJsonContent + '],' ;
+      UserJsonContent := UserJsonContent +
+        '"SupabaseUrl":"' + SupabaseUrlVal + '",' +
+        '"SupabaseKey":"' + SupabaseKeyVal + '",' +
+        '"FactoryResetPassword":"' + FactoryResetPass + '",' +
+        '"GoogleClientId":"",' +
+        '"GoogleClientSecret":""}';
+        
+      SaveStringToFile(UserConfigPath, UserJsonContent, False);
+      SaveStringToFile(AppDataDir + '\ErmayMuhasebe\setup_config.json', UserJsonContent, False);
     end
     else
     begin
-      UserJsonContent := '{"Users":[],' ;
+      // Mevcut Şirkete Bağlan seçildiyse eski bir initial user dosyası varsa temizle
+      if FileExists(UserConfigPath) then DeleteFile(UserConfigPath);
+      UserJsonContent := '{"Users":[],"SupabaseUrl":"' + SupabaseUrlVal + '","SupabaseKey":"' + SupabaseKeyVal + '","FactoryResetPassword":"","GoogleClientId":"","GoogleClientSecret":""}';
+      SaveStringToFile(AppDataDir + '\ErmayMuhasebe\setup_config.json', UserJsonContent, False);
     end;
-    
-    UserJsonContent := UserJsonContent +
-      '"SupabaseUrl":"' + SupabaseUrlVal + '",' +
-      '"SupabaseKey":"' + SupabaseKeyVal + '",' +
-      '"FactoryResetPassword":"' + FactoryResetPass + '",' +
-      '"GoogleClientId":"",' +
-      '"GoogleClientSecret":""}';
-      
-    SaveStringToFile(UserConfigPath, UserJsonContent, False);
-    SaveStringToFile(AppDataDir + '\ErmayMuhasebe\setup_config.json', UserJsonContent, False);
 
-    // 3. Kullanıcı Bilgilerini Doğrudan Supabase Bulutuna Kaydet
+    // 3. Kullanıcı Bilgilerini Doğrudan Supabase Bulutuna Kaydet (Sadece kullanıcı Supabase'de yoksa ekle, mevcut şifreyi ASLA bozma)
     if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') and (User1Name <> '') then
     begin
       ScriptFile := ExpandConstant('{tmp}\sync_user_supabase.ps1');
       ScriptContent :=
         '$ErrorActionPreference = ''SilentlyContinue''' + #13#10 +
-        '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; Prefer = ''resolution=merge-duplicates''; ''Content-Type'' = ''application/json'' }' + #13#10 +
+        '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; ''Content-Type'' = ''application/json'' }' + #13#10 +
         '$u1 = ''' + User1Name + '''.Trim().ToLower()' + #13#10 +
-        '$payload1 = @{ id = $u1; username = $u1; kullanici_adi = $u1; email = ''' + User1Email + '''; role = ''Admin''; rol = ''Admin''; is_active = $true; aktif_mi = $true; password_hash = ''temporary''; sifre = ''temporary'' } | ConvertTo-Json' + #13#10 +
-        'Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar'') -Method Post -Headers $headers -Body $payload1' + #13#10;
+        '$em1 = ''' + User1Email + '''.Trim().ToLower()' + #13#10 +
+        '$cleanTenant1 = ($em1 -replace ''[^a-zA-Z0-9]'', ''_'').Trim(''_'')' + #13#10 +
+        '$t1 = if ($cleanTenant1) { ''tenant_'' + $cleanTenant1 } else { ''default'' }' + #13#10 +
+        '$existing1 = $null' + #13#10 +
+        'try { $existing1 = Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar?id=eq.'' + $u1 + ''&select=id'') -Method Get -Headers $headers } catch {}' + #13#10 +
+        'if (-not $existing1 -or $existing1.Count -eq 0) {' + #13#10 +
+        '  $payload1 = @{ id = $u1; username = $u1; kullanici_adi = $u1; email = $em1; role = ''Admin''; rol = ''Admin''; tenant_id = $t1; is_active = $true; aktif_mi = $true; password_hash = ''temporary''; sifre = ''temporary'' } | ConvertTo-Json' + #13#10 +
+        '  Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar'') -Method Post -Headers $headers -Body $payload1' + #13#10 +
+        '}' + #13#10;
         
       if (User2Name <> '') then
       begin
         ScriptContent := ScriptContent +
           '$u2 = ''' + User2Name + '''.Trim().ToLower()' + #13#10 +
-          '$payload2 = @{ id = $u2; username = $u2; kullanici_adi = $u2; email = ''' + User2Email + '''; role = ''Admin''; rol = ''Admin''; is_active = $true; aktif_mi = $true; password_hash = ''temporary''; sifre = ''temporary'' } | ConvertTo-Json' + #13#10 +
-          'Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar'') -Method Post -Headers $headers -Body $payload2' + #13#10;
+          '$em2 = ''' + User2Email + '''.Trim().ToLower()' + #13#10 +
+          '$existing2 = $null' + #13#10 +
+          'try { $existing2 = Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar?id=eq.'' + $u2 + ''&select=id'') -Method Get -Headers $headers } catch {}' + #13#10 +
+          'if (-not $existing2 -or $existing2.Count -eq 0) {' + #13#10 +
+          '  $payload2 = @{ id = $u2; username = $u2; kullanici_adi = $u2; email = $em2; role = ''Operatör''; rol = ''Operatör''; tenant_id = $t1; is_active = $true; aktif_mi = $true; password_hash = ''temporary''; sifre = ''temporary'' } | ConvertTo-Json' + #13#10 +
+          '  Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar'') -Method Post -Headers $headers -Body $payload2' + #13#10 +
+          '}' + #13#10;
       end;
       
       SaveStringToFile(ScriptFile, ScriptContent, False);

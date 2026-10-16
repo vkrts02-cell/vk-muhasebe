@@ -120,6 +120,7 @@ public partial class LoginViewModel : ViewModelBase
                     if (count == 0)
                     {
                         jsonToProcess = System.IO.File.ReadAllText(permanentConfigPath);
+                        isNewSetup = true;
                     }
                 }
                 catch { }
@@ -156,20 +157,48 @@ public partial class LoginViewModel : ViewModelBase
                                     
                                     if (!string.IsNullOrEmpty(uName) && !string.IsNullOrEmpty(uPass))
                                     {
+                                        string? targetTenant = null;
+                                        if (!string.IsNullOrWhiteSpace(uEmail))
+                                        {
+                                            var cleanTenant = System.Text.RegularExpressions.Regex.Replace(uEmail.Trim().ToLowerInvariant(), @"[^a-z0-9]", "_").Trim('_');
+                                            targetTenant = $"tenant_{cleanTenant}";
+                                        }
+
                                         var existing = await conn.Table<Models.User>().FirstOrDefaultAsync(x => x.Username == uName);
+                                        Models.User userToSync;
                                         if (existing == null)
                                         {
                                             var salt = AuthService.GenerateSalt();
                                             var hash = AuthService.HashPassword(uPass, salt);
-                                            await conn.InsertAsync(new Models.User
+                                            userToSync = new Models.User
                                             {
                                                 Username = uName,
                                                 Password = hash,
                                                 PasswordSalt = salt,
                                                 Email = uEmail,
                                                 Role = "Admin",
+                                                TenantId = targetTenant,
                                                 CreatedAt = DateTime.UtcNow
-                                            });
+                                            };
+                                            await conn.InsertAsync(userToSync);
+                                        }
+                                        else
+                                        {
+                                            var salt = existing.PasswordSalt ?? AuthService.GenerateSalt();
+                                            existing.PasswordSalt = salt;
+                                            existing.Password = AuthService.HashPassword(uPass, salt);
+                                            if (!string.IsNullOrEmpty(uEmail)) existing.Email = uEmail;
+                                            if (!string.IsNullOrEmpty(targetTenant) && (existing.TenantId == "default" || string.IsNullOrWhiteSpace(existing.TenantId)))
+                                            {
+                                                existing.TenantId = targetTenant;
+                                            }
+                                            await conn.UpdateAsync(existing);
+                                            userToSync = existing;
+                                        }
+
+                                        if (_dbService.SyncService != null && _dbService.SyncService.IsConnected)
+                                        {
+                                            try { await _dbService.SyncService.SyncUserAsync(userToSync); } catch { }
                                         }
                                     }
                                 }
@@ -312,30 +341,18 @@ public partial class LoginViewModel : ViewModelBase
                 catch { }
             }
 
-            // TEMİZ KURULUM: setup_initial_user.json varsa bulut kullanıcı senkronizasyonunu atla
-            var cleanInstallConfigDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
-            var cleanInstallSetupPath = Path.Combine(cleanInstallConfigDir, "setup_initial_user.json");
-            bool isCleanInstall = File.Exists(cleanInstallSetupPath);
-
-            if (!isCleanInstall)
+            // Arka planda buluttaki kullanıcıları yerel veritabanına senkronize et (çapraz cihaz uyumu)
+            _ = Task.Run(async () =>
             {
-                // Arka planda buluttaki kullanıcıları yerel veritabanına senkronize et
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
-                    {
-                        await _dbService.SyncUsersWithCloudAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[LoginVM] SyncUsersWithCloudAsync error: {ex.Message}");
-                    }
-                });
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine("[LoginVM] TEMİZ KURULUM tespit edildi - bulut kullanıcı senkronizasyonu ATLANIYOR");
-            }
+                    await _dbService.SyncUsersWithCloudAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[LoginVM] SyncUsersWithCloudAsync error: {ex.Message}");
+                }
+            });
 
             var path = GetCredentialsPath();
             if (System.IO.File.Exists(path))
@@ -467,8 +484,114 @@ public partial class LoginViewModel : ViewModelBase
                     {
                         Username = trimmedUsername;
                         Password = trimmedPassword;
+
+                        // Tenant senkronizasyonu: Kullanıcı adı/şifre ile giriş yapan kullanıcının TenantId'sini Google tenant'ı ile eşitle
+                        if (user.TenantId == "default" || string.IsNullOrWhiteSpace(user.TenantId))
+                        {
+                            string? targetTenant = null;
+                            if (!string.IsNullOrWhiteSpace(user.Email) && !user.Email.EndsWith("@ermay.local"))
+                            {
+                                var cleanTenant = System.Text.RegularExpressions.Regex.Replace(user.Email.Trim().ToLowerInvariant(), @"[^a-z0-9]", "_").Trim('_');
+                                targetTenant = $"tenant_{cleanTenant}";
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                                    var scPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                                    var suPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                                    var cfgPath = System.IO.File.Exists(scPath) ? scPath : (System.IO.File.Exists(suPath) ? suPath : null);
+                                    if (cfgPath != null)
+                                    {
+                                        var cfgJson = await System.IO.File.ReadAllTextAsync(cfgPath);
+                                        using var cfgDoc = System.Text.Json.JsonDocument.Parse(cfgJson);
+                                        if (cfgDoc.RootElement.TryGetProperty("Users", out var uArr))
+                                        {
+                                            foreach (var uElem in uArr.EnumerateArray())
+                                            {
+                                                if (uElem.TryGetProperty("Email", out var emElem))
+                                                {
+                                                    var emStr = emElem.GetString()?.Trim();
+                                                    if (!string.IsNullOrEmpty(emStr))
+                                                    {
+                                                        var cleanTenant = System.Text.RegularExpressions.Regex.Replace(emStr.ToLowerInvariant(), @"[^a-z0-9]", "_").Trim('_');
+                                                        targetTenant = $"tenant_{cleanTenant}";
+                                                        if (string.IsNullOrEmpty(user.Email)) user.Email = emStr;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { }
+
+                                if (string.IsNullOrEmpty(targetTenant))
+                                {
+                                    try
+                                    {
+                                        var globalConn = _dbService.GetGlobalConnection();
+                                        var googleAdmin = await globalConn.Table<Models.User>().FirstOrDefaultAsync(u => !string.IsNullOrEmpty(u.TenantId) && u.TenantId != "default" && u.TenantId.StartsWith("tenant_"));
+                                        if (googleAdmin != null)
+                                        {
+                                            targetTenant = googleAdmin.TenantId;
+                                            if (string.IsNullOrEmpty(user.Email) && !string.IsNullOrEmpty(googleAdmin.Email)) user.Email = googleAdmin.Email;
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                if (string.IsNullOrEmpty(targetTenant))
+                                {
+                                    try
+                                    {
+                                        var appDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                                        if (System.IO.Directory.Exists(appDir))
+                                        {
+                                            var dbFiles = System.IO.Directory.GetFiles(appDir, "ermay_*_tenant_*.db");
+                                            if (dbFiles.Length > 0)
+                                            {
+                                                var fName = System.IO.Path.GetFileNameWithoutExtension(dbFiles[0]);
+                                                var idx = fName.IndexOf("_tenant_");
+                                                if (idx >= 0)
+                                                {
+                                                    targetTenant = fName.Substring(idx + 1);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(targetTenant))
+                            {
+                                user.TenantId = targetTenant;
+                                try
+                                {
+                                    var globalConn = _dbService.GetGlobalConnection();
+                                    await globalConn.UpdateAsync(user);
+                                    if (_dbService.SyncService != null && _dbService.SyncService.IsConnected)
+                                    {
+                                        await _dbService.SyncService.SyncUserAsync(user);
+                                    }
+                                }
+                                catch { }
+                            }
+                        }
+
                         _dbService.CurrentTenantId = user.TenantId ?? "default";
                         SaveCredentials();
+
+                        // Bulut veritabanındaki kullanıcı kaydının geçerli PBKDF2 hash ve salt içerdiğini garanti et
+                        if (_dbService.SyncService != null && _dbService.SyncService.IsConnected && !string.IsNullOrEmpty(user.Password))
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try { await _dbService.SyncService.SyncUserAsync(user); } catch { }
+                            });
+                        }
 
                         _onLoginSuccess?.Invoke(user.Username ?? trimmedUsername);
                         return;
@@ -855,6 +978,426 @@ Lütfen bu kodu sisteme girerek doğrulamayı tamamlayın.";
         catch (Exception ex)
         {
             ErrorMessage = $"Åifre güncellenirken hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoginWithGoogleAsync()
+    {
+        if (IsBusy) return;
+
+        IsBusy = true;
+        ErrorMessage = "";
+        SuccessMessage = "Google ile giriş başlatılıyor...";
+
+        try
+        {
+            var cleanBase = CloudSyncService.CleanSupabaseUrl(_dbService.SyncService?.Config?.BaseUrl);
+            if (string.IsNullOrWhiteSpace(cleanBase))
+            {
+                cleanBase = CloudConfig.DefaultSupabaseUrl;
+            }
+
+            int port = 54328;
+            string redirectUri = $"http://localhost:{port}/auth/callback/";
+            string authUrl = $"{cleanBase}/auth/v1/authorize?provider=google&redirect_to={Uri.EscapeDataString(redirectUri)}&prompt=select_account";
+
+            using var listener = new System.Net.HttpListener();
+            listener.Prefixes.Add($"http://localhost:{port}/");
+            listener.Start();
+
+            // Tarayıcıyı aç
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = authUrl,
+                UseShellExecute = true
+            });
+
+            SuccessMessage = "Lütfen tarayıcınızdan Google hesabınızı seçiniz...";
+
+            var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(90));
+            string? accessToken = null;
+            string? userEmail = null;
+            string? authErrorMessage = null;
+
+            while (!cts.IsCancellationRequested && string.IsNullOrEmpty(accessToken))
+            {
+                var contextTask = listener.GetContextAsync();
+                var completedTask = await Task.WhenAny(contextTask, Task.Delay(TimeSpan.FromSeconds(90), cts.Token));
+
+                if (completedTask != contextTask) break; // Timeout
+
+                var context = await contextTask;
+                var req = context.Request;
+                var res = context.Response;
+
+                var rawPath = req.Url?.AbsolutePath?.ToLowerInvariant() ?? "";
+                if (rawPath.Contains("favicon.ico"))
+                {
+                    res.StatusCode = 204;
+                    res.Close();
+                    continue;
+                }
+
+                var queryError = req.QueryString["error"];
+                var queryErrorDesc = req.QueryString["error_description"] ?? req.QueryString["error_message"];
+
+                if (!string.IsNullOrEmpty(queryError) || !string.IsNullOrEmpty(queryErrorDesc))
+                {
+                    var rawDesc = !string.IsNullOrEmpty(queryErrorDesc) ? queryErrorDesc : queryError;
+                    authErrorMessage = Uri.UnescapeDataString(rawDesc ?? "Bilinmeyen hata");
+                    while (authErrorMessage.Contains("%25") || authErrorMessage.Contains("%3A") || authErrorMessage.Contains("%2F"))
+                    {
+                        try { authErrorMessage = Uri.UnescapeDataString(authErrorMessage); } catch { break; }
+                    }
+
+                    string extraHint = authErrorMessage.Contains("Unable to exchange external code") 
+                        ? "<div style='margin-top:12px; font-size:12px; color:#fcd34d; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:8px;'><strong>Yapılandırma Uyuşmazlığı:</strong> Supabase ile Google Cloud Console arasındaki 'Client Secret' veya 'Authorized redirect URIs' (https://fqgbdymffknglqeqoogt.supabase.co/auth/v1/callback) uyuşmuyor.</div>" 
+                        : "";
+
+                    string errorHtml = $@"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Giriş Başarısız</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+        .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 36px; max-width: 480px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }}
+        .icon {{ width: 56px; height: 56px; line-height: 56px; background: rgba(239, 68, 68, 0.15); border-radius: 50%; color: #ef4444; font-size: 28px; margin: 0 auto 20px; }}
+        h2 {{ margin: 0 0 10px; font-size: 22px; color: #f8fafc; }}
+        p {{ color: #94a3b8; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }}
+        .err-box {{ background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 12px; color: #fca5a5; font-size: 13px; word-break: break-word; text-align: left; font-family: monospace; }}
+        .btn {{ margin-top: 24px; display: inline-block; background: #334155; color: #f8fafc; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; cursor: pointer; border: none; }}
+        .btn:hover {{ background: #475569; }}
+    </style>
+</head>
+<body>
+    <div class='card'>
+        <div class='icon'>✕</div>
+        <h2>Google ile Giriş Başarısız</h2>
+        <p>Kimlik doğrulama sırasında bir hata oluştu. Lütfen bu sekmeyi kapatıp masaüstü programına dönün.</p>
+        <div class='err-box'><strong>Hata Detayı:</strong> {System.Net.WebUtility.HtmlEncode(authErrorMessage)}</div>
+        {extraHint}
+        <button class='btn' onclick='window.close()'>Pencereyi Kapat</button>
+    </div>
+</body>
+</html>";
+                    var buffer = System.Text.Encoding.UTF8.GetBytes(errorHtml);
+                    res.ContentType = "text/html; charset=utf-8";
+                    res.ContentLength64 = buffer.Length;
+                    await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                    res.OutputStream.Close();
+                    await Task.Delay(1500);
+                    break;
+                }
+
+                var token = req.QueryString["access_token"];
+                if (!string.IsNullOrEmpty(token))
+                {
+                    accessToken = token;
+                    string successHtml = @"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Giriş Başarılı</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 36px; max-width: 480px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+        .icon { width: 56px; height: 56px; line-height: 56px; background: rgba(16, 185, 129, 0.15); border-radius: 50%; color: #10b981; font-size: 28px; margin: 0 auto 20px; }
+        h2 { margin: 0 0 10px; font-size: 22px; color: #f8fafc; }
+        p { color: #94a3b8; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class='card'>
+        <div class='icon'>✓</div>
+        <h2>Giriş Başarılı!</h2>
+        <p>VK Ön Muhasebe'ye başarıyla bağlandınız. Bu sekme birazdan otomatik olarak kapatılacaktır...</p>
+    </div>
+    <script>setTimeout(function(){ window.close(); }, 2000);</script>
+</body>
+</html>";
+                    var buffer = System.Text.Encoding.UTF8.GetBytes(successHtml);
+                    res.ContentType = "text/html; charset=utf-8";
+                    res.ContentLength64 = buffer.Length;
+                    await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                    res.OutputStream.Close();
+                    await Task.Delay(1500);
+                    break;
+                }
+                else
+                {
+                    string redirectHtml = @"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Kimlik Doğrulanıyor...</title>
+    <script>
+        if (window.location.hash) {
+            window.location.href = '/auth/token?' + window.location.hash.substring(1);
+        } else if (window.location.search) {
+            window.location.href = '/auth/token' + window.location.search;
+        } else {
+            document.body.innerText = 'Kimlik doğrulama bilgisi bulunamadı.';
+        }
+    </script>
+</head>
+<body style='font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: #94a3b8;'>
+    Giriş onaylanıyor, lütfen bekleyin...
+</body>
+</html>";
+                    var buffer = System.Text.Encoding.UTF8.GetBytes(redirectHtml);
+                    res.ContentType = "text/html; charset=utf-8";
+                    res.ContentLength64 = buffer.Length;
+                    await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                    res.OutputStream.Close();
+                }
+            }
+
+            try { listener.Stop(); } catch { }
+
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+                var apiKey = _dbService.SyncService?.Config?.AuthSecret ?? CloudConfig.DefaultSupabaseKey;
+                client.DefaultRequestHeaders.Add("apikey", apiKey);
+
+                var userRes = await client.GetAsync($"{cleanBase}/auth/v1/user");
+                if (userRes.IsSuccessStatusCode)
+                {
+                    var userJson = await userRes.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(userJson);
+                    if (doc.RootElement.TryGetProperty("email", out var emailProp))
+                    {
+                        userEmail = emailProp.GetString();
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(userEmail))
+            {
+                var cleanEmail = userEmail.Trim().ToLowerInvariant();
+                var cleanTenant = System.Text.RegularExpressions.Regex.Replace(cleanEmail, @"[^a-z0-9]", "_").Trim('_');
+                var tenantId = $"tenant_{cleanTenant}";
+
+                var conn = _dbService.GetGlobalConnection();
+                await conn.CreateTableAsync<Models.User>();
+
+                // Sistemdeki asıl yerel kullanıcıyı bul (Admin rolündeki kurulum kullanıcısı veya ilk kullanıcı)
+                var localUsers = await conn.Table<Models.User>().ToListAsync();
+                var initialAdmin = localUsers.FirstOrDefault(u => u.Role == "Admin" || u.Role == "Yönetici") ?? localUsers.FirstOrDefault();
+
+                // Kurulumda belirlenen yetkili Google e-postasını bul
+                string? expectedEmail = null;
+                try
+                {
+                    var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                    var scPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                    var suPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                    var cfgFile = System.IO.File.Exists(scPath) ? scPath : (System.IO.File.Exists(suPath) ? suPath : null);
+                    if (cfgFile != null)
+                    {
+                        var cfgJson = await System.IO.File.ReadAllTextAsync(cfgFile);
+                        using var cfgDoc = System.Text.Json.JsonDocument.Parse(cfgJson);
+                        if (cfgDoc.RootElement.TryGetProperty("Users", out var uArr) && uArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var uEl in uArr.EnumerateArray())
+                            {
+                                if (uEl.TryGetProperty("Email", out var emEl))
+                                {
+                                    var emStr = emEl.GetString()?.Trim().ToLowerInvariant();
+                                    if (!string.IsNullOrEmpty(emStr) && !emStr.EndsWith("@ermay.local"))
+                                    {
+                                        expectedEmail = emStr;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                if (string.IsNullOrEmpty(expectedEmail) && initialAdmin != null && !string.IsNullOrEmpty(initialAdmin.Email) && !initialAdmin.Email.EndsWith("@ermay.local"))
+                {
+                    expectedEmail = initialAdmin.Email.Trim().ToLowerInvariant();
+                }
+
+                // GÜVENLİK KİLİDİ: Kurulumda belirlenen Google hesabı dışındaki hiçbir Google hesabı kabul edilemez!
+                if (!string.IsNullOrEmpty(expectedEmail) && !string.Equals(cleanEmail, expectedEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    ErrorMessage = $"Google Hesabı Uyuşmazlığı!\n\nBu kurulum '{expectedEmail}' hesabına kilitlenmiştir.\nGiriş yaptığınız hesap ise '{cleanEmail}'.\nLütfen kurulumda belirlediğiniz Google hesabı ({expectedEmail}) ile giriş yapınız.";
+                    SuccessMessage = "";
+                    return;
+                }
+
+                Models.User userToLogin;
+
+                if (initialAdmin == null)
+                {
+                    try
+                    {
+                        var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                        var scPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                        var suPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                        var cfgFile = System.IO.File.Exists(scPath) ? scPath : (System.IO.File.Exists(suPath) ? suPath : null);
+                        if (cfgFile != null)
+                        {
+                            var cfgJson = await System.IO.File.ReadAllTextAsync(cfgFile);
+                            using var cfgDoc = System.Text.Json.JsonDocument.Parse(cfgJson);
+                            if (cfgDoc.RootElement.TryGetProperty("Users", out var uArr) && uArr.ValueKind == System.Text.Json.JsonValueKind.Array && uArr.GetArrayLength() > 0)
+                            {
+                                var firstUser = uArr[0];
+                                var setupUsername = firstUser.GetProperty("Username").GetString()?.Trim();
+                                var setupPassword = firstUser.GetProperty("Password").GetString()?.Trim();
+                                if (!string.IsNullOrEmpty(setupUsername))
+                                {
+                                    var salt = AuthService.GenerateSalt();
+                                    initialAdmin = new Models.User
+                                    {
+                                        Username = setupUsername.ToLower(),
+                                        Email = cleanEmail,
+                                        Role = "Admin",
+                                        PasswordSalt = salt,
+                                        Password = !string.IsNullOrEmpty(setupPassword) ? AuthService.HashPassword(setupPassword, salt) : AuthService.HashPassword(Guid.NewGuid().ToString("N"), salt),
+                                        TenantId = tenantId,
+                                        CreatedAt = DateTime.UtcNow
+                                    };
+                                    await conn.InsertAsync(initialAdmin);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (initialAdmin != null)
+                {
+                    // Kurulumda belirlenen kullanıcıyı Google hesabı ile birebir birleştir ve kilitle
+                    initialAdmin.Email = cleanEmail;
+                    initialAdmin.TenantId = tenantId;
+                    initialAdmin.Role = "Admin";
+                    await conn.UpdateAsync(initialAdmin);
+                    try { if (_dbService.SyncService != null) await _dbService.SyncService.SyncUserAsync(initialAdmin); } catch { }
+                    userToLogin = initialAdmin;
+
+                    // Eğer veritabanında geçmişten kalan duplicate Google e-posta kullanıcıları varsa temizle
+                    var duplicates = localUsers.Where(u => u.Id != initialAdmin.Id && (u.Username == cleanEmail || u.Email == cleanEmail)).ToList();
+                    foreach (var dup in duplicates)
+                    {
+                        try { await conn.DeleteAsync(dup); } catch { }
+                    }
+
+                    // setup_config.json dosyasını da bu doğrulanmış Google hesabı ile kalıcı olarak kilitle
+                    try
+                    {
+                        var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                        var scPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                        var suPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                        foreach (var path in new[] { scPath, suPath })
+                        {
+                            if (System.IO.File.Exists(path))
+                            {
+                                var json = await System.IO.File.ReadAllTextAsync(path);
+                                var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+                                if (node != null)
+                                {
+                                    if (node["Users"] is System.Text.Json.Nodes.JsonArray arr && arr.Count > 0)
+                                    {
+                                        arr[0]!["Email"] = cleanEmail;
+                                        arr[0]!["TenantId"] = tenantId;
+                                    }
+                                    node["GoogleEmail"] = cleanEmail;
+                                    node["TenantId"] = tenantId;
+                                    await System.IO.File.WriteAllTextAsync(path, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                else
+                {
+                    // Yerelde hiç kullanıcı yoksa Google hesabıyla yeni bir kullanıcı oluştur
+                    var salt = AuthService.GenerateSalt();
+                    userToLogin = new Models.User
+                    {
+                        Username = cleanEmail,
+                        Email = cleanEmail,
+                        Role = "Admin",
+                        PasswordSalt = salt,
+                        Password = AuthService.HashPassword(Guid.NewGuid().ToString("N"), salt),
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await conn.InsertAsync(userToLogin);
+                    try { if (_dbService.SyncService != null) await _dbService.SyncService.SyncUserAsync(userToLogin); } catch { }
+                }
+
+                // Veritabanı servisini bu birleştirilmiş kullanıcı tenant'ına bağla
+                _dbService.CurrentTenantId = userToLogin.TenantId ?? tenantId;
+
+                // Kurulumdaki FactoryResetPassword'ü bu Google tenant'ının şirket profiline kesin olarak eşitle
+                try
+                {
+                    var configDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+                    var setupPath = System.IO.Path.Combine(configDir, "setup_initial_user.json");
+                    var permPath = System.IO.Path.Combine(configDir, "setup_config.json");
+                    var fileToRead = System.IO.File.Exists(setupPath) ? setupPath : (System.IO.File.Exists(permPath) ? permPath : null);
+                    if (fileToRead != null)
+                    {
+                        var json = await System.IO.File.ReadAllTextAsync(fileToRead);
+                        using var doc = System.Text.Json.JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("FactoryResetPassword", out var frpElem) && frpElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                        {
+                            var frp = frpElem.GetString()?.Trim();
+                            if (!string.IsNullOrEmpty(frp))
+                            {
+                                var profil = await _dbService.GetFirmaProfiliAsync();
+                                if (profil != null && (string.IsNullOrEmpty(profil.FactoryResetPassword) || profil.FactoryResetPassword != frp))
+                                {
+                                    profil.FactoryResetPassword = frp;
+                                    await _dbService.SaveFirmaProfiliAsync(profil);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                Username = userToLogin.Username;
+                SuccessMessage = $"Hoş geldiniz, {userToLogin.Username}!";
+                _onLoginSuccess?.Invoke(userToLogin.Username);
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(authErrorMessage))
+                {
+                    if (authErrorMessage.Contains("Unable to exchange external code"))
+                    {
+                        ErrorMessage = "Google ile giriş başarısız: Supabase ile Google OAuth yapılandırması uyuşmuyor. Lütfen Google Cloud Console'daki 'Yetkili yönlendirme URI'leri' (https://fqgbdymffknglqeqoogt.supabase.co/auth/v1/callback) veya Supabase'deki 'Client Secret' anahtarını kontrol ediniz.";
+                    }
+                    else
+                    {
+                        ErrorMessage = $"Google ile giriş başarısız: {authErrorMessage}";
+                    }
+                }
+                else
+                {
+                    ErrorMessage = "Google ile giriş zaman aşımına uğradı veya tamamlanamadı.";
+                }
+                SuccessMessage = "";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Google ile giriş hatası: {ex.Message}";
+            SuccessMessage = "";
         }
         finally
         {

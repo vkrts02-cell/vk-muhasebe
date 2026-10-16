@@ -17,9 +17,10 @@ namespace ErmayMuhasebe.Tests.Integration
 
         public Full626PathAudit()
         {
+            CloudSyncService.DisableCloudSync = true;
             _testDbPath = Path.Combine(Path.GetTempPath(), $"Full626Audit_{Guid.NewGuid()}.db3");
             ErmayMuhasebe.Data.Constants.DatabasePath = _testDbPath;
-            _dbService = new DatabaseService();
+            _dbService = new DatabaseService { IsTestMode = true, DisableCloudSync = true };
             _dbService.InitializeAsync().Wait();
         }
 

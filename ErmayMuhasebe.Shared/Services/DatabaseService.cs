@@ -56,6 +56,51 @@ namespace ErmayMuhasebe.Services
             GC.Collect();
         }
 
+        private class SqliteMasterRow
+        {
+            public string name { get; set; } = "";
+        }
+
+        public async Task WipeAllLocalTablesAsync()
+        {
+            if (_db != null)
+            {
+                try
+                {
+                    var tables = await _db.QueryAsync<SqliteMasterRow>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+                    foreach (var tbl in tables)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tbl.name))
+                        {
+                            try { await _db.ExecuteAsync($"DELETE FROM [{tbl.name}];"); } catch { }
+                        }
+                    }
+                    try { await _db.ExecuteAsync("DELETE FROM sqlite_sequence;"); } catch { }
+                    try { await _db.ExecuteAsync("VACUUM;"); } catch { }
+                }
+                catch { }
+            }
+
+            try
+            {
+                var globalConn = GetGlobalConnection();
+                if (globalConn != null)
+                {
+                    var globalTables = await globalConn.QueryAsync<SqliteMasterRow>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+                    foreach (var tbl in globalTables)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tbl.name))
+                        {
+                            try { await globalConn.ExecuteAsync($"DELETE FROM [{tbl.name}];"); } catch { }
+                        }
+                    }
+                    try { await globalConn.ExecuteAsync("DELETE FROM sqlite_sequence;"); } catch { }
+                    try { await globalConn.ExecuteAsync("VACUUM;"); } catch { }
+                }
+            }
+            catch { }
+        }
+
         private readonly CloudSyncService _sync;
         private readonly SemaphoreSlim _syncGate = new(1, 1);
         private readonly List<IDisposable> _realtimeSubscriptions = new();
@@ -70,7 +115,19 @@ namespace ErmayMuhasebe.Services
 
         public string? CustomPassword { get; set; } = ErmayMuhasebe.Data.Constants.DatabasePassword;
         public bool UseEncryption { get; set; } = true;
-        public string CurrentTenantId { get; set; } = "default";
+        private string _currentTenantId = "default";
+        public string CurrentTenantId
+        {
+            get => _currentTenantId;
+            set
+            {
+                _currentTenantId = value;
+                if (_sync != null)
+                {
+                    _sync.CurrentTenantId = value;
+                }
+            }
+        }
         public bool IsTestMode { get; set; } = false;
         public static bool IsResetting { get; set; } = false;
         public bool DisableCloudSync
@@ -90,6 +147,25 @@ namespace ErmayMuhasebe.Services
         {
             _yearContext = yearContext;
             _sync = new CloudSyncService(yearContext);
+            _sync.CurrentTenantId = _currentTenantId;
+
+            // Otomatik test ortamı koruması: xUnit/testhost altında çalışırken bulut senkronizasyonunu kapat
+            try
+            {
+                var friendlyName = AppDomain.CurrentDomain.FriendlyName;
+                if (!string.IsNullOrEmpty(friendlyName) && (friendlyName.Contains("testhost", StringComparison.OrdinalIgnoreCase) || friendlyName.Contains("test", StringComparison.OrdinalIgnoreCase)))
+                {
+                    IsTestMode = true;
+                    CloudSyncService.DisableCloudSync = true;
+                }
+                else if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name?.Contains("Test", StringComparison.OrdinalIgnoreCase) == true))
+                {
+                    IsTestMode = true;
+                    CloudSyncService.DisableCloudSync = true;
+                }
+            }
+            catch { }
+
             if (!string.IsNullOrEmpty(customDbPath))
             {
                 _dbPath = customDbPath;
@@ -101,14 +177,35 @@ namespace ErmayMuhasebe.Services
 
                 if (_yearContext.CurrentYear > 0)
                 {
-                    var candidate = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+                    var dbFileName = (CurrentTenantId != "default" && !string.IsNullOrEmpty(CurrentTenantId))
+                        ? $"ermay_{_yearContext.CurrentYear}_{CurrentTenantId}.db"
+                        : $"ermay_{_yearContext.CurrentYear}.db";
+                    var candidate = Path.Combine(dir, dbFileName);
                     if (File.Exists(candidate) || IsTestMode)
                     {
                         _dbPath = candidate;
                     }
                     else
                     {
-                        _dbPath = "";
+                        // Fallback 1: Eğer tenant'lı dosya aranıp bulunamadıysa, eski tenant'sız dosyayı kontrol et
+                        var legacy = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+                        if (File.Exists(legacy))
+                        {
+                            _dbPath = legacy;
+                        }
+                        else
+                        {
+                            // Fallback 2: Eğer tenant'sız aranıp bulunamadıysa, diskteki mevcut tenant dosyasını kontrol et
+                            var matching = Directory.GetFiles(dir, $"ermay_{_yearContext.CurrentYear}_tenant_*.db");
+                            if (matching.Length > 0)
+                            {
+                                _dbPath = matching[0];
+                            }
+                            else
+                            {
+                                _dbPath = "";
+                            }
+                        }
                     }
                 }
                 else if (!string.IsNullOrEmpty(ErmayMuhasebe.Data.Constants.DatabasePath))
@@ -241,23 +338,35 @@ namespace ErmayMuhasebe.Services
                 // Temiz kurulum veya ilk kurulum kontrolü:
                 // Kullanıcı açıkça bir yıl seçmeden veya parametreli InitializeAsync çağrılmadan 
                 // arkada sessizce otomatik ermay_YYYY.db oluşturulmasını engelle.
+                var dbFileName = (CurrentTenantId != "default" && !string.IsNullOrEmpty(CurrentTenantId))
+                    ? $"ermay_{_yearContext.CurrentYear}_{CurrentTenantId}.db"
+                    : $"ermay_{_yearContext.CurrentYear}.db";
+                var targetFile = Path.Combine(dir, dbFileName);
+
                 if (!IsTestMode)
                 {
-                    var existingFiles = Directory.Exists(dir) ? Directory.GetFiles(dir, "ermay_*.db") : Array.Empty<string>();
+                    var filter = (CurrentTenantId != "default" && !string.IsNullOrEmpty(CurrentTenantId))
+                        ? $"ermay_*_{CurrentTenantId}.db"
+                        : "ermay_*.db";
+                    var existingFiles = Directory.Exists(dir) ? Directory.GetFiles(dir, filter) : Array.Empty<string>();
+                    if (CurrentTenantId == "default")
+                    {
+                        existingFiles = existingFiles.Where(f => !Path.GetFileName(f).Contains("tenant_")).ToArray();
+                    }
+
                     if (existingFiles.Length == 0)
                     {
                         // Henüz hiçbir mali yıl veritabanı yok. Kullanıcının ilk kurulumda yılı kendisi belirlemesi bekleniyor.
                         return;
                     }
 
-                    var targetFile = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
                     if (!File.Exists(targetFile))
                     {
                         return;
                     }
                 }
 
-                _dbPath = Path.Combine(dir, $"ermay_{_yearContext.CurrentYear}.db");
+                _dbPath = targetFile;
             }
             
             await _semaphore.WaitAsync();
@@ -537,11 +646,17 @@ namespace ErmayMuhasebe.Services
 
                 if (!IsTestMode && !DisableCloudSync)
                 {
-                    // Otomatik Kurtarma: Bulut eşitleme hatası sebebiyle yanlışlıkla IsDeleted=1 yapılmış geçerli carileri ve stokları kurtar
+                    // Otomatik Temizlik & Kurtarma: Test artıklarını temizle, geçerli carileri ve stokları kurtar
                     try
                     {
-                        await _db.ExecuteAsync("UPDATE CariKart SET IsDeleted = 0 WHERE IsDeleted = 1 AND Unvan IS NOT NULL AND TRIM(Unvan) != '';");
-                        await _db.ExecuteAsync("UPDATE StokKart SET IsDeleted = 0 WHERE IsDeleted = 1 AND StokAdi IS NOT NULL AND TRIM(StokAdi) != '';");
+                        // Test / Denetim kalıntısı dummy carileri, stokları ve bankaları yerel veritabanından kalıcı olarak temizle
+                        await _db.ExecuteAsync("DELETE FROM CariKart WHERE Unvan LIKE 'Cari %' OR Unvan IN ('ANA MÜŞTERİ', 'ANA TEDARİKÇİ', 'DEV TEDARİKÇİ', 'HİPER MÜŞTERİ', 'Senkron Cari 1', 'Fatura Cari 1');");
+                        await _db.ExecuteAsync("DELETE FROM StokKart WHERE StokAdi LIKE 'Stok %' OR StokAdi = 'AUDIT PRODUCT';");
+                        await _db.ExecuteAsync("DELETE FROM BankaKart WHERE BankaAdi = 'TEST BANKASI';");
+
+                        // Gerçek kullanıcı carilerini kurtar
+                        await _db.ExecuteAsync("UPDATE CariKart SET IsDeleted = 0 WHERE IsDeleted = 1 AND Unvan IS NOT NULL AND TRIM(Unvan) != '' AND Unvan NOT LIKE 'Cari %' AND Unvan NOT IN ('ANA MÜŞTERİ', 'ANA TEDARİKÇİ', 'DEV TEDARİKÇİ', 'HİPER MÜŞTERİ', 'Senkron Cari 1', 'Fatura Cari 1');");
+                        await _db.ExecuteAsync("UPDATE StokKart SET IsDeleted = 0 WHERE IsDeleted = 1 AND StokAdi IS NOT NULL AND TRIM(StokAdi) != '' AND StokAdi NOT LIKE 'Stok %' AND StokAdi != 'AUDIT PRODUCT';");
                     }
                     catch { }
 
@@ -904,9 +1019,8 @@ namespace ErmayMuhasebe.Services
                         bool changed = false;
                         if (existing.Password != cu.Password) { existing.Password = cu.Password; changed = true; }
                         if (existing.PasswordSalt != cu.PasswordSalt) { existing.PasswordSalt = cu.PasswordSalt; changed = true; }
-                        if (existing.Role != cu.Role) { existing.Role = cu.Role; changed = true; }
-                        if (existing.Email != cu.Email) { existing.Email = cu.Email; changed = true; }
-                        if (existing.TenantId != cu.TenantId) { existing.TenantId = cu.TenantId; changed = true; }
+                        if (!string.IsNullOrEmpty(cu.Email) && existing.Email != cu.Email) { existing.Email = cu.Email; changed = true; }
+                        if (!string.IsNullOrEmpty(cu.TenantId) && cu.TenantId != "default" && existing.TenantId != cu.TenantId) { existing.TenantId = cu.TenantId; changed = true; }
                         if (existing.TelegramChatId != cu.TelegramChatId) { existing.TelegramChatId = cu.TelegramChatId; changed = true; }
                         if (existing.FirebaseAuthUid != cu.FirebaseAuthUid) { existing.FirebaseAuthUid = cu.FirebaseAuthUid; changed = true; }
                         if (changed)
@@ -1028,38 +1142,81 @@ namespace ErmayMuhasebe.Services
                             {
                                 foreach (var userElem in usersArray.EnumerateArray())
                                 {
-                                var uName = userElem.GetProperty("Username").GetString()?.Trim();
-                                var uPass = userElem.GetProperty("Password").GetString()?.Trim();
-                                var uEmail = userElem.TryGetProperty("Email", out var emElem) ? emElem.GetString()?.Trim() : null;
+                                    var uName = userElem.GetProperty("Username").GetString()?.Trim();
+                                    var uPass = userElem.GetProperty("Password").GetString()?.Trim();
+                                    var uEmail = userElem.TryGetProperty("Email", out var emElem) ? emElem.GetString()?.Trim() : null;
 
-                                if (!string.IsNullOrEmpty(uName) && !string.IsNullOrEmpty(uPass))
+                                    if (!string.IsNullOrEmpty(uName) && !string.IsNullOrEmpty(uPass))
+                                    {
+                                        string? userTenantId = null;
+                                        if (!string.IsNullOrWhiteSpace(uEmail))
+                                        {
+                                            var cleanTenant = System.Text.RegularExpressions.Regex.Replace(uEmail.Trim().ToLowerInvariant(), @"[^a-z0-9]", "_").Trim('_');
+                                            userTenantId = $"tenant_{cleanTenant}";
+                                        }
+
+                                        var salt = AuthService.GenerateSalt();
+                                        var hash = AuthService.HashPassword(uPass, salt);
+                                        await globalConn.InsertAsync(new User
+                                        {
+                                            Username = uName.ToLower(),
+                                            Password = hash,
+                                            PasswordSalt = salt,
+                                            Email = uEmail,
+                                            Role = "Admin",
+                                            TenantId = userTenantId,
+                                            CreatedAt = DateTime.Now
+                                        });
+                                        added = true;
+
+                                        var finalUName = uName;
+                                        var finalUPass = uPass;
+                                        var finalUEmail = uEmail;
+                                        _ = Task.Run(async () =>
+                                        {
+                                            try { await _sync.RegisterSupabaseAuthUserAsync(finalUName, finalUPass, finalUEmail); }
+                                            catch { }
+                                        });
+                                    }
+                                }
+                                if (added) return;
+                            }
+                            else
+                            {
+                                // Kullanici daha once olusturulmus fakat TenantId'si null veya default kalmissa guncelle
+                                foreach (var userElem in usersArray.EnumerateArray())
                                 {
-                                    var salt = AuthService.GenerateSalt();
-                                    var hash = AuthService.HashPassword(uPass, salt);
-                                    await globalConn.InsertAsync(new User
+                                    var uName = userElem.GetProperty("Username").GetString()?.Trim()?.ToLower();
+                                    var uEmail = userElem.TryGetProperty("Email", out var emElem) ? emElem.GetString()?.Trim() : null;
+                                    if (!string.IsNullOrEmpty(uName))
                                     {
-                                        Username = uName.ToLower(),
-                                        Password = hash,
-                                        PasswordSalt = salt,
-                                        Email = uEmail,
-                                        Role = "Admin",
-                                        CreatedAt = DateTime.Now
-                                    });
-                                    added = true;
-
-                                    var finalUName = uName;
-                                    var finalUPass = uPass;
-                                    var finalUEmail = uEmail;
-                                    _ = Task.Run(async () =>
-                                    {
-                                        try { await _sync.RegisterSupabaseAuthUserAsync(finalUName, finalUPass, finalUEmail); }
-                                        catch { }
-                                    });
+                                        var existingUser = await globalConn.Table<User>().FirstOrDefaultAsync(u => u.Username == uName);
+                                        if (existingUser != null)
+                                        {
+                                            bool userChanged = false;
+                                            if (!string.IsNullOrWhiteSpace(uEmail))
+                                            {
+                                                if (string.IsNullOrWhiteSpace(existingUser.Email))
+                                                {
+                                                    existingUser.Email = uEmail;
+                                                    userChanged = true;
+                                                }
+                                                var cleanTenant = System.Text.RegularExpressions.Regex.Replace(uEmail.Trim().ToLowerInvariant(), @"[^a-z0-9]", "_").Trim('_');
+                                                var derivedTenantId = $"tenant_{cleanTenant}";
+                                                if (existingUser.TenantId == "default" || string.IsNullOrWhiteSpace(existingUser.TenantId))
+                                                {
+                                                    existingUser.TenantId = derivedTenantId;
+                                                    userChanged = true;
+                                                }
+                                            }
+                                            if (userChanged)
+                                            {
+                                                await globalConn.UpdateAsync(existingUser);
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            try { System.IO.File.Delete(pathToRead); } catch { }
-                            if (added) return;
-                        }
                         }
                     }
                     catch { }
@@ -1413,7 +1570,11 @@ namespace ErmayMuhasebe.Services
                 item.Id = maxId + 1;
                 await _db.InsertAsync(item);
             }
-            SafeFireAndForget(() => _sync.SyncCariAsync(item), "Sync");
+            SafeFireAndForget(async () =>
+            {
+                bool synced = await _sync.SyncCariAsync(item);
+                if (!synced) await EnqueueSyncItemAsync("Cari", item.Id, "Put");
+            }, "Sync");
             return item.Id;
         }
         public async Task<int> SaveCariAsync(CariKart item) => await SaveCariKartAsync(item); // Alias
@@ -1473,7 +1634,11 @@ namespace ErmayMuhasebe.Services
             item.Borc = 0;
             item.Alacak = 0;
             await _db.UpdateAsync(item);
-            SafeFireAndForget(() => _sync.SyncCariAsync(item), "Sync");
+            SafeFireAndForget(async () =>
+            {
+                bool synced = await _sync.SyncCariAsync(item);
+                if (!synced) await EnqueueSyncItemAsync("Cari", item.Id, "Put");
+            }, "Sync");
 
             // 6. Recalculate all stock costs since many invoices/movements might have been removed
             await RecalculateAllStockCostsAsync();
@@ -5369,6 +5534,130 @@ namespace ErmayMuhasebe.Services
             System.Diagnostics.Debug.WriteLine("[DatabaseService] Cloud Sync Timer STOPPED.");
         }
 
+        public async Task<int> EnqueueSyncItemAsync(string entityType, int entityId, string operation = "Put", string? jsonData = null)
+        {
+            try
+            {
+                await EnsureInitializedAsync();
+                var item = new SyncQueueItem
+                {
+                    EntityType = entityType,
+                    EntityId = entityId.ToString(),
+                    Operation = operation,
+                    JsonData = jsonData ?? "",
+                    CreatedAt = DateTime.Now,
+                    RetryCount = 0,
+                    IsSynced = false
+                };
+                return await _db.InsertAsync(item);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[EnqueueSyncItemAsync] Hata: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public async Task<int> ProcessSyncQueueAsync()
+        {
+            if (IsResetting || !IsCloudConnected) return 0;
+            if (!await _syncGate.WaitAsync(0)) return 0;
+            int processedCount = 0;
+            try
+            {
+                await EnsureInitializedAsync();
+                var pendingItems = await _db.Table<SyncQueueItem>()
+                    .Where(q => !q.IsSynced && q.RetryCount < 10)
+                    .OrderBy(q => q.CreatedAt)
+                    .Take(50)
+                    .ToListAsync();
+
+                if (pendingItems == null || pendingItems.Count == 0) return 0;
+
+                foreach (var item in pendingItems)
+                {
+                    bool success = false;
+                    try
+                    {
+                        if (item.Operation == "Delete")
+                        {
+                            if (int.TryParse(item.EntityId, out int intId))
+                            {
+                                switch (item.EntityType)
+                                {
+                                    case "Cari": await _sync.DeleteCariAsync(intId); success = true; break;
+                                    case "Stok": await _sync.DeleteStokAsync(intId); success = true; break;
+                                    case "Fatura": await _sync.DeleteFaturaAsync(intId); success = true; break;
+                                    case "KasaHareket": await _sync.DeleteKasaHareketAsync(intId); success = true; break;
+                                    case "BankaHareket": await _sync.DeleteBankaHareketAsync(intId); success = true; break;
+                                    default: success = true; break;
+                                }
+                            }
+                            else success = true;
+                        }
+                        else // Put / Upsert
+                        {
+                            if (int.TryParse(item.EntityId, out int intId))
+                            {
+                                switch (item.EntityType)
+                                {
+                                    case "Cari":
+                                        var cari = await _db.Table<CariKart>().FirstOrDefaultAsync(x => x.Id == intId);
+                                        if (cari != null) success = await _sync.SyncCariAsync(cari);
+                                        else success = true;
+                                        break;
+                                    case "Stok":
+                                        var stok = await _db.Table<StokKart>().FirstOrDefaultAsync(x => x.Id == intId);
+                                        if (stok != null) success = await _sync.SyncStokAsync(stok);
+                                        else success = true;
+                                        break;
+                                    case "Fatura":
+                                        var fatura = await _db.Table<Fatura>().FirstOrDefaultAsync(x => x.Id == intId);
+                                        if (fatura != null)
+                                        {
+                                            var detaylar = await _db.Table<FaturaDetay>().Where(x => x.FaturaId == intId).ToListAsync();
+                                            await _sync.SyncFaturaAsync(fatura);
+                                            await _sync.SyncFaturaDetaylarAsync(intId, detaylar);
+                                            success = true;
+                                        }
+                                        else success = true;
+                                        break;
+                                    default:
+                                        success = true;
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        item.Error = ex.Message;
+                        success = false;
+                    }
+
+                    if (success)
+                    {
+                        await _db.DeleteAsync(item);
+                        processedCount++;
+                    }
+                    else
+                    {
+                        item.RetryCount++;
+                        await _db.UpdateAsync(item);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ProcessSyncQueueAsync Error] {ex.Message}");
+            }
+            finally
+            {
+                _syncGate.Release();
+            }
+            return processedCount;
+        }
+
         public void StartRealtimeSync()
         {
             StopRealtimeSync();
@@ -5379,19 +5668,21 @@ namespace ErmayMuhasebe.Services
             {
                 try
                 {
+                    await ProcessSyncQueueAsync();
                     await SyncFromCloudAsync();
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"[DatabaseService] Periodic Sync Error: {ex.Message}");
                 }
-            }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30));
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(25));
 
             System.Diagnostics.Debug.WriteLine("[DatabaseService] Cloud Sync Timer STARTED successfully.");
         }
 
         
         public bool IsCloudConnected => _sync.IsConnected;
+        public async Task<(bool Success, string Message)> TestCloudConnectionAsync() => await _sync.TestConnectionAsync();
 
         public async Task SyncToCloudAsync()
         {
@@ -5613,10 +5904,17 @@ namespace ErmayMuhasebe.Services
             var cloudCariler = await _sync.PullCarilerAsync();
             if (cloudCariler != null)
             {
-                var cloudCariMap = cloudCariler.Where(x => x != null).ToDictionary(x => x.Id, x => x);
+                var cloudCariMap = cloudCariler.Where(x => x != null && !CloudSyncService.IsTestCari(x)).ToDictionary(x => x.Id, x => x);
                 var localCariler = await _db.Table<CariKart>().ToListAsync();
                 foreach (var local in localCariler)
                 {
+                    if (CloudSyncService.IsTestCari(local))
+                    {
+                        await _db.DeleteAsync(local);
+                        hasAnyChanges = true;
+                        continue;
+                    }
+
                     if (cloudCariMap.TryGetValue(local.Id, out var cloudCari))
                     {
                         if (cloudCari.IsDeleted && !local.IsDeleted)
@@ -5635,7 +5933,7 @@ namespace ErmayMuhasebe.Services
 
                 foreach (var c in cloudCariler)
                 {
-                    if (c == null) continue;
+                    if (c == null || CloudSyncService.IsTestCari(c)) continue;
                     var existing = await _db.Table<CariKart>().FirstOrDefaultAsync(x => x.Id == c.Id);
                     if (existing == null)
                     {

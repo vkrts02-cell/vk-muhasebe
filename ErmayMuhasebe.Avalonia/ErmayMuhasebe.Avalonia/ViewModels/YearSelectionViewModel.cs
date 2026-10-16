@@ -134,6 +134,7 @@ public partial class YearSelectionViewModel : ViewModelBase
         _isAlreadyAuthenticated = isAlreadyAuthenticated;
         
         LoadYears();
+        _ = LoadCloudYearsAsync();
     }
 
     public void LoadYears()
@@ -151,6 +152,7 @@ public partial class YearSelectionViewModel : ViewModelBase
         {
             // İlk kurulum: Kullanıcı istediği yılı kendisi belirler, otomatik yıl doldurulmaz
             NewYearToCreateText = "";
+            SelectedYearItem = null;
         }
 
         var targetYear = _yearContext.CurrentYear > 0 && available.Contains(_yearContext.CurrentYear) 
@@ -161,17 +163,87 @@ public partial class YearSelectionViewModel : ViewModelBase
 
         RolloverSourceYear = SelectedYear ?? (available.FirstOrDefault() > 0 ? available.FirstOrDefault() : DateTime.Now.Year);
         RolloverTargetYear = RolloverSourceYear + 1;
+    }
 
-        if (available.Any())
+    public async Task LoadCloudYearsAsync()
+    {
+        try
         {
-            _ = Task.Run(async () =>
+            var cloudYears = await _dbService.SyncService.PullMaliYillarAsync();
+            var activeCloudYear = await _dbService.SyncService.PullActiveMaliYilAsync();
+
+            await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
-                try
+                var localYears = _rolloverService.GetAvailableYears();
+                var combined = new HashSet<int>(localYears);
+                if (cloudYears != null)
                 {
-                    await _dbService.SyncService.SyncMaliYillarAsync(available);
+                    foreach (var cy in cloudYears)
+                    {
+                        if (cy > 0) combined.Add(cy);
+                    }
                 }
-                catch { }
+
+                if (combined.Any())
+                {
+                    var currentSelected = SelectedYear;
+
+                    Years.Clear();
+                    foreach (var y in combined.OrderByDescending(y => y))
+                    {
+                        Years.Add(new YearItemModel(y));
+                    }
+                    HasNoYears = false;
+
+                    // Seçim önceliği:
+                    // 1. Bulutta bu kiracı için aktif mali yıl varsa ve listedeyse, öncelik buluttaki aktif yılda
+                    // 2. Kullanıcının mevcut seçimi combined içinde varsa
+                    // 3. _yearContext.CurrentYear combined içindeyse
+                    // 4. Combined'ın en güncel yılı
+                    int? targetYear = null;
+                    if (activeCloudYear.HasValue && combined.Contains(activeCloudYear.Value))
+                    {
+                        targetYear = activeCloudYear.Value;
+                    }
+                    else if (currentSelected.HasValue && combined.Contains(currentSelected.Value))
+                    {
+                        targetYear = currentSelected.Value;
+                    }
+                    else if (_yearContext.CurrentYear > 0 && combined.Contains(_yearContext.CurrentYear))
+                    {
+                        targetYear = _yearContext.CurrentYear;
+                    }
+                    else
+                    {
+                        targetYear = combined.OrderByDescending(y => y).FirstOrDefault();
+                    }
+
+                    SelectYearByNumber(targetYear);
+                    RolloverSourceYear = SelectedYear ?? combined.OrderByDescending(y => y).FirstOrDefault();
+                    RolloverTargetYear = RolloverSourceYear + 1;
+
+                    // Bu kiracıya ait yılları bulutla senkronize et
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _dbService.SyncService.SyncMaliYillarAsync(combined);
+                        }
+                        catch { }
+                    });
+                }
+                else
+                {
+                    Years.Clear();
+                    HasNoYears = true;
+                    SelectedYearItem = null;
+                    NewYearToCreateText = "";
+                }
             });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[YearSelectionVM] LoadCloudYearsAsync error: {ex.Message}");
         }
     }
 
@@ -205,10 +277,21 @@ public partial class YearSelectionViewModel : ViewModelBase
         {
             var yearVal = SelectedYear.Value;
             _yearContext.CurrentYear = yearVal;
-            var dbName = $"ermay_{yearVal}.db";
+
+            // Bulutta aktif mali yılı güncelle
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _dbService.SyncService.SyncActiveMaliYilAsync(yearVal);
+                }
+                catch { }
+            });
+
+            var dbPath = _rolloverService.GetDbPathForYear(yearVal);
             await Task.Run(async () =>
             {
-                await _dataProvider.InitializeAsync(dbName);
+                await _dataProvider.InitializeAsync(dbPath);
             });
             
             _onYearSelected?.Invoke(yearVal);
@@ -250,12 +333,12 @@ public partial class YearSelectionViewModel : ViewModelBase
         {
             NewYearToCreate = yearToCreate;
             _yearContext.CurrentYear = yearToCreate;
-            var dbName = $"ermay_{yearToCreate}.db";
-            await _dataProvider.InitializeAsync(dbName);
+            var dbPath = _rolloverService.GetDbPathForYear(yearToCreate);
+            await _dataProvider.InitializeAsync(dbPath);
 
             try
             {
-                await _dbService.SyncService.SyncMaliYilAsync(yearToCreate);
+                await _dbService.SyncService.SyncActiveMaliYilAsync(yearToCreate);
             }
             catch { }
 
@@ -279,6 +362,8 @@ public partial class YearSelectionViewModel : ViewModelBase
     [RelayCommand]
     private void SwitchUser()
     {
+        _dbService.CurrentTenantId = "default";
+        _ = _dbService.CloseConnectionAsync();
         _onBackToLogin?.Invoke();
     }
 
@@ -340,6 +425,10 @@ public partial class YearSelectionViewModel : ViewModelBase
             {
                 LoadYears();
                 SelectedYear = RolloverTargetYear;
+                _ = Task.Run(async () =>
+                {
+                    try { await _dbService.SyncService.SyncActiveMaliYilAsync(RolloverTargetYear); } catch { }
+                });
                 ShowRolloverDialog = false;
                 FeedbackMessage = result.Message;
                 IsFeedbackSuccess = true;

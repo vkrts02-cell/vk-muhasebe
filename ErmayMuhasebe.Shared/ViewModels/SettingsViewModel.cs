@@ -611,6 +611,36 @@ public abstract partial class SettingsViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand]
+    public async Task TestCloudConnectionAsync()
+    {
+        IsBusy = true;
+        CloudStatus = "Bulut bağlantısı test ediliyor...";
+        try
+        {
+            var (success, msg) = await _uow.TestCloudConnectionAsync();
+            CloudStatus = msg;
+            if (success)
+            {
+                SuccessMessage = msg;
+                ErrorMessage = "";
+            }
+            else
+            {
+                ErrorMessage = msg;
+            }
+        }
+        catch (Exception ex)
+        {
+            CloudStatus = $"Bağlantı Hatası: {ex.Message}";
+            ErrorMessage = CloudStatus;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     public abstract Task CreateBackupAsync();
     public abstract Task RestoreBackupAsync();
     public abstract void ChangeTheme(string themeName);

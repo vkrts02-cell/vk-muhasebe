@@ -53,11 +53,41 @@ namespace ErmayMuhasebe.Services
         {
             var dir = GetAppDirectory();
             var tenant = tenantId ?? _dbService.CurrentTenantId ?? "default";
-            if (string.IsNullOrEmpty(tenant) || tenant == "default")
+
+            if (!string.IsNullOrEmpty(tenant) && tenant != "default")
             {
-                return Path.Combine(dir, $"ermay_{year}.db");
+                var tenantSpecific = Path.Combine(dir, $"ermay_{year}_{tenant}.db");
+                if (File.Exists(tenantSpecific)) return tenantSpecific;
+
+                // Eski/tenant'sız dosya varsa tenant'lı dosyaya migrate et
+                var legacy = Path.Combine(dir, $"ermay_{year}.db");
+                if (File.Exists(legacy))
+                {
+                    try
+                    {
+                        File.Move(legacy, tenantSpecific, true);
+                        return tenantSpecific;
+                    }
+                    catch
+                    {
+                        return legacy;
+                    }
+                }
+                return tenantSpecific;
             }
-            return Path.Combine(dir, $"ermay_{year}_{tenant}.db");
+            else
+            {
+                var defaultPath = Path.Combine(dir, $"ermay_{year}.db");
+                if (File.Exists(defaultPath)) return defaultPath;
+
+                // Default aranıyor ama diskte tenant'lı bir dosya varsa onu bağla
+                if (Directory.Exists(dir))
+                {
+                    var matching = Directory.GetFiles(dir, $"ermay_{year}_tenant_*.db");
+                    if (matching.Length > 0) return matching[0];
+                }
+                return defaultPath;
+            }
         }
 
         public List<int> GetAvailableYears()
@@ -87,15 +117,24 @@ namespace ErmayMuhasebe.Services
                     }
 
                     var fileName = Path.GetFileNameWithoutExtension(file);
+                    if (fileName.Contains("corrupted")) continue;
 
                     // Filter by tenant
-                    if (tenant == "default")
+                    if (tenant != "default" && !string.IsNullOrEmpty(tenant))
                     {
-                        if (fileName.Contains("tenant_")) continue;
+                        // Bu kiracıya ait olan veya henüz tenant eki almamış ortak dosyaları kabul et
+                        if (fileName.Contains("tenant_") && !fileName.Contains($"_{tenant}"))
+                        {
+                            continue; // Başka bir yabancı kiracıya ait
+                        }
                     }
                     else
                     {
-                        if (!fileName.Contains($"_{tenant}")) continue;
+                        // Tenant "default" ise: tenant eki taşıyan dosyaları gösterme
+                        if (fileName.Contains("tenant_"))
+                        {
+                            continue;
+                        }
                     }
 
                     var parts = fileName.Split('_');
@@ -105,6 +144,29 @@ namespace ErmayMuhasebe.Services
                     }
                 }
             }
+
+            return years.OrderByDescending(y => y).ToList();
+        }
+
+        public async Task<List<int>> GetAvailableYearsAsync()
+        {
+            var years = new HashSet<int>(GetAvailableYears());
+
+            try
+            {
+                if (_dbService.IsCloudConnected || _dbService.SyncService.IsConnected)
+                {
+                    var cloudYears = await _dbService.SyncService.PullMaliYillarAsync();
+                    if (cloudYears != null)
+                    {
+                        foreach (var cy in cloudYears)
+                        {
+                            if (cy > 0) years.Add(cy);
+                        }
+                    }
+                }
+            }
+            catch { }
 
             return years.OrderByDescending(y => y).ToList();
         }

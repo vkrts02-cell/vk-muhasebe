@@ -35,6 +35,7 @@ public interface IUnitOfWork : IDataProvider
     void EnableAutoSync(bool enable);
     Task SyncToCloudAsync();
     Task SyncFromCloudAsync();
+    Task<(bool Success, string Message)> TestCloudConnectionAsync();
 
     /// <summary>
     /// ID korumalı olarak veritabanına kayıt ekler (Devir işlemleri için)
@@ -45,6 +46,7 @@ public interface IUnitOfWork : IDataProvider
     Task<ErmayMuhasebe.Services.RolloverResult> RolloverYearAsync(int sourceYear, int targetYear, ErmayMuhasebe.Services.RolloverOptions? options = null, System.IProgress<string>? progress = null);
     Task<ErmayMuhasebe.Services.RolloverResult> ReflectBalancesForwardAsync(int sourceYear, System.IProgress<string>? progress = null);
     List<int> GetAvailableYears();
+    Task<List<int>> GetAvailableYearsAsync();
 
     /// <summary>
 

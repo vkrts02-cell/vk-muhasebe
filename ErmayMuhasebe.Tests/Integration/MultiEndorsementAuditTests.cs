@@ -18,8 +18,8 @@ namespace ErmayMuhasebe.Tests.Integration
             _testDbPath = Path.Combine(Path.GetTempPath(), $"MultiEndorsement_{Guid.NewGuid()}.db3");
             ErmayMuhasebe.Data.Constants.DatabasePath = _testDbPath;
             if (!OperatingSystem.IsBrowser()) SQLitePCL.Batteries_V2.Init();
-            _dbService = new DatabaseService();
-            _dbService.UseEncryption = false;
+            CloudSyncService.DisableCloudSync = true;
+            _dbService = new DatabaseService { IsTestMode = true, DisableCloudSync = true, UseEncryption = false };
             _dbService.InitializeAsync().Wait();
         }
 

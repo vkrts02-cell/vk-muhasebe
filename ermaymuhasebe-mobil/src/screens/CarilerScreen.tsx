@@ -229,7 +229,61 @@ export default function CarilerScreen({ route, navigation }: any) {
   const [sortByBakiye, setSortByBakiye] = useState<boolean>(false);
   const [bakiyeSortDesc, setBakiyeSortDesc] = useState<boolean>(true);
 
+  const [selectedGrupFilter, setSelectedGrupFilter] = useState<'Tümü' | 'Müşteri' | 'Tedarikçi'>('Tümü');
+  const [grupSortState, setGrupSortState] = useState<number>(0); // 0: None, 1: Müşteri first, 2: Tedarikçi first
+
+  const isMusteriGroup = (g?: string) => {
+    if (!g) return false;
+    const str = g.trim().toLocaleLowerCase('tr-TR');
+    return str.includes('müşteri') || str.includes('musteri') || str.includes('alıcı') || str.includes('alici');
+  };
+
+  const isTedarikciGroup = (g?: string) => {
+    if (!g) return false;
+    const str = g.trim().toLocaleLowerCase('tr-TR');
+    return str.includes('tedarik') || str.includes('satıcı') || str.includes('satici');
+  };
+
+  const handleToggleGrupSort = () => {
+    if (sortByBakiye) {
+      setSortByBakiye(false);
+    }
+    const nextState = (grupSortState + 1) % 3;
+    setGrupSortState(nextState);
+  };
+
+  const handleOpenGrupFilter = () => {
+    Alert.alert(
+      'Grup Filtresi',
+      'Listelemek istediğiniz cari grubunu seçin:',
+      [
+        {
+          text: 'Tümü (Filtresiz)',
+          onPress: () => setSelectedGrupFilter('Tümü'),
+        },
+        {
+          text: 'Sadece Müşteriler',
+          onPress: () => {
+            setSelectedGrupFilter('Müşteri');
+            setGrupSortState(0);
+          },
+        },
+        {
+          text: 'Sadece Tedarikçiler',
+          onPress: () => {
+            setSelectedGrupFilter('Tedarikçi');
+            setGrupSortState(0);
+          },
+        },
+        { text: 'İptal', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleToggleBakiyeSort = () => {
+    if (grupSortState !== 0) {
+      setGrupSortState(0);
+    }
     if (!sortByBakiye) {
       setSortByBakiye(true);
       setBakiyeSortDesc(true); // Kullanıcı Bakiye'ye ilk tıkladığında en yüksek (+ bakiye) cariden başlayıp eksiye doğru sıralar
@@ -238,14 +292,37 @@ export default function CarilerScreen({ route, navigation }: any) {
     }
   };
 
-  const filteredCariler = cariler.filter(c => 
-    (c.unvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
-    (c.cariKod || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'))
-  ).sort((a, b) => {
+  const filteredCariler = cariler.filter(c => {
+    const matchesSearch = 
+      (c.unvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
+      (c.cariKod || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'));
+    if (!matchesSearch) return false;
+
+    if (selectedGrupFilter === 'Müşteri') {
+      return isMusteriGroup(c.grup) || c.tur === 'Alici';
+    }
+    if (selectedGrupFilter === 'Tedarikçi') {
+      return isTedarikciGroup(c.grup) || c.tur === 'Satici';
+    }
+    return true;
+  }).sort((a, b) => {
     if (sortByBakiye) {
       const bakiyeA = getCariNetBakiye(a);
       const bakiyeB = getCariNetBakiye(b);
       return bakiyeSortDesc ? (bakiyeB - bakiyeA) : (bakiyeA - bakiyeB);
+    }
+    if (grupSortState === 1) {
+      const aIsMusteri = isMusteriGroup(a.grup) || a.tur === 'Alici' ? 0 : 1;
+      const bIsMusteri = isMusteriGroup(b.grup) || b.tur === 'Alici' ? 0 : 1;
+      if (aIsMusteri !== bIsMusteri) {
+        return aIsMusteri - bIsMusteri;
+      }
+    } else if (grupSortState === 2) {
+      const aIsTedarikci = isTedarikciGroup(a.grup) || a.tur === 'Satici' ? 0 : 1;
+      const bIsTedarikci = isTedarikciGroup(b.grup) || b.tur === 'Satici' ? 0 : 1;
+      if (aIsTedarikci !== bIsTedarikci) {
+        return aIsTedarikci - bIsTedarikci;
+      }
     }
     return (a.unvan || '').localeCompare(b.unvan || '', 'tr-TR');
   });
@@ -1210,33 +1287,76 @@ export default function CarilerScreen({ route, navigation }: any) {
           ) : null}
         </View>
 
-        {/* Kolon Başlıkları & Bakiye Sıralama Butonu (Masaüstü 2. Görsel ile Birebir) */}
+        {/* Kolon Başlıkları & Grup / Bakiye Sıralama Butonları */}
         <View style={styles.tableHeaderRow}>
           <TouchableOpacity 
             style={{ flexDirection: 'row', alignItems: 'center' }} 
-            onPress={() => setSortByBakiye(false)}
+            onPress={() => {
+              setSortByBakiye(false);
+              setGrupSortState(0);
+              setSelectedGrupFilter('Tümü');
+            }}
             activeOpacity={0.7}
           >
             <Text style={styles.tableHeaderTitle}>Ünvan / Cari</Text>
-            {!sortByBakiye && <Text style={styles.tableHeaderSub}> (A-Z)</Text>}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.bakiyeSortHeaderBtn, sortByBakiye && styles.bakiyeSortHeaderBtnActive]} 
-            onPress={handleToggleBakiyeSort}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.bakiyeSortHeaderText, sortByBakiye && styles.bakiyeSortHeaderTextActive]}>
-              Bakiye
-            </Text>
-            {sortByBakiye ? (
-              <Text style={styles.bakiyeSortIndicator}>
-                {bakiyeSortDesc ? ' ▼ (+/-)' : ' ▲ (-/+)'}
-              </Text>
-            ) : (
-              <Text style={{ color: '#64748B', fontSize: 12, marginLeft: 4 }}>⇅</Text>
+            {!sortByBakiye && grupSortState === 0 && selectedGrupFilter === 'Tümü' && (
+              <Text style={styles.tableHeaderSub}> (A-Z)</Text>
             )}
           </TouchableOpacity>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Grup Sıralama / Filtreleme Butonu */}
+            <TouchableOpacity 
+              style={[
+                styles.bakiyeSortHeaderBtn, 
+                (grupSortState !== 0 || selectedGrupFilter !== 'Tümü') && styles.bakiyeSortHeaderBtnActive
+              ]} 
+              onPress={handleToggleGrupSort}
+              onLongPress={handleOpenGrupFilter}
+              delayLongPress={300}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.bakiyeSortHeaderText, 
+                (grupSortState !== 0 || selectedGrupFilter !== 'Tümü') && styles.bakiyeSortHeaderTextActive
+              ]}>
+                {selectedGrupFilter !== 'Tümü' 
+                  ? selectedGrupFilter 
+                  : grupSortState === 1 
+                    ? 'Müşteri' 
+                    : grupSortState === 2 
+                      ? 'Tedarikçi' 
+                      : 'Grup'}
+              </Text>
+              {grupSortState === 1 ? (
+                <Text style={styles.bakiyeSortIndicator}> ▼</Text>
+              ) : grupSortState === 2 ? (
+                <Text style={styles.bakiyeSortIndicator}> ▲</Text>
+              ) : selectedGrupFilter !== 'Tümü' ? (
+                <Text style={styles.bakiyeSortIndicator}> ●</Text>
+              ) : (
+                <Text style={{ color: '#64748B', fontSize: 12, marginLeft: 4 }}>⇅</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Bakiye Sıralama Butonu */}
+            <TouchableOpacity 
+              style={[styles.bakiyeSortHeaderBtn, sortByBakiye && styles.bakiyeSortHeaderBtnActive]} 
+              onPress={handleToggleBakiyeSort}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.bakiyeSortHeaderText, sortByBakiye && styles.bakiyeSortHeaderTextActive]}>
+                Bakiye
+              </Text>
+              {sortByBakiye ? (
+                <Text style={styles.bakiyeSortIndicator}>
+                  {bakiyeSortDesc ? ' ▼ (+/-)' : ' ▲ (-/+)'}
+                </Text>
+              ) : (
+                <Text style={{ color: '#64748B', fontSize: 12, marginLeft: 4 }}>⇅</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

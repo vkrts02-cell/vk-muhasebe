@@ -23,8 +23,8 @@ namespace ErmayMuhasebe.Tests.Integration
             ErmayMuhasebe.Data.Constants.DatabasePath = _testDbPath;
             if (!OperatingSystem.IsBrowser()) SQLitePCL.Batteries_V2.Init();
             
-            _dbService = new DatabaseService();
-            _dbService.UseEncryption = false;
+            CloudSyncService.DisableCloudSync = true;
+            _dbService = new DatabaseService { IsTestMode = true, DisableCloudSync = true, UseEncryption = false };
             _dbService.InitializeAsync().Wait();
 
             var dataProvider = new ErmayMuhasebe.Repositories.DataProviders.SqliteDataProvider(_dbService);

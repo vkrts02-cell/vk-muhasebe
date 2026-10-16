@@ -91,11 +91,15 @@ public partial class DashboardViewModel : ViewModelBase
     // Theme switching
     [ObservableProperty] 
     [NotifyPropertyChangedFor(nameof(IsModernSaaS))]
+    [NotifyPropertyChangedFor(nameof(IsObsidianGlow))]
+    [NotifyPropertyChangedFor(nameof(IsCupertinoGlass))]
     [NotifyPropertyChangedFor(nameof(IsEnterprise))]
     [NotifyPropertyChangedFor(nameof(IsWindowsFluent))]
     private string _currentTheme = "ModernSaaS";
 
     public bool IsModernSaaS => CurrentTheme == "ModernSaaS" || CurrentTheme == "IDEProfessional";
+    public bool IsObsidianGlow => CurrentTheme == "ObsidianGlow";
+    public bool IsCupertinoGlass => CurrentTheme == "CupertinoGlass";
     public bool IsEnterprise => CurrentTheme == "Enterprise";
     public bool IsWindowsFluent => CurrentTheme == "WindowsFluent";
 
@@ -115,6 +119,8 @@ public partial class DashboardViewModel : ViewModelBase
     partial void OnCurrentThemeChanged(string value)
     {
         OnPropertyChanged(nameof(IsModernSaaS));
+        OnPropertyChanged(nameof(IsObsidianGlow));
+        OnPropertyChanged(nameof(IsCupertinoGlass));
         OnPropertyChanged(nameof(IsEnterprise));
         OnPropertyChanged(nameof(IsWindowsFluent));
     }

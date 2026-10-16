@@ -45,6 +45,7 @@ namespace ErmayMuhasebe.Services
         public string BaseUrl => _config.BaseUrl;
         public string AuthSecret => _config.AuthSecret;
         public bool IsAutoSyncEnabled => _config.IsAutoSyncEnabled;
+        public string CurrentTenantId { get; set; } = "default";
 
         public void Disconnect()
         {
@@ -196,6 +197,8 @@ namespace ErmayMuhasebe.Services
                             var decrypted = AuthService.Decrypt(loaded.AuthSecret);
                             if (!string.IsNullOrEmpty(decrypted))
                                 loaded.AuthSecret = decrypted;
+                            else
+                                loaded.AuthSecret = CloudConfig.DefaultSupabaseKey;
                         }
                         if (!string.IsNullOrEmpty(loaded.GoogleApiKey) && loaded.GoogleApiKey.StartsWith("ENC::AES::"))
                         {
@@ -249,7 +252,7 @@ namespace ErmayMuhasebe.Services
                     };
                 }
 
-                if (string.IsNullOrWhiteSpace(_config.BaseUrl) || string.IsNullOrWhiteSpace(_config.AuthSecret))
+                if (string.IsNullOrWhiteSpace(_config.BaseUrl) || string.IsNullOrWhiteSpace(_config.AuthSecret) || _config.AuthSecret.StartsWith("ENC::AES::"))
                 {
                     _config.BaseUrl = CloudConfig.DefaultSupabaseUrl;
                     _config.AuthSecret = CloudConfig.DefaultSupabaseKey;
@@ -285,6 +288,26 @@ namespace ErmayMuhasebe.Services
             SaveConfigInternal();
         }
 
+        public async Task<(bool Success, string Message)> TestConnectionAsync()
+        {
+            if (!IsConnected)
+                return (false, "Bulut bağlantı bilgileri eksik veya devre dışı bırakılmış.");
+
+            try
+            {
+                using var req = CreateRequest(HttpMethod.Get, "cariler?select=id&limit=1");
+                using var res = await _http.SendAsync(req);
+                if (res.IsSuccessStatusCode)
+                    return (true, "Supabase bulut bağlantısı başarılı. Senkronizasyon hazır.");
+
+                return (false, $"Bulut sunucu yanıtı: HTTP {(int)res.StatusCode} ({res.ReasonPhrase})");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Bulut sunucusuna erişilemedi: {ex.Message}");
+            }
+        }
+
         private HttpRequestMessage CreateRequest(HttpMethod method, string pathAndQuery)
         {
             string cleanBase = GetCleanBaseUrl();
@@ -308,19 +331,89 @@ namespace ErmayMuhasebe.Services
             }
         }
 
+        private object EnsureTenantPayload(string table, object payload)
+        {
+            if (string.IsNullOrEmpty(CurrentTenantId) || payload == null) return payload;
+            if (payload is IDictionary<string, object?> dict)
+            {
+                if (!dict.ContainsKey("tenant_id"))
+                {
+                    dict["tenant_id"] = CurrentTenantId;
+                }
+                return dict;
+            }
+            if (payload is Dictionary<string, object> dictObj)
+            {
+                if (!dictObj.ContainsKey("tenant_id"))
+                {
+                    dictObj["tenant_id"] = CurrentTenantId;
+                }
+                return dictObj;
+            }
+            try
+            {
+                var json = JsonSerializer.Serialize(payload, _jsonOpts);
+                var deserialized = JsonSerializer.Deserialize<Dictionary<string, object?>>(json);
+                if (deserialized != null)
+                {
+                    if (!deserialized.ContainsKey("tenant_id"))
+                    {
+                        deserialized["tenant_id"] = CurrentTenantId;
+                    }
+                    return deserialized;
+                }
+            }
+            catch { }
+            return payload;
+        }
+
+        private string? BuildTenantFilter(string table, string? existingFilter)
+        {
+            if (string.IsNullOrEmpty(CurrentTenantId)) return existingFilter;
+
+            var lowerTable = table.ToLowerInvariant();
+            if (lowerTable == "kullanicilar" && existingFilter != null && existingFilter.Contains("username=eq."))
+            {
+                return existingFilter;
+            }
+
+            if (existingFilter != null && existingFilter.Contains("tenant_id="))
+            {
+                return existingFilter;
+            }
+
+            string tenantParam = $"tenant_id=eq.{Uri.EscapeDataString(CurrentTenantId)}";
+            if (string.IsNullOrEmpty(existingFilter))
+            {
+                return tenantParam;
+            }
+            return $"{existingFilter}&{tenantParam}";
+        }
+
         public async Task<bool> UpsertPayloadAsync(string table, object payload)
         {
             if (!IsConnected || payload == null) return false;
             try
             {
+                object finalPayload = EnsureTenantPayload(table, payload);
                 using var req = CreateRequest(HttpMethod.Post, table);
                 req.Headers.Add("Prefer", "resolution=merge-duplicates");
-                string json = JsonSerializer.Serialize(payload, _jsonOpts);
+                string json = JsonSerializer.Serialize(finalPayload, _jsonOpts);
                 req.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 using var res = await _http.SendAsync(req);
                 if (!res.IsSuccessStatusCode)
                 {
                     var err = await res.Content.ReadAsStringAsync();
+                    if (err.Contains("PGRST204") && err.Contains("tenant_id"))
+                    {
+                        // Fallback without tenant_id if schema column does not exist yet
+                        using var fallbackReq = CreateRequest(HttpMethod.Post, table);
+                        fallbackReq.Headers.Add("Prefer", "resolution=merge-duplicates");
+                        string origJson = JsonSerializer.Serialize(payload, _jsonOpts);
+                        fallbackReq.Content = new StringContent(origJson, Encoding.UTF8, "application/json");
+                        using var fallbackRes = await _http.SendAsync(fallbackReq);
+                        return fallbackRes.IsSuccessStatusCode;
+                    }
                     Console.WriteLine($"[Supabase UpsertPayload Failed] {table} ({res.StatusCode}): {err}");
                 }
                 return res.IsSuccessStatusCode;
@@ -337,14 +430,24 @@ namespace ErmayMuhasebe.Services
             if (!IsConnected || items == null || !items.Any()) return false;
             try
             {
+                var enrichedItems = items.Select(item => EnsureTenantPayload(table, item)).ToList();
                 using var req = CreateRequest(HttpMethod.Post, table);
                 req.Headers.Add("Prefer", "resolution=merge-duplicates");
-                string json = JsonSerializer.Serialize(items, _jsonOpts);
+                string json = JsonSerializer.Serialize(enrichedItems, _jsonOpts);
                 req.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 using var res = await _http.SendAsync(req);
                 if (!res.IsSuccessStatusCode)
                 {
                     var err = await res.Content.ReadAsStringAsync();
+                    if (err.Contains("PGRST204") && err.Contains("tenant_id"))
+                    {
+                        using var fallbackReq = CreateRequest(HttpMethod.Post, table);
+                        fallbackReq.Headers.Add("Prefer", "resolution=merge-duplicates");
+                        string origJson = JsonSerializer.Serialize(items, _jsonOpts);
+                        fallbackReq.Content = new StringContent(origJson, Encoding.UTF8, "application/json");
+                        using var fallbackRes = await _http.SendAsync(fallbackReq);
+                        return fallbackRes.IsSuccessStatusCode;
+                    }
                     Console.WriteLine($"[Supabase UpsertBatch Failed] {table} ({res.StatusCode}): {err}");
                 }
                 return res.IsSuccessStatusCode;
@@ -361,16 +464,22 @@ namespace ErmayMuhasebe.Services
             if (!IsConnected) return false;
             try
             {
+                string filter = $"id=eq.{id}";
+                if (!string.IsNullOrEmpty(CurrentTenantId))
+                {
+                    filter += $"&tenant_id=eq.{Uri.EscapeDataString(CurrentTenantId)}";
+                }
+
                 // Soft delete first so mobile / other clients immediately recognize deletion
                 try
                 {
-                    using var patchReq = CreateRequest(HttpMethod.Patch, $"{table}?id=eq.{id}");
+                    using var patchReq = CreateRequest(HttpMethod.Patch, $"{table}?{filter}");
                     patchReq.Content = new StringContent("{\"is_deleted\":true}", Encoding.UTF8, "application/json");
                     await _http.SendAsync(patchReq);
                 }
                 catch { }
 
-                using var req = CreateRequest(HttpMethod.Delete, $"{table}?id=eq.{id}");
+                using var req = CreateRequest(HttpMethod.Delete, $"{table}?{filter}");
                 using var res = await _http.SendAsync(req);
                 return res.IsSuccessStatusCode;
             }
@@ -386,15 +495,16 @@ namespace ErmayMuhasebe.Services
             if (!IsConnected) return false;
             try
             {
+                string finalFilter = BuildTenantFilter(table, filter) ?? filter;
                 try
                 {
-                    using var patchReq = CreateRequest(HttpMethod.Patch, $"{table}?{filter}");
+                    using var patchReq = CreateRequest(HttpMethod.Patch, $"{table}?{finalFilter}");
                     patchReq.Content = new StringContent("{\"is_deleted\":true}", Encoding.UTF8, "application/json");
                     await _http.SendAsync(patchReq);
                 }
                 catch { }
 
-                using var req = CreateRequest(HttpMethod.Delete, $"{table}?{filter}");
+                using var req = CreateRequest(HttpMethod.Delete, $"{table}?{finalFilter}");
                 using var res = await _http.SendAsync(req);
                 return res.IsSuccessStatusCode;
             }
@@ -411,10 +521,28 @@ namespace ErmayMuhasebe.Services
             try
             {
                 string query = table + "?select=*";
-                if (!string.IsNullOrEmpty(filter)) query += "&" + filter;
+                string? finalFilter = BuildTenantFilter(table, filter);
+                if (!string.IsNullOrEmpty(finalFilter)) query += "&" + finalFilter;
                 using var req = CreateRequest(HttpMethod.Get, query);
                 using var res = await _http.SendAsync(req);
-                if (!res.IsSuccessStatusCode) return null;
+                if (!res.IsSuccessStatusCode)
+                {
+                    var err = await res.Content.ReadAsStringAsync();
+                    if (err.Contains("PGRST204") && err.Contains("tenant_id") && finalFilter != filter)
+                    {
+                        // Fallback without tenant_id filter if column doesn't exist yet
+                        string fallbackQuery = table + "?select=*";
+                        if (!string.IsNullOrEmpty(filter)) fallbackQuery += "&" + filter;
+                        using var fallbackReq = CreateRequest(HttpMethod.Get, fallbackQuery);
+                        using var fallbackRes = await _http.SendAsync(fallbackReq);
+                        if (fallbackRes.IsSuccessStatusCode)
+                        {
+                            string fbJson = await fallbackRes.Content.ReadAsStringAsync();
+                            return JsonDocument.Parse(fbJson);
+                        }
+                    }
+                    return null;
+                }
                 string json = await res.Content.ReadAsStringAsync();
                 return JsonDocument.Parse(json);
             }
@@ -431,10 +559,27 @@ namespace ErmayMuhasebe.Services
             try
             {
                 string query = table + "?select=*";
-                if (!string.IsNullOrEmpty(filter)) query += "&" + filter;
+                string? finalFilter = BuildTenantFilter(table, filter);
+                if (!string.IsNullOrEmpty(finalFilter)) query += "&" + finalFilter;
                 using var req = CreateRequest(HttpMethod.Get, query);
                 using var res = await _http.SendAsync(req);
-                if (!res.IsSuccessStatusCode) return null;
+                if (!res.IsSuccessStatusCode)
+                {
+                    var err = await res.Content.ReadAsStringAsync();
+                    if (err.Contains("PGRST204") && err.Contains("tenant_id") && finalFilter != filter)
+                    {
+                        string fallbackQuery = table + "?select=*";
+                        if (!string.IsNullOrEmpty(filter)) fallbackQuery += "&" + filter;
+                        using var fallbackReq = CreateRequest(HttpMethod.Get, fallbackQuery);
+                        using var fallbackRes = await _http.SendAsync(fallbackReq);
+                        if (fallbackRes.IsSuccessStatusCode)
+                        {
+                            string fbJson = await fallbackRes.Content.ReadAsStringAsync();
+                            return JsonSerializer.Deserialize<List<T>>(fbJson, _jsonOpts);
+                        }
+                    }
+                    return null;
+                }
                 string json = await res.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<List<T>>(json, _jsonOpts);
             }
@@ -1085,7 +1230,39 @@ namespace ErmayMuhasebe.Services
         // ==========================================
         // CARİ KARTLAR & CARİ HAREKETLER
         // ==========================================
-        public async Task SyncCariAsync(CariKart cari) => await UpsertPayloadAsync("cariler", MapCariToPayload(cari));
+        public static bool IsTestCari(CariKart? c)
+        {
+            if (c == null || string.IsNullOrWhiteSpace(c.Unvan)) return false;
+            var u = c.Unvan.Trim();
+            if (u.StartsWith("Cari ", StringComparison.OrdinalIgnoreCase)) return true;
+            return u.Equals("ANA MÜŞTERİ", StringComparison.OrdinalIgnoreCase) ||
+                   u.Equals("ANA TEDARİKÇİ", StringComparison.OrdinalIgnoreCase) ||
+                   u.Equals("DEV TEDARİKÇİ", StringComparison.OrdinalIgnoreCase) ||
+                   u.Equals("HİPER MÜŞTERİ", StringComparison.OrdinalIgnoreCase) ||
+                   u.Equals("Senkron Cari 1", StringComparison.OrdinalIgnoreCase) ||
+                   u.Equals("Fatura Cari 1", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsTestStok(StokKart? s)
+        {
+            if (s == null || string.IsNullOrWhiteSpace(s.StokAdi)) return false;
+            var a = s.StokAdi.Trim();
+            if (a.StartsWith("Stok ", StringComparison.OrdinalIgnoreCase)) return true;
+            return a.Equals("AUDIT PRODUCT", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsTestBanka(BankaKart? b)
+        {
+            if (b == null || string.IsNullOrWhiteSpace(b.BankaAdi)) return false;
+            return b.BankaAdi.Trim().Equals("TEST BANKASI", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public async Task<bool> SyncCariAsync(CariKart cari)
+        {
+            if (!IsConnected || cari == null || IsTestCari(cari)) return false;
+            return await UpsertPayloadAsync("cariler", MapCariToPayload(cari));
+        }
+
         public async Task DeleteCariAsync(int id) => await DeleteAsync("cariler", id);
         public async Task<List<CariKart>?> PullCarilerAsync()
         {
@@ -1162,7 +1339,11 @@ namespace ErmayMuhasebe.Services
         // ==========================================
         // STOKLAR & STOK HAREKETLER
         // ==========================================
-        public async Task SyncStokAsync(StokKart stok) => await UpsertPayloadAsync("stoklar", MapStokToPayload(stok));
+        public async Task<bool> SyncStokAsync(StokKart stok)
+        {
+            if (!IsConnected || stok == null || IsTestStok(stok)) return false;
+            return await UpsertPayloadAsync("stoklar", MapStokToPayload(stok));
+        }
         public async Task DeleteStokAsync(int id) => await DeleteAsync("stoklar", id);
         public async Task<List<StokKart>?> PullStoklarAsync()
         {
@@ -1202,7 +1383,7 @@ namespace ErmayMuhasebe.Services
         // ==========================================
         // FATURALAR & FATURA DETAYLAR
         // ==========================================
-        public async Task SyncFaturaAsync(Fatura fatura) => await UpsertPayloadAsync("faturalar", MapFaturaToPayload(fatura));
+        public async Task<bool> SyncFaturaAsync(Fatura fatura) => await UpsertPayloadAsync("faturalar", MapFaturaToPayload(fatura));
         public async Task DeleteFaturaAsync(int id)
         {
             await DeleteFilteredAsync("fatura_detaylar", $"fatura_id=eq.{id}");
@@ -1551,6 +1732,7 @@ namespace ErmayMuhasebe.Services
                 var payload = new Dictionary<string, object?>
                 {
                     ["yil"] = year,
+                    ["tenant_id"] = CurrentTenantId,
                     ["is_active"] = true,
                     ["is_deleted"] = false,
                     ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -1559,7 +1741,7 @@ namespace ErmayMuhasebe.Services
             }
             catch { }
 
-            // Mirror to notlar table for guaranteed cross-device and mobile support
+            // Mirror to notlar table with tenant isolation
             try
             {
                 var existingYears = await PullMaliYillarAsync() ?? new List<int>();
@@ -1568,14 +1750,19 @@ namespace ErmayMuhasebe.Services
                     existingYears.Add(year);
                     existingYears.Sort();
                 }
+
+                string noteTitle = CurrentTenantId == "default" ? "__MALI_YILLAR__" : $"__MALI_YILLAR_{CurrentTenantId}__";
+                int noteId = CurrentTenantId == "default" ? 999998 : Math.Abs(CurrentTenantId.GetHashCode() % 800000) + 100000;
+
                 var notePayload = new Dictionary<string, object?>
                 {
-                    ["id"] = "999998",
-                    ["baslik"] = "__MALI_YILLAR__",
+                    ["id"] = noteId,
+                    ["baslik"] = noteTitle,
                     ["icerik"] = System.Text.Json.JsonSerializer.Serialize(existingYears),
                     ["renk"] = "#0061FF",
                     ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                    ["is_deleted"] = false
+                    ["is_deleted"] = false,
+                    ["tenant_id"] = CurrentTenantId
                 };
                 await UpsertPayloadAsync("notlar", notePayload);
             }
@@ -1585,14 +1772,28 @@ namespace ErmayMuhasebe.Services
         public async Task SyncMaliYillarAsync(IEnumerable<int> years)
         {
             if (!IsConnected || years == null || !years.Any()) return;
-            var cleanYears = years.Where(y => y > 0).Distinct().OrderBy(y => y).ToList();
+            var cleanYears = years.Where(y => y > 0).Distinct().ToList();
             if (!cleanYears.Any()) return;
+
+            // Merge with existing cloud years for this tenant
+            try
+            {
+                var existing = await PullMaliYillarAsync();
+                if (existing != null && existing.Any())
+                {
+                    cleanYears = cleanYears.Union(existing).Distinct().ToList();
+                }
+            }
+            catch { }
+
+            cleanYears = cleanYears.OrderBy(y => y).ToList();
 
             try
             {
                 var payloads = cleanYears.Select(y => (object)new Dictionary<string, object?>
                 {
                     ["yil"] = y,
+                    ["tenant_id"] = CurrentTenantId,
                     ["is_active"] = true,
                     ["is_deleted"] = false,
                     ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -1601,21 +1802,125 @@ namespace ErmayMuhasebe.Services
             }
             catch { }
 
-            // Always write to notlar table (id: 999998, baslik: "__MALI_YILLAR__")
+            // Write merged years to tenant isolated notlar record
             try
             {
+                string noteTitle = CurrentTenantId == "default" ? "__MALI_YILLAR__" : $"__MALI_YILLAR_{CurrentTenantId}__";
+                int noteId = CurrentTenantId == "default" ? 999998 : Math.Abs(CurrentTenantId.GetHashCode() % 800000) + 100000;
+
                 var notePayload = new Dictionary<string, object?>
                 {
-                    ["id"] = "999998",
-                    ["baslik"] = "__MALI_YILLAR__",
+                    ["id"] = noteId,
+                    ["baslik"] = noteTitle,
                     ["icerik"] = System.Text.Json.JsonSerializer.Serialize(cleanYears),
                     ["renk"] = "#0061FF",
                     ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                    ["is_deleted"] = false
+                    ["is_deleted"] = false,
+                    ["tenant_id"] = CurrentTenantId
                 };
                 await UpsertPayloadAsync("notlar", notePayload);
             }
             catch { }
+        }
+
+        public async Task SyncActiveMaliYilAsync(int year)
+        {
+            if (year <= 0) return;
+            await SyncMaliYilAsync(year);
+
+            if (!IsConnected) return;
+
+            // In mali_yillar, mark this year as is_active = true for this tenant
+            try
+            {
+                var payload = new Dictionary<string, object?>
+                {
+                    ["yil"] = year,
+                    ["tenant_id"] = CurrentTenantId,
+                    ["is_active"] = true,
+                    ["is_deleted"] = false,
+                    ["olusturma_tarihi"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                };
+                await UpsertPayloadAsync("mali_yillar", payload);
+            }
+            catch { }
+
+            // Mirror active year to notlar for this tenant
+            try
+            {
+                string noteTitle = CurrentTenantId == "default" ? "__AKTIF_MALI_YIL__" : $"__AKTIF_MALI_YIL_{CurrentTenantId}__";
+                int noteId = CurrentTenantId == "default" ? 999997 : Math.Abs((CurrentTenantId + "_active").GetHashCode() % 800000) + 100000;
+
+                var notePayload = new Dictionary<string, object?>
+                {
+                    ["id"] = noteId,
+                    ["baslik"] = noteTitle,
+                    ["icerik"] = year.ToString(),
+                    ["renk"] = "#10B981",
+                    ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["is_deleted"] = false,
+                    ["tenant_id"] = CurrentTenantId
+                };
+                await UpsertPayloadAsync("notlar", notePayload);
+            }
+            catch { }
+        }
+
+        public async Task<int?> PullActiveMaliYilAsync()
+        {
+            // 1. Check notlar for this tenant's active year
+            try
+            {
+                string noteTitle = CurrentTenantId == "default" ? "__AKTIF_MALI_YIL__" : $"__AKTIF_MALI_YIL_{CurrentTenantId}__";
+                using var noteDoc = await GetJsonAsync("notlar", $"baslik=eq.{Uri.EscapeDataString(noteTitle)}");
+                if (noteDoc != null && noteDoc.RootElement.ValueKind == JsonValueKind.Array && noteDoc.RootElement.GetArrayLength() > 0)
+                {
+                    var item = noteDoc.RootElement[0];
+                    if (item.TryGetProperty("icerik", out var icerikEl) && icerikEl.ValueKind == JsonValueKind.String)
+                    {
+                        var str = icerikEl.GetString();
+                        if (int.TryParse(str?.Trim(), out int y) && y >= 2000 && y <= 2100)
+                        {
+                            return y;
+                        }
+                    }
+                }
+                else if (CurrentTenantId == "default")
+                {
+                    using var legacyDoc = await GetJsonAsync("notlar", "id=eq.999997");
+                    if (legacyDoc != null && legacyDoc.RootElement.ValueKind == JsonValueKind.Array && legacyDoc.RootElement.GetArrayLength() > 0)
+                    {
+                        var item = legacyDoc.RootElement[0];
+                        if (item.TryGetProperty("icerik", out var icerikEl) && icerikEl.ValueKind == JsonValueKind.String)
+                        {
+                            var str = icerikEl.GetString();
+                            if (int.TryParse(str?.Trim(), out int y) && y >= 2000 && y <= 2100) return y;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Check mali_yillar table where is_active = true
+            try
+            {
+                string tenantFilter = (CurrentTenantId != "default" && !string.IsNullOrEmpty(CurrentTenantId))
+                    ? $"tenant_id=eq.{Uri.EscapeDataString(CurrentTenantId)}"
+                    : "or=(tenant_id.is.null,tenant_id.eq.default)";
+                using var doc = await GetJsonAsync("mali_yillar", $"and=(is_active.eq.true,or=(is_deleted.is.null,is_deleted.eq.false),{tenantFilter})&order=olusturma_tarihi.desc,yil.desc&limit=1");
+                if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+                {
+                    var item = doc.RootElement[0];
+                    if (item.TryGetProperty("yil", out var yEl))
+                    {
+                        int y = ParseInt(yEl);
+                        if (y >= 2000 && y <= 2100) return y;
+                    }
+                }
+            }
+            catch { }
+
+            return null;
         }
 
         public async Task DeleteMaliYilAsync(int year)
@@ -1630,14 +1935,19 @@ namespace ErmayMuhasebe.Services
             {
                 var existingYears = await PullMaliYillarAsync() ?? new List<int>();
                 existingYears.Remove(year);
+
+                string noteTitle = CurrentTenantId == "default" ? "__MALI_YILLAR__" : $"__MALI_YILLAR_{CurrentTenantId}__";
+                int noteId = CurrentTenantId == "default" ? 999998 : Math.Abs(CurrentTenantId.GetHashCode() % 800000) + 100000;
+
                 var notePayload = new Dictionary<string, object?>
                 {
-                    ["id"] = "999998",
-                    ["baslik"] = "__MALI_YILLAR__",
+                    ["id"] = noteId,
+                    ["baslik"] = noteTitle,
                     ["icerik"] = System.Text.Json.JsonSerializer.Serialize(existingYears),
                     ["renk"] = "#0061FF",
                     ["tarih"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                    ["is_deleted"] = false
+                    ["is_deleted"] = false,
+                    ["tenant_id"] = CurrentTenantId
                 };
                 await UpsertPayloadAsync("notlar", notePayload);
             }
@@ -1649,7 +1959,10 @@ namespace ErmayMuhasebe.Services
             var list = new HashSet<int>();
             try
             {
-                using var doc = await GetJsonAsync("mali_yillar", "or=(is_deleted.is.null,is_deleted.eq.false)");
+                string tenantFilter = (CurrentTenantId != "default" && !string.IsNullOrEmpty(CurrentTenantId))
+                    ? $"tenant_id=eq.{Uri.EscapeDataString(CurrentTenantId)}"
+                    : "or=(tenant_id.is.null,tenant_id.eq.default)";
+                using var doc = await GetJsonAsync("mali_yillar", $"and=(or=(is_deleted.is.null,is_deleted.eq.false),{tenantFilter})");
                 if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var el in doc.RootElement.EnumerateArray())
@@ -1664,10 +1977,11 @@ namespace ErmayMuhasebe.Services
             }
             catch { }
 
-            // Fallback / mirror: check notlar id 999998
+            // Fallback / mirror: check notlar for this tenant
             try
             {
-                using var noteDoc = await GetJsonAsync("notlar", "id=eq.999998");
+                string noteTitle = CurrentTenantId == "default" ? "__MALI_YILLAR__" : $"__MALI_YILLAR_{CurrentTenantId}__";
+                using var noteDoc = await GetJsonAsync("notlar", $"baslik=eq.{Uri.EscapeDataString(noteTitle)}");
                 if (noteDoc != null && noteDoc.RootElement.ValueKind == JsonValueKind.Array && noteDoc.RootElement.GetArrayLength() > 0)
                 {
                     var item = noteDoc.RootElement[0];
@@ -1680,6 +1994,26 @@ namespace ErmayMuhasebe.Services
                             if (parsed != null)
                             {
                                 foreach (var py in parsed) if (py > 0) list.Add(py);
+                            }
+                        }
+                    }
+                }
+                else if (CurrentTenantId == "default")
+                {
+                    using var legacyDoc = await GetJsonAsync("notlar", "id=eq.999998");
+                    if (legacyDoc != null && legacyDoc.RootElement.ValueKind == JsonValueKind.Array && legacyDoc.RootElement.GetArrayLength() > 0)
+                    {
+                        var item = legacyDoc.RootElement[0];
+                        if (item.TryGetProperty("icerik", out var icerikEl) && icerikEl.ValueKind == JsonValueKind.String)
+                        {
+                            var json = icerikEl.GetString();
+                            if (!string.IsNullOrWhiteSpace(json))
+                            {
+                                var parsed = System.Text.Json.JsonSerializer.Deserialize<List<int>>(json);
+                                if (parsed != null)
+                                {
+                                    foreach (var py in parsed) if (py > 0) list.Add(py);
+                                }
                             }
                         }
                     }
@@ -1851,6 +2185,7 @@ namespace ErmayMuhasebe.Services
                         if (el.TryGetProperty("password_salt", out var ps) && ps.ValueKind == JsonValueKind.String) u.PasswordSalt = ps.GetString();
                         if (el.TryGetProperty("email", out var em) && em.ValueKind == JsonValueKind.String) u.Email = em.GetString();
                         if (el.TryGetProperty("role", out var rl) && rl.ValueKind == JsonValueKind.String) u.Role = rl.GetString();
+                        if (el.TryGetProperty("tenant_id", out var ti) && ti.ValueKind == JsonValueKind.String) u.TenantId = ti.GetString();
                         if (!string.IsNullOrEmpty(u.Username)) list.Add(u);
                     }
                     if (list.Count > 0) return list;
@@ -1903,6 +2238,7 @@ namespace ErmayMuhasebe.Services
                     ["email"] = user.Email,
                     ["role"] = user.Role ?? "Admin",
                     ["rol"] = user.Role ?? "Admin",
+                    ["tenant_id"] = user.TenantId,
                     ["is_active"] = true,
                     ["aktif_mi"] = true
                 };
@@ -2697,30 +3033,99 @@ namespace ErmayMuhasebe.Services
                 "mali_yillar"
             };
 
+            var tenantsToClear = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(tenantId)) tenantsToClear.Add(tenantId);
+            if (!string.IsNullOrWhiteSpace(CurrentTenantId)) tenantsToClear.Add(CurrentTenantId);
+            tenantsToClear.Add("default");
+
             // Multi-pass direct deletion to ensure any indirect foreign key dependencies are completely cleared
             for (int pass = 1; pass <= 3; pass++)
             {
-                foreach (var table in tablesToClear)
+                foreach (var tId in tenantsToClear)
                 {
-                    try
+                    string tenantParam = $"tenant_id=eq.{Uri.EscapeDataString(tId)}";
+                    foreach (var table in tablesToClear)
                     {
-                        string filter = table == "mali_yillar" ? "yil=gte.0" : "id=not.is.null";
-                        using var req = CreateRequest(HttpMethod.Delete, $"{table}?{filter}");
-                        req.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
-                        using var res = await _http.SendAsync(req);
-                        if (!res.IsSuccessStatusCode)
+                        try
                         {
-                            System.Diagnostics.Debug.WriteLine($"[CloudSync] ClearCloudTable '{table}' (Pass {pass}) returned status {res.StatusCode}");
+                            string filter = table == "mali_yillar" 
+                                ? (tId == "default" ? "yil=gte.0&or=(tenant_id.eq.default,tenant_id.is.null)" : $"yil=gte.0&{tenantParam}") 
+                                : (tId == "default" ? "id=not.is.null&or=(tenant_id.eq.default,tenant_id.is.null)" : $"id=not.is.null&{tenantParam}");
+                            using var req = CreateRequest(HttpMethod.Delete, $"{table}?{filter}");
+                            req.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
+                            using var res = await _http.SendAsync(req);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[CloudSync] ClearCloudTable '{table}' (Pass {pass}) error: {ex.Message}");
+                        catch { }
                     }
                 }
+
+                // Genel temizlik: özellikle mali_yillar tablosunda tenant_id boş veya null olan veya genel kalan kayıtlar
+                try
+                {
+                    using var reqMali = CreateRequest(HttpMethod.Delete, "mali_yillar?yil=gte.0");
+                    reqMali.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
+                    await _http.SendAsync(reqMali);
+                }
+                catch { }
             }
 
-            System.Diagnostics.Debug.WriteLine("[CloudSync] All cloud business tables cleared successfully.");
+            // Also clear all tenant notes and all mali_yillar notes completely
+            foreach (var tId in tenantsToClear)
+            {
+                try
+                {
+                    string noteTitle = tId == "default" ? "__MALI_YILLAR__" : $"__MALI_YILLAR_{tId}__";
+                    using var req = CreateRequest(HttpMethod.Delete, $"notlar?baslik=eq.{Uri.EscapeDataString(noteTitle)}");
+                    await _http.SendAsync(req);
+                }
+                catch { }
+
+                try
+                {
+                    string activeTitle = tId == "default" ? "__AKTIF_MALI_YIL__" : $"__AKTIF_MALI_YIL_{tId}__";
+                    using var req = CreateRequest(HttpMethod.Delete, $"notlar?baslik=eq.{Uri.EscapeDataString(activeTitle)}");
+                    await _http.SendAsync(req);
+                }
+                catch { }
+            }
+            try
+            {
+                using var reqLegacy = CreateRequest(HttpMethod.Delete, "notlar?id=eq.999998");
+                await _http.SendAsync(reqLegacy);
+            }
+            catch { }
+            try
+            {
+                using var reqNotesLike = CreateRequest(HttpMethod.Delete, "notlar?baslik=like.*__MALI_YILLAR*");
+                await _http.SendAsync(reqNotesLike);
+            }
+            catch { }
+            try
+            {
+                using var reqActiveLike = CreateRequest(HttpMethod.Delete, "notlar?baslik=like.*__AKTIF_MALI_YIL*");
+                await _http.SendAsync(reqActiveLike);
+            }
+            catch { }
+            try
+            {
+                using var reqNotes1 = CreateRequest(HttpMethod.Delete, "notlar?baslik=like.__MALI_YILLAR*");
+                await _http.SendAsync(reqNotes1);
+            }
+            catch { }
+            try
+            {
+                using var reqNotes2 = CreateRequest(HttpMethod.Delete, "notlar?baslik=like.__AKTIF_MALI_YIL*");
+                await _http.SendAsync(reqNotes2);
+            }
+            catch { }
+            try
+            {
+                using var reqMaliAll = CreateRequest(HttpMethod.Delete, "mali_yillar?yil=gte.0");
+                await _http.SendAsync(reqMaliAll);
+            }
+            catch { }
+
+            System.Diagnostics.Debug.WriteLine($"[CloudSync] All cloud business tables cleared successfully.");
         }
 
         // ==========================================
@@ -2763,23 +3168,35 @@ namespace ErmayMuhasebe.Services
                 // 1. Master records (Cariler, Stoklar, Bankalar, Kasalar)
                 if (cariler?.Any() == true)
                 {
-                    var payloads = cariler.Select(MapCariToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("cariler", payloads);
+                    var cleanCariler = cariler.Where(c => !IsTestCari(c)).ToList();
+                    if (cleanCariler.Any())
+                    {
+                        var payloads = cleanCariler.Select(MapCariToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("cariler", payloads);
+                    }
                 }
                 if (stoklar?.Any() == true)
                 {
-                    var payloads = stoklar.Select(MapStokToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("stoklar", payloads);
+                    var cleanStoklar = stoklar.Where(s => !IsTestStok(s)).ToList();
+                    if (cleanStoklar.Any())
+                    {
+                        var payloads = cleanStoklar.Select(MapStokToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("stoklar", payloads);
+                    }
                 }
                 if (bankalar?.Any() == true)
                 {
-                    var payloads = bankalar.Select(MapBankaToPayload).ToList<object>();
-                    await UpsertBatchPayloadAsync("bankalar", payloads);
-
-                    var kasalar = bankalar.Where(b => b.KartTuru == "Kasa").Select(MapKasaToPayload).ToList<object>();
-                    if (kasalar.Any())
+                    var cleanBankalar = bankalar.Where(b => !IsTestBanka(b)).ToList();
+                    if (cleanBankalar.Any())
                     {
-                        await UpsertBatchPayloadAsync("kasalar", kasalar);
+                        var payloads = cleanBankalar.Select(MapBankaToPayload).ToList<object>();
+                        await UpsertBatchPayloadAsync("bankalar", payloads);
+
+                        var kasalar = cleanBankalar.Where(b => b.KartTuru == "Kasa").Select(MapKasaToPayload).ToList<object>();
+                        if (kasalar.Any())
+                        {
+                            await UpsertBatchPayloadAsync("kasalar", kasalar);
+                        }
                     }
                 }
 

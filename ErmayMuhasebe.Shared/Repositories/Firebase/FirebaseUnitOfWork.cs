@@ -534,6 +534,7 @@ public class FirebaseUnitOfWork : IUnitOfWork
     public void EnableAutoSync(bool enable) { }
     public async Task SyncToCloudAsync() => await Task.CompletedTask;
     public async Task SyncFromCloudAsync() => await Task.CompletedTask;
+    public async Task<(bool Success, string Message)> TestCloudConnectionAsync() => await Task.FromResult((true, "Bulut bağlantısı simüle edildi."));
     
     // IDataProvider implementation
     public virtual async Task InitializeAsync() => await Task.CompletedTask;
@@ -597,5 +598,11 @@ public class FirebaseUnitOfWork : IUnitOfWork
     {
         var cur = DateTime.Now.Year;
         return new List<int> { cur + 1, cur, cur - 1 };
+    }
+
+    public async Task<List<int>> GetAvailableYearsAsync()
+    {
+        await Task.CompletedTask;
+        return GetAvailableYears();
     }
 }

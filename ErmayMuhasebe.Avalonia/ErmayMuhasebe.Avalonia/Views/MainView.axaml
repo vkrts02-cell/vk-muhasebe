@@ -61,6 +61,9 @@
         <Grid>
             <!-- MAIN APP CONTENT -->
             <TransitioningContentControl Content="{Binding ActiveAuthView}">
+                <TransitioningContentControl.PageTransition>
+                    <CrossFade Duration="0:0:0.250" />
+                </TransitioningContentControl.PageTransition>
                 <TransitioningContentControl.DataTemplates>
                     <!-- LOGIN VIEW -->
                     <DataTemplate DataType="{x:Type vm:LoginViewModel}">
@@ -237,7 +240,7 @@
                                          </Style>
                                          <Style Selector="ListBoxItem:selected /template/ Border#PART_RootBorder">
                                              <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-                                             <Setter Property="BorderBrush" Value="#007ACC"/>
+                                             <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                                          </Style>
                                          <Style Selector="ListBoxItem:selected TextBlock">
                                              <Setter Property="Foreground" Value="White"/>
@@ -299,8 +302,10 @@
                                  </StackPanel>
                               </Border>
                                 <TransitioningContentControl Grid.Row="1" Content="{Binding CurrentPage}" Padding="20" Background="{DynamicResource BackgroundBrush}">
-
-                              </TransitioningContentControl>
+                                    <TransitioningContentControl.PageTransition>
+                                        <CrossFade Duration="0:0:0.200" />
+                                    </TransitioningContentControl.PageTransition>
+                                </TransitioningContentControl>
                               
                               <Border Grid.Row="2" Height="30" Background="{DynamicResource SurfaceBrush}" BorderBrush="#15FFFFFF" BorderThickness="0,1,0,0" Padding="15,0">
                                     <Grid ColumnDefinitions="*, Auto, *">
@@ -552,6 +557,9 @@
     
                                     <!-- Main Content (Dashboard or Modules) -->
                                     <TransitioningContentControl Grid.Row="2" Content="{Binding CurrentPage}" Padding="15">
+                                        <TransitioningContentControl.PageTransition>
+                                            <CrossFade Duration="0:0:0.200" />
+                                        </TransitioningContentControl.PageTransition>
                                     </TransitioningContentControl>
     
     
