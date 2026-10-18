@@ -198,8 +198,13 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         {
             try
             {
+                var existingKlasorler = await _uow.MusteriTakip.GetKlasorlerAsync();
+                var existingCariIds = existingKlasorler.Select(k => k.CariId).ToHashSet();
+
                 var carilerList = await _uow.Cariler.GetAllAsync();
-                Cariler = new ObservableCollection<CariKart>(carilerList.OrderBy(c => c.Unvan));
+                var availableCariler = carilerList.Where(c => !existingCariIds.Contains(c.Id)).OrderBy(c => c.Unvan);
+
+                Cariler = new ObservableCollection<CariKart>(availableCariler);
                 FilteredCariler = new ObservableCollection<CariKart>(Cariler);
                 CariSearchText = string.Empty;
                 IsCariSelectionOpen = true;
@@ -224,6 +229,13 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
 
             try
             {
+                // Seçilen müşteriyi seçim listesinden kaldır (gizle)
+                var itemInAll = Cariler.FirstOrDefault(c => c.Id == cari.Id);
+                if (itemInAll != null) Cariler.Remove(itemInAll);
+
+                var itemInFiltered = FilteredCariler.FirstOrDefault(c => c.Id == cari.Id);
+                if (itemInFiltered != null) FilteredCariler.Remove(itemInFiltered);
+
                 // Zaten var mı kontrol et
                 var existing = await _uow.MusteriTakip.GetByCariIdAsync(cari.Id);
                 if (existing != null)

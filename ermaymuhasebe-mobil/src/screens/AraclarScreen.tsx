@@ -734,6 +734,48 @@ export default function AraclarScreen() {
     Alert.alert('Başarılı', 'Portföy kartı kaydedildi.');
   };
 
+  // Portföy Fırsatını Cariye Aktarma
+  const handleConvertPortfoyToCari = async (p: any) => {
+    const existing = cariler.find(c => (c.unvan || '').trim().toLowerCase() === (p.firma || '').trim().toLowerCase());
+    if (existing) {
+      Alert.alert('Bilgi', `"${p.firma}" zaten cariler listesinde kayıtlı.`);
+      return;
+    }
+    Alert.alert(
+      'Cariye Aktar',
+      `"${p.firma}" firmasını resmi cari kartı olarak kaydetmek istiyor musunuz?`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Evet, Aktar',
+          onPress: async () => {
+            const newId = generateInt32Id();
+            const newCari = {
+              id: newId,
+              tenantId: 'default',
+              cariKod: `CAR-${Date.now().toString().slice(-4)}`,
+              unvan: p.firma || 'İsimsiz Cari',
+              yetkili: p.yetkili || '',
+              telefon: p.gsm || '',
+              sehir: p.il || '',
+              aciklama: `Portföyden aktarıldı: ${p.aciklama || ''}`,
+              bakiye: 0,
+              borc: 0,
+              alacak: 0,
+              olusturmaTarihi: new Date().toISOString()
+            };
+            const ok = await writeData(`Cariler/${newId}`, newCari);
+            if (ok) {
+              Alert.alert('Başarılı', `"${p.firma}" başarıyla cari kartlarına aktarıldı.`);
+            } else {
+              Alert.alert('Hata', 'Cari kartı oluşturulamadı.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Belge Arşivi — Gerçek dosya yükleme (expo-image-picker → base64)
   const handlePickDoc = async () => {
     try {
@@ -1313,12 +1355,28 @@ export default function AraclarScreen() {
 
             {portfoyler.map((p, idx) => (
               <View key={idx} style={styles.card}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={styles.cardTitle}>{p.firma}</Text>
                   <Text style={{ color: '#00FF87', fontWeight: 'bold' }}>{formatMoney(p.tutar)}</Text>
                 </View>
                 <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 4 }}>Yetkili: {p.yetkili} • GSM: {p.gsm}</Text>
-                <Text style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>{p.aciklama}</Text>
+                {p.aciklama ? <Text style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>{p.aciklama}</Text> : null}
+
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: 'rgba(59, 130, 246, 0.3)',
+                    }}
+                    onPress={() => handleConvertPortfoyToCari(p)}
+                  >
+                    <Text style={{ color: '#60A5FA', fontSize: 11, fontWeight: '700' }}>Cariye Aktar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>

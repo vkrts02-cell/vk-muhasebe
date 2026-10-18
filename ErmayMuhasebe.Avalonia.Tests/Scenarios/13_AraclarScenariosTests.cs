@@ -31,7 +31,7 @@ public partial class AraclarScenariosTests : HeadlessTestBase
     [InlineData("Ürün Birleştirme")]
     [InlineData("Gecikme Faizi")]
     [InlineData("Toplu Fiyat Güncelleme")]
-    [InlineData("Fatura Tasarımı")]
+    [InlineData("Portföy Listesi")]
     public void Scenario_02_to_08_CoreToolsExistInCatalog(string toolTitle)
     {
         var vm = _serviceProvider.GetRequiredService<ToolsViewModel>();

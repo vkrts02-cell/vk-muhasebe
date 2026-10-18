@@ -207,6 +207,24 @@
             <Setter Property="Opacity" Value="0.6"/>
         </Style>
 
+        <!-- DANGER ACTION BUTTON - Isolated from global template -->
+        <Style Selector="Button.DangerButton">
+            <Setter Property="Background" Value="#DC2626"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.DangerButton:pointerover">
+            <Setter Property="Background" Value="#B91C1C"/>
+        </Style>
+        <Style Selector="Button.DangerButton:disabled">
+            <Setter Property="Background" Value="#6B7280"/>
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+
         <!-- LAYOUT VARIATIONS -->
         <Style Selector="Button.SideButton, Button.ToolButton">
             <Setter Property="CornerRadius" Value="100"/>

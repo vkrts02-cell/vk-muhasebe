@@ -1245,10 +1245,10 @@
                                         </StackPanel>
                                         <TextBlock Text="Bu işlem tüm verileri, kayıtları, mali yılları ve yerel/bulut veritabanını kalıcı olarak silecektir! Bu işlemin geri dönüşü mümkün değildir." FontSize="14" Foreground="#ef4444" Opacity="0.9" TextWrapping="Wrap"/>
                                         
-                                        <Button Command="{Binding FactoryResetCommand}" Classes="Danger" Height="55" Padding="40,0" CornerRadius="12" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
+                                        <Button Command="{Binding FactoryResetCommand}" Classes="DangerButton" Height="48" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-                                                <ic:SymbolIcon Symbol="Delete" FontSize="20" Foreground="White"/>
-                                                <TextBlock Text="SİSTEMİ FABRİKA AYARLARINA DÖNDÜR (TÜM VERİLERİ SİL)" FontWeight="Black" FontSize="15"/>
+                                                <ic:SymbolIcon Symbol="Delete" FontSize="18" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="SİSTEMİ FABRİKA AYARLARINA DÖNDÜR (TÜM VERİLERİ SİL)" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>

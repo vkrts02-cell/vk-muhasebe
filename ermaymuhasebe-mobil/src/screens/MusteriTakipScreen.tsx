@@ -180,17 +180,29 @@ export default function MusteriTakipScreen({ navigation }: any) {
     });
   }, [klasorler, selectedEtiket, searchString]);
 
-  // Filtrelenmiş cariler
+  // Takipte olan müşteri (CariId) kümesi
+  const existingCariIds = useMemo(() => {
+    const set = new Set<number>();
+    for (const k of klasorler) {
+      if (!k.isDeleted && k.cariId) {
+        set.add(Number(k.cariId));
+      }
+    }
+    return set;
+  }, [klasorler]);
+
+  // Filtrelenmiş cariler - Takipte olan müşteriler listeden gizlenir
   const filteredCariler = useMemo(() => {
-    if (!cariSearchText.trim()) return cariler;
+    const available = cariler.filter((c) => !existingCariIds.has(Number(c.id)));
+    if (!cariSearchText.trim()) return available;
     const s = cariSearchText.trim().toLowerCase();
-    return cariler.filter((c) => {
+    return available.filter((c) => {
       const unvan = (c.unvan || '').toLowerCase();
       const kod = (c.cariKod || '').toLowerCase();
       const tel = (c.telefon || '').toLowerCase();
       return unvan.includes(s) || kod.includes(s) || tel.includes(s);
     });
-  }, [cariler, cariSearchText]);
+  }, [cariler, cariSearchText, existingCariIds]);
 
   // Yeni Müşteri Klasörü Oluşturma veya Mevcut Olanı Açma
   const handleSelectCariAndCreate = async (cari: any) => {
@@ -222,6 +234,9 @@ export default function MusteriTakipScreen({ navigation }: any) {
       aciklama: '',
       isDeleted: false,
     };
+
+    // Seçilen müşteriyi anında listeden gizlemek ve klasörlere eklemek için yerel state'i güncelle
+    setKlasorler((prev) => [newKlasor, ...prev.filter((k) => k.cariId !== cari.id)]);
 
     try {
       await writeData(`MusteriTakipKlasorler/${newId}`, newKlasor);
@@ -614,6 +629,19 @@ export default function MusteriTakipScreen({ navigation }: any) {
               contentContainerStyle={styles.modalListContent}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 20 }}>
+                  <Users color="#64748B" size={40} style={{ marginBottom: 12, opacity: 0.7 }} />
+                  <Text style={{ color: '#E2E8F0', fontWeight: 'bold', fontSize: 15, marginBottom: 6, textAlign: 'center' }}>
+                    Aktarılacak Cari Bulunamadı
+                  </Text>
+                  <Text style={{ color: '#64748B', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                    {cariSearchText.trim()
+                      ? 'Aramanıza uygun cari kaydı bulunamadı.'
+                      : 'Tüm kayıtlı cariler zaten müşteri takip listesine aktarılmış.'}
+                  </Text>
+                </View>
+              }
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.cariItem}

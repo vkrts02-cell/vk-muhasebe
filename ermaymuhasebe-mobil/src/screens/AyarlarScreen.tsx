@@ -224,10 +224,6 @@ export default function AyarlarScreen() {
   };
 
   const handleSelectCategory = async (catId: string) => {
-    if (catId === 'fatura') {
-      navigation.navigate('FaturaTasarim');
-      return;
-    }
     setCurrentCategory(catId);
     if (catId === 'cloud') {
       await reloadCloudSettings();
@@ -507,27 +503,36 @@ export default function AyarlarScreen() {
     );
   };
 
-  const handleLogout = async () => {
+  const handleFactoryReset = async () => {
     Alert.alert(
-      'Yapılandırmayı Sıfırla',
-      'Firebase yapılandırmasını silmek istediğinize emin misiniz? Uygulama offline moda geçecektir.',
+      'Fabrika Ayarlarına Sıfırla',
+      'Tüm yerel ayarlar, çevrimdışı önbellek ve veritabanı bağlantı yapılandırması sıfırlanacaktır. Uygulama fabrika ayarlarına döndürülüp offline moda geçecektir. Devam etmek istiyor musunuz?',
       [
         { text: 'İptal', style: 'cancel' },
         { 
           text: 'Evet, Sıfırla', 
           style: 'destructive',
           onPress: async () => {
-            await goOfflineMode();
+            try {
+              await goOfflineMode();
+              const keys = await AsyncStorage.getAllKeys();
+              const toRemove = keys.filter(k => k.startsWith('ermay_cache_') || k === 'ermay_write_queue');
+              if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
+            } catch (e) {
+              console.warn('Cache clearing error during factory reset:', e);
+            }
             setDbUrl('');
             setSecret('');
             setActiveYear(new Date().getFullYear().toString());
             setPdfServerUrl('http://192.168.1.103:5244');
-            Alert.alert('Başarılı', 'Ayarlar temizlendi.');
+            Alert.alert('Başarılı', 'Uygulama başarıyla fabrika ayarlarına döndürüldü.');
           }
         }
       ]
     );
   };
+
+  const handleLogout = handleFactoryReset;
 
   const handleUserLogout = async () => {
     Alert.alert(
@@ -901,7 +906,6 @@ export default function AyarlarScreen() {
     { id: 'profile', title: 'Firma Profili', description: 'Firma ünvanı, iletişim ve logo ayarları.', icon: Building, color: '#8B5CF6' },
     { id: 'security', title: 'Güvenlik ve Kilit', description: 'Oturum kilidi, PIN ve şifre ayarları.', icon: Lock, color: '#EF4444' },
     { id: 'backup', title: 'Yedekleme ve Bakım', description: 'Tüm veritabanını yedekleyin veya geri yükleyin.', icon: Database, color: '#10B981' },
-    { id: 'fatura', title: 'Fatura Tasarımı', description: 'Görünüm, boyut ve belge metinleri.', icon: FileText, color: '#ec4899' },
     { id: 'devir', title: 'Mali Yıl & Devir Sihirbazı', description: 'Aktif çalışma yılı ve bakiyeleri yeni yıla devretme.', icon: Calendar, color: '#3B82F6' },
     { id: 'cleanup', title: 'Veri Temizlik', description: 'Silinmiş çöp kayıtları ve yerel önbelleği temizleyin.', icon: Trash2, color: '#64748B' }
   ];
@@ -945,12 +949,16 @@ export default function AyarlarScreen() {
             })}
             
             {/* Alt İşlemler */}
-            <View style={{ width: '100%', marginTop: 20 }}>
-              <TouchableOpacity style={[styles.logoutButton, { borderColor: '#E2E8F0' }]} onPress={handleUserLogout}>
+            <View style={{ width: '100%', marginTop: 24, gap: 12 }}>
+              <TouchableOpacity style={[styles.logoutButton, { borderColor: '#E2E8F0', marginTop: 0 }]} onPress={handleUserLogout}>
                 <Text style={[styles.logoutButtonText, { color: '#E2E8F0' }]}>Oturumu Kapat (Çıkış Yap)</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutButtonText}>Yapılandırmayı Sıfırla (Offline Mod)</Text>
+              <TouchableOpacity 
+                style={[styles.logoutButton, { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', marginTop: 0, flexDirection: 'row', gap: 8 }]} 
+                onPress={handleFactoryReset}
+              >
+                <Trash2 color="#EF4444" size={18} />
+                <Text style={styles.logoutButtonText}>Fabrika Ayarlarına Sıfırla (Offline Mod)</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1476,6 +1484,24 @@ export default function AyarlarScreen() {
                   </Text>
                   <TouchableOpacity style={[styles.btn, { backgroundColor: '#64748B' }]} onPress={handleClearLocalCache}>
                     <Text style={styles.btnText}>Cihaz Önbelleğini Sıfırla</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Fabrika Ayarlarına Dön Kartı */}
+                <View style={[styles.card, { borderColor: 'rgba(239, 68, 68, 0.4)', backgroundColor: 'rgba(239, 68, 68, 0.06)' }]}>
+                  <View style={styles.cardHeader}>
+                    <Trash2 color="#EF4444" size={22} />
+                    <Text style={[styles.cardTitle, { color: '#EF4444' }]}>Fabrika Ayarlarına Dön</Text>
+                  </View>
+                  <Text style={[styles.inputLabel, { fontWeight: 'normal', marginBottom: 12, color: '#FCA5A5' }]}>
+                    Tüm yerel ayarları, önbelleği ve veritabanı bağlantı yapılandırmasını sıfırlar. Bu işlemin geri dönüşü yoktur.
+                  </Text>
+                  <TouchableOpacity 
+                    style={[styles.btn, { backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]} 
+                    onPress={handleFactoryReset}
+                  >
+                    <Trash2 color="#FFF" size={18} />
+                    <Text style={[styles.btnText, { fontWeight: 'bold' }]}>Fabrika Ayarlarına Sıfırla</Text>
                   </TouchableOpacity>
                 </View>
               </>

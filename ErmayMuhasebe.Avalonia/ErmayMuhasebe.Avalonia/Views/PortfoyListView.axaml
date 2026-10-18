@@ -74,14 +74,15 @@
           <DataGridTextColumn Header="Yetkili" Binding="{Binding YetkiliKisi}" Width="150"/>
           <DataGridTextColumn Header="GSM" Binding="{Binding GSM}" Width="150"/>
           <DataGridTextColumn Header="Şehir" Binding="{Binding Il}" Width="120"/>
-          <DataGridTemplateColumn Header="İşlemler" Width="150">
+          <DataGridTemplateColumn Header="İşlemler" Width="125">
               <DataTemplate>
                   <Button Command="{Binding $parent[UserControl].DataContext.TransferToCariCommand}" 
                           CommandParameter="{Binding}"
-                          Classes="SideButton Info" Padding="12,0" Height="30"
+                          Classes="SideButton Info" Width="105" Height="28" Padding="6,0"
+                          HorizontalAlignment="Center"
                           ToolTip.Tip="Cari Hesaplara Aktar">
                       <Grid ColumnDefinitions="Auto, *" HorizontalAlignment="Center" VerticalAlignment="Center">
-                          <ic:SymbolIcon Grid.Column="0" Symbol="ArrowRight" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                          <ic:SymbolIcon Grid.Column="0" Symbol="ArrowRight" FontSize="13" VerticalAlignment="Center" Margin="0,0,5,0"/>
                           <TextBlock Grid.Column="1" Text="Cari'ye Aktar" FontSize="11" VerticalAlignment="Center"/>
                       </Grid>
                   </Button>

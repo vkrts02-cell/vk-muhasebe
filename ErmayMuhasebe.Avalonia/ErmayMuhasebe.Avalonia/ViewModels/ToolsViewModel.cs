@@ -56,8 +56,7 @@ public partial class ToolsViewModel : ViewModelBase
             new("Toplu Fiyat Güncelleme", "Tüm ürünlere toplu zam/indirim.", "Money", "#10B981", typeof(AVM.TopluFiyatViewModel)),
             new("Limit Yönetimi", "Risk ve kredi limitleri.", "LockShield", "#EF4444", typeof(SVM.MusteriLimitViewModel)),
             new("Bütçe Planlama Merkezi", "Yıllık, aylık ve haftalık hedef yönetimi.", "DataArea", "#60A5FA", typeof(SVM.ButcePlanlamaViewModel)),
-            new("Portföy Listesi", "Varlık yönetimi paneli.", "Briefcase", "#8B5CF6", typeof(SVM.PortfoyListViewModel)),
-            new("Fatura Tasarımı", "Fatura şablonu ve yazdırma ayarları.", "Document", "#3B82F6", typeof(AVM.BelgeArsivViewModel))
+            new("Portföy Listesi", "Varlık yönetimi paneli.", "Briefcase", "#8B5CF6", typeof(SVM.PortfoyListViewModel))
         };
 
 
