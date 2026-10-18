@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using ErmayMuhasebe.Helpers;
+using ErmayMuhasebe.Shared.Helpers;
 
 namespace ErmayMuhasebe.Shared.ViewModels;
 
@@ -115,9 +116,9 @@ public abstract partial class FaturaListViewModel : ViewModelBase
             .Where(f => f.Tur == "Satış" || f.Tur == "Alış" || f.Tur == "Satis" || f.Tur == "Alis")
             .Where(f => f.Tarih.Date >= sDate.Date && f.Tarih.Date <= eDate.Date)
             .Where(f => string.IsNullOrEmpty(SearchString) || 
-                        (f.FaturaNo != null && f.FaturaNo.Contains(SearchString, StringComparison.OrdinalIgnoreCase)) ||
-                        (f.CariUnvan != null && f.CariUnvan.Contains(SearchString, StringComparison.OrdinalIgnoreCase)) ||
-                        (f.Tur != null && f.Tur.Contains(SearchString, StringComparison.OrdinalIgnoreCase)) ||
+                        TurkishSearchHelper.MatchSearch(f.FaturaNo, SearchString) ||
+                        TurkishSearchHelper.MatchSearch(f.CariUnvan, SearchString) ||
+                        TurkishSearchHelper.MatchSearch(f.Tur, SearchString) ||
                         (f.Tarih.ToString("dd.MM.yyyy").Contains(SearchString)))
             .OrderByDescending(f => f.Tarih)
             .ToList();

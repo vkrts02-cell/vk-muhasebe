@@ -9,8 +9,8 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using ErmayMuhasebe.Helpers;
+using ErmayMuhasebe.Shared.Helpers;
 
 namespace ErmayMuhasebe.Avalonia.ViewModels
 {
@@ -101,11 +101,8 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
             }
             else
             {
-                var search = value.Trim().ToLower();
                 var filtered = Cariler.Where(c => 
-                    (c.Unvan != null && c.Unvan.ToLower().Contains(search)) ||
-                    (c.CariKod != null && c.CariKod.ToLower().Contains(search)) ||
-                    (c.Telefon != null && c.Telefon.Contains(search))
+                    TurkishSearchHelper.MatchSearch($"{c.Unvan} {c.CariKod} {c.Yetkili} {c.Telefon}", value)
                 );
                 FilteredCariler = new ObservableCollection<CariKart>(filtered);
             }
@@ -164,13 +161,8 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
 
             if (!string.IsNullOrWhiteSpace(SearchString))
             {
-                var s = SearchString.Trim().ToLower();
                 query = query.Where(x => 
-                    (x.CariUnvan != null && x.CariUnvan.ToLower().Contains(s)) ||
-                    (x.CariKod != null && x.CariKod.ToLower().Contains(s)) ||
-                    (x.Telefon != null && x.Telefon.Contains(s)) ||
-                    (x.Yetkili != null && x.Yetkili.ToLower().Contains(s)) ||
-                    (x.Aciklama != null && x.Aciklama.ToLower().Contains(s))
+                    TurkishSearchHelper.MatchSearch($"{x.CariUnvan} {x.CariKod} {x.Telefon} {x.Yetkili} {x.Aciklama}", SearchString)
                 );
             }
 

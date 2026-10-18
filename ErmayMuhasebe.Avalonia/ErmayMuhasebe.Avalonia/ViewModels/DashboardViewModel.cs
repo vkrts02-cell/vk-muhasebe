@@ -95,6 +95,8 @@ public partial class DashboardViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsCupertinoGlass))]
     [NotifyPropertyChangedFor(nameof(IsEnterprise))]
     [NotifyPropertyChangedFor(nameof(IsWindowsFluent))]
+    [NotifyPropertyChangedFor(nameof(IsPane))]
+    [NotifyPropertyChangedFor(nameof(IsRivet))]
     private string _currentTheme = "ModernSaaS";
 
     public bool IsModernSaaS => CurrentTheme == "ModernSaaS" || CurrentTheme == "IDEProfessional";
@@ -102,6 +104,8 @@ public partial class DashboardViewModel : ViewModelBase
     public bool IsCupertinoGlass => CurrentTheme == "CupertinoGlass";
     public bool IsEnterprise => CurrentTheme == "Enterprise";
     public bool IsWindowsFluent => CurrentTheme == "WindowsFluent";
+    public bool IsPane => CurrentTheme == "Pane";
+    public bool IsRivet => CurrentTheme == "Rivet";
 
     // Trend Data Cache
     private decimal[] _chartMonthlyTargets = Array.Empty<decimal>();
@@ -123,6 +127,8 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsCupertinoGlass));
         OnPropertyChanged(nameof(IsEnterprise));
         OnPropertyChanged(nameof(IsWindowsFluent));
+        OnPropertyChanged(nameof(IsPane));
+        OnPropertyChanged(nameof(IsRivet));
     }
 
     public DashboardViewModel(

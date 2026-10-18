@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Linq.Expressions;
 using ErmayMuhasebe.Helpers;
+using ErmayMuhasebe.Shared.Helpers;
 
 namespace ErmayMuhasebe.Shared.ViewModels;
 
@@ -384,14 +385,14 @@ public abstract partial class CariListViewModel : ViewModelBase
         _searchCts = new System.Threading.CancellationTokenSource();
         var token = _searchCts.Token;
 
-        Task.Delay(500, token).ContinueWith(t => 
+        Task.Delay(50, token).ContinueWith(t => 
         {
             if (!t.IsCanceled)
             {
                 InvokeOnUIThreadAsync(async () => 
                 {
                     CurrentPageIndex = 0;
-                    await LoadCarilerAsync();
+                    await LoadCarilerAsync(isSilent: true);
                 });
             }
         }, token);
@@ -411,78 +412,61 @@ public abstract partial class CariListViewModel : ViewModelBase
             Expression<Func<CariKart, bool>>? filter = null;
             if (filterMusteri)
             {
-                if (!string.IsNullOrEmpty(SearchString))
-                {
-                    if (IsOnlyWithBalance)
-                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
-                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici") &&
-                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
-                    else
-                        filter = c => !c.IsDeleted && 
-                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici") &&
-                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
-                }
+                if (IsOnlyWithBalance)
+                    filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                        (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici");
                 else
-                {
-                    if (IsOnlyWithBalance)
-                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
-                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici");
-                    else
-                        filter = c => !c.IsDeleted &&
-                            (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici");
-                }
+                    filter = c => !c.IsDeleted &&
+                        (c.Grup == "Müşteri" || c.Grup == "Musteri" || c.Grup == "Alıcı" || c.Grup == "Alici");
             }
             else if (filterTedarikci)
             {
-                if (!string.IsNullOrEmpty(SearchString))
-                {
-                    if (IsOnlyWithBalance)
-                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
-                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici") &&
-                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
-                    else
-                        filter = c => !c.IsDeleted && 
-                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici") &&
-                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
-                }
+                if (IsOnlyWithBalance)
+                    filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
+                        (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici");
                 else
-                {
-                    if (IsOnlyWithBalance)
-                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
-                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici");
-                    else
-                        filter = c => !c.IsDeleted &&
-                            (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici");
-                }
+                    filter = c => !c.IsDeleted &&
+                        (c.Grup == "Tedarikçi" || c.Grup == "Tedarikci" || c.Grup == "Satıcı" || c.Grup == "Satici");
             }
             else
             {
-                if (!string.IsNullOrEmpty(SearchString))
-                {
-                    if (IsOnlyWithBalance)
-                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak) &&
-                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
-                    else
-                        filter = c => !c.IsDeleted && 
-                            ((c.Unvan != null && c.Unvan.Contains(SearchString)) || 
-                             (c.CariKod != null && c.CariKod.Contains(SearchString)));
-                }
+                if (IsOnlyWithBalance)
+                    filter = c => !c.IsDeleted && (c.Borc != c.Alacak);
                 else
-                {
-                    if (IsOnlyWithBalance)
-                        filter = c => !c.IsDeleted && (c.Borc != c.Alacak);
-                    else
-                        filter = c => !c.IsDeleted;
-                }
+                    filter = c => !c.IsDeleted;
             }
 
             List<CariKart> pagedList;
-            if (IsBakiyeSortActive)
+            if (!string.IsNullOrWhiteSpace(SearchString))
+            {
+                // Türkçe büyük/küçük harf ve karakter duyarsız arama
+                var candidateList = await _uow.Cariler.GetPagedAsync(0, 100000, filter);
+                var filteredList = candidateList.Where(c => 
+                    TurkishSearchHelper.MatchSearch($"{c.Unvan} {c.CariKod} {c.Yetkili} {c.Telefon} {c.VergiNo} {c.TCNo}", SearchString)
+                ).ToList();
+
+                TotalCount = filteredList.Count;
+
+                if (IsBakiyeSortActive)
+                {
+                    var sorted = IsBakiyeDescending 
+                        ? filteredList.OrderByDescending(c => c.Bakiye).ThenBy(c => c.Unvan) 
+                        : filteredList.OrderBy(c => c.Bakiye).ThenBy(c => c.Unvan);
+                    pagedList = sorted.Skip(CurrentPageIndex * PageSize).Take(PageSize).ToList();
+                }
+                else if (GrupSortState != 0)
+                {
+                    var sorted = GrupSortState == 1
+                        ? filteredList.OrderBy(c => IsMusteri(c.Grup) ? 0 : 1).ThenBy(c => c.Unvan)
+                        : filteredList.OrderBy(c => IsTedarikci(c.Grup) ? 0 : 1).ThenBy(c => c.Unvan);
+                    pagedList = sorted.Skip(CurrentPageIndex * PageSize).Take(PageSize).ToList();
+                }
+                else
+                {
+                    pagedList = filteredList.OrderBy(c => c.Unvan ?? "").Skip(CurrentPageIndex * PageSize).Take(PageSize).ToList();
+                }
+            }
+            else if (IsBakiyeSortActive)
             {
                 var allList = await _uow.Cariler.GetPagedAsync(0, 100000, filter);
                 TotalCount = allList.Count;
@@ -548,6 +532,14 @@ public abstract partial class CariListViewModel : ViewModelBase
                     {
                         SelectedCari = reselected;
                     }
+                    else if (reselected == null)
+                    {
+                        SelectedCari = Cariler.FirstOrDefault();
+                    }
+                }
+                else if (SelectedCari == null && Cariler.Any())
+                {
+                    SelectedCari = Cariler.FirstOrDefault();
                 }
             });
         }
@@ -991,13 +983,29 @@ public abstract partial class CariListViewModel : ViewModelBase
          IsTransactionDialogVisible = true;
     }
 
+    partial void OnIsAcilisFisiChanged(bool value)
+    {
+        if (value)
+        {
+            IsKasaSelectionVisible = false;
+        }
+        else
+        {
+            IsKasaSelectionVisible = TransactionMethod == "Nakit" || TransactionMethod == "Havale / EFT" || TransactionMethod == "Havale/EFT" || TransactionMethod == "Kredi Kartı";
+            if (SelectedKasaForTransaction == null)
+            {
+                _ = LoadAvailableKasalarAsync(TransactionMethod);
+            }
+        }
+    }
+
     partial void OnTransactionMethodChanged(string value)
     {
         IsKrediKarti = value == "Kredi Kartı";
         IsHavaleEFT = value == "Havale / EFT" || value == "Havale/EFT";
         IsStandardTransaction = value == "Nakit"; 
         
-        IsKasaSelectionVisible = value == "Nakit" || value == "Havale / EFT" || value == "Havale/EFT" || value == "Kredi Kartı";
+        IsKasaSelectionVisible = !IsAcilisFisi && (value == "Nakit" || value == "Havale / EFT" || value == "Havale/EFT" || value == "Kredi Kartı");
         
         _ = LoadAvailableKasalarAsync(value);
         
@@ -1145,14 +1153,14 @@ public abstract partial class CariListViewModel : ViewModelBase
               }
          }
 
-         if (IsKasaSelectionVisible && SelectedKasaForTransaction == null)
+         if (!IsAcilisFisi && IsKasaSelectionVisible && SelectedKasaForTransaction == null)
          {
              ErrorMessage = "İşlem hesabı seçilmelidir!";
              return;
          }
 
          CariKart? directedSupplier = null;
-         if (KkYonlendirilenTedarikciId.HasValue)
+         if (!IsAcilisFisi && KkYonlendirilenTedarikciId.HasValue)
          {
              directedSupplier = await _uow.Cariler.GetByIdAsync(KkYonlendirilenTedarikciId.Value);
          }
@@ -1162,16 +1170,17 @@ public abstract partial class CariListViewModel : ViewModelBase
              Cari = SelectedCari,
              TransactionType = TransactionType,
              Amount = TransactionAmount ?? 0,
-             Method = TransactionMethod,
+             Method = IsAcilisFisi ? "Açılış Fişi" : TransactionMethod,
              Description = TransactionDescription,
              Date = GetParsedTransactionDate(),
-             SelectedKasaOrBanka = SelectedKasaForTransaction,
-             DirectedSupplier = directedSupplier,
+             SelectedKasaOrBanka = IsAcilisFisi ? null : SelectedKasaForTransaction,
+             IsAcilisFisi = IsAcilisFisi,
+             DirectedSupplier = IsAcilisFisi ? null : directedSupplier,
              YonlendirmeTarihi = GetParsedTransactionDate(),
-             BankaAdi = KkBanka,
-             KartHesapNo = KkKartNo,
-             OnayDekontNo = KkOnayKodu,
-             SlipDekontPath = KkSlipPath,
+             BankaAdi = IsAcilisFisi ? null : KkBanka,
+             KartHesapNo = IsAcilisFisi ? null : KkKartNo,
+             OnayDekontNo = IsAcilisFisi ? null : KkOnayKodu,
+             SlipDekontPath = IsAcilisFisi ? null : KkSlipPath,
              ExistingHareketId = _editingHareket?.Id ?? 0,
              ExistingEvrakNo = _editingHareket?.EvrakNo,
              ExistingRefId = _editingHareket?.RefId

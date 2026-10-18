@@ -5,6 +5,7 @@ import { subscribeToPath, writeData, readData, mapAppToDatabase, updateDataBatch
 import { generateInt32Id } from '../utils/IdGenerator';
 import { generateReportPdf } from '../services/pdfService';
 import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
+import { matchTurkishSearch } from '../utils/searchHelper';
 
 const BIRIM_LISTESI = ['Adet', 'Kg', 'Mt', 'M2'];
 
@@ -126,8 +127,8 @@ export default function SiparisFormScreen({ route, navigation }: any) {
   }, []);
 
   const filteredSiparisler = siparisler.filter(s => 
-    (s.cariUnvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
-    (s.siparisNo || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'))
+    matchTurkishSearch(s.cariUnvan, searchQuery) ||
+    matchTurkishSearch(s.siparisNo, searchQuery)
   );
 
   const generateSiparisNo = () => {

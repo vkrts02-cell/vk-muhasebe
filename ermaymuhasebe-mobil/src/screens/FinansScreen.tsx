@@ -35,7 +35,9 @@ import {
   Camera,
   Edit3,
   Trash2,
+  Check,
 } from "lucide-react-native";
+import { matchTurkishSearch } from "../utils/searchHelper";
 import { FlashList, ListRenderItemInfo } from "@shopify/flash-list";
 import FadeInView from "../components/FadeInView";
 import {
@@ -555,6 +557,7 @@ export default function FinansScreen({ route, navigation }: any) {
   const [tutar, setTutar] = useState("");
   const [tarih, setTarih] = useState(new Date().toISOString().split("T")[0]);
   const [aciklama, setAciklama] = useState("");
+  const [isAcilisFisi, setIsAcilisFisi] = useState(false);
 
   // Account selections
   const [selectedKasaId, setSelectedKasaId] = useState<number | null>(null);
@@ -697,6 +700,9 @@ export default function FinansScreen({ route, navigation }: any) {
             }
             setIslemTuru(baseTur);
 
+            const isAcilis = rawTur.includes("Açılış") || rawTur.includes("Acilis") || String(hData.aciklama || "").includes("Açılış") || String(hData.aciklama || "").includes("Acilis");
+            setIsAcilisFisi(isAcilis);
+
             let detectedMethod: "Nakit" | "Kredi Kartı" | "Havale/EFT" | "Çek" = "Nakit";
             if (rawTur.includes("KK") || rawTur.includes("Kredi")) {
               detectedMethod = "Kredi Kartı";
@@ -802,6 +808,7 @@ export default function FinansScreen({ route, navigation }: any) {
     setTutar("");
     setTarih(new Date().toISOString().split("T")[0]);
     setAciklama("");
+    setIsAcilisFisi(false);
     setSelectedKasaId(null);
     setSelectedBankaId(null);
     setSourceKasaId(null);
@@ -1489,7 +1496,8 @@ export default function FinansScreen({ route, navigation }: any) {
         transactionType: islemTuru as any,
         method: odemeYontemi,
         description: aciklama,
-        selectedHesap: currentAcc
+        isAcilisFisi: isDekont && isAcilisFisi,
+        selectedHesap: (!isDekont || !isAcilisFisi) && currentAcc
           ? {
               id: currentAcc.id,
               kartTuru: currentAcc.kartTuru || (isKasa ? "Kasa" : undefined),
@@ -4068,6 +4076,48 @@ export default function FinansScreen({ route, navigation }: any) {
                     </Text>
                   </TouchableOpacity>
 
+                  {(islemTuru === "Alacak Dekontu" || islemTuru === "Borç Dekontu") && (
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: isAcilisFisi ? "rgba(0,255,135,0.12)" : "rgba(255,255,255,0.05)",
+                        borderColor: isAcilisFisi ? "#00FF87" : "rgba(255,255,255,0.12)",
+                        borderWidth: 1,
+                        borderRadius: 12,
+                        padding: 12,
+                        marginTop: 14,
+                        marginBottom: 4,
+                      }}
+                      onPress={() => setIsAcilisFisi(!isAcilisFisi)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          borderWidth: 2,
+                          borderColor: isAcilisFisi ? "#00FF87" : "#64748B",
+                          backgroundColor: isAcilisFisi ? "#00FF87" : "transparent",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginRight: 10,
+                        }}
+                      >
+                        {isAcilisFisi && <Check color="#000" size={14} strokeWidth={3} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700" }}>
+                          Açılış Fişi (Devir)
+                        </Text>
+                        <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                          Finans (Kasa/Banka) hareketlerine kaydedilmez, yalnızca cari bakiyesini günceller.
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+
                   {/* Kasa/Banka Seçimi */}
                   {islemTuru !== "Alacak Dekontu" &&
                     islemTuru !== "Borç Dekontu" && (
@@ -4372,9 +4422,10 @@ export default function FinansScreen({ route, navigation }: any) {
                 </View>
                 <FlashList
                   data={cariler.filter((c) =>
-                    (c.unvan || "")
-                      .toLocaleLowerCase('tr-TR')
-                      .includes(cariSearch.toLocaleLowerCase('tr-TR')),
+                    matchTurkishSearch(
+                      `${c.unvan || ""} ${c.cariKod || ""} ${c.yetkili || ""} ${c.telefon || ""} ${c.vergiNo || ""} ${c.tcNo || ""}`,
+                      cariSearch,
+                    ),
                   )}
                   keyExtractor={(item, idx) =>
                     item.id?.toString() || idx.toString()
@@ -4891,13 +4942,15 @@ export default function FinansScreen({ route, navigation }: any) {
                 <FlashList
                   data={cariler.filter(
                     (c) =>
-                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("müşteri") ||
-                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("musteri") ||
-                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("alıcı") ||
-                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("alici") ||
-                      (c.unvan || "")
-                        .toLocaleLowerCase('tr-TR')
-                        .includes(cariSearch.toLocaleLowerCase('tr-TR')),
+                      ((c.grup || "").toLocaleLowerCase('tr-TR').includes("müşteri") ||
+                        (c.grup || "").toLocaleLowerCase('tr-TR').includes("musteri") ||
+                        (c.grup || "").toLocaleLowerCase('tr-TR').includes("alıcı") ||
+                        (c.grup || "").toLocaleLowerCase('tr-TR').includes("alici") ||
+                        c.tur === "Alici") &&
+                      matchTurkishSearch(
+                        `${c.unvan || ""} ${c.cariKod || ""} ${c.yetkili || ""} ${c.telefon || ""}`,
+                        cariSearch,
+                      ),
                   )}
                   keyExtractor={(item, idx) =>
                     item.id?.toString() || idx.toString()
@@ -4947,13 +5000,15 @@ export default function FinansScreen({ route, navigation }: any) {
               <FlashList
                 data={cariler.filter(
                   (c) =>
-                    (c.grup || "").toLocaleLowerCase('tr-TR').includes("tedarik") ||
-                    (c.grup || "").toLocaleLowerCase('tr-TR').includes("ted") ||
-                    (c.grup || "").toLocaleLowerCase('tr-TR').includes("satıcı") ||
-                    (c.grup || "").toLocaleLowerCase('tr-TR').includes("satici") ||
-                    (c.unvan || "")
-                      .toLocaleLowerCase('tr-TR')
-                      .includes(cariSearch.toLocaleLowerCase('tr-TR')),
+                    ((c.grup || "").toLocaleLowerCase('tr-TR').includes("tedarik") ||
+                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("ted") ||
+                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("satıcı") ||
+                      (c.grup || "").toLocaleLowerCase('tr-TR').includes("satici") ||
+                      c.tur === "Satici") &&
+                    matchTurkishSearch(
+                      `${c.unvan || ""} ${c.cariKod || ""} ${c.yetkili || ""} ${c.telefon || ""}`,
+                      cariSearch,
+                    ),
                 )}
                 keyExtractor={(item, idx) =>
                   item.id?.toString() || idx.toString()

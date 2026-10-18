@@ -8,6 +8,7 @@ import { generateInt32Id } from '../utils/IdGenerator';
 import { BlurView } from 'expo-blur';
 import { deleteFaturaCascade } from '../services/transactionService';
 import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
+import { matchTurkishSearch } from '../utils/searchHelper';
 
 const BIRIM_LISTESI = ['Adet', 'Kg', 'Mt', 'M2'];
 
@@ -403,8 +404,8 @@ export default function FaturaFormScreen({ route, navigation }: any) {
     endDate.setHours(23, 59, 59, 999);
 
     return faturalar.filter(f => {
-      const matchSearch = (f.cariUnvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
-        (f.faturaNo || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'));
+      const matchSearch = matchTurkishSearch(f.cariUnvan, searchQuery) ||
+        matchTurkishSearch(f.faturaNo, searchQuery);
 
       const faturaDate = new Date(f.tarih);
       const matchDate = faturaDate >= startDate && faturaDate <= endDate;

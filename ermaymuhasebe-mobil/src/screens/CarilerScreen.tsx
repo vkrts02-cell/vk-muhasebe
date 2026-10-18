@@ -12,6 +12,7 @@ import { getCurrentGpsLocation } from '../services/locationService';
 import { pickContactForCari } from '../services/contactService';
 import { OfflineNetworkBar } from '../components/OfflineNetworkBar';
 import { cariSchema } from '../utils/validationSchema';
+import { matchTurkishSearch } from '../utils/searchHelper';
 import { AppleListRow, AppleGroupedCard } from '../components/AppleGroupedList';
 import { AppleTheme } from '../theme/appleDesign';
 import { ShimmerCardList } from '../components/Shimmer';
@@ -293,9 +294,8 @@ export default function CarilerScreen({ route, navigation }: any) {
   };
 
   const filteredCariler = cariler.filter(c => {
-    const matchesSearch = 
-      (c.unvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
-      (c.cariKod || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'));
+    const composite = `${c.unvan || ''} ${c.cariKod || ''} ${c.yetkili || ''} ${c.telefon || ''} ${c.vergiNo || ''} ${c.tcNo || ''}`;
+    const matchesSearch = matchTurkishSearch(composite, searchQuery);
     if (!matchesSearch) return false;
 
     if (selectedGrupFilter === 'Müşteri') {

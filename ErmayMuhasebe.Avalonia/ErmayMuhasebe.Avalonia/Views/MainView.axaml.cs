@@ -90,7 +90,7 @@ public partial class MainView : UserControl
                 bool isSidebarClick = false;
                 while (visual != null)
                 {
-                    if (visual is ListBox lb && (lb.Name == "SidebarListBox" || lb.Name == "IDESidebarListBox"))
+                    if (visual is ListBox lb && (lb.Name == "SidebarListBox" || lb.Name == "IDESidebarListBox" || lb.Name == "PaneSidebarListBox" || lb.Name == "RivetSidebarListBox"))
                     {
                         isSidebarClick = true;
                         break;

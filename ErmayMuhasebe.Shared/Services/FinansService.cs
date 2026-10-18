@@ -120,8 +120,12 @@ namespace ErmayMuhasebe.Services
                         mainCH.Tarih = request.Date;
                         mainCH.EvrakNo = evrakNo;
                         mainCH.RefId = refId;
-                        mainCH.IslemTuru = $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})";
-                        mainCH.Aciklama = $"[{request.Method}] {request.Description}".Trim();
+                        mainCH.IslemTuru = request.IsAcilisFisi 
+                            ? $"{request.TransactionType} (Açılış Fişi)" 
+                            : $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})";
+                        mainCH.Aciklama = request.IsAcilisFisi
+                            ? (string.IsNullOrWhiteSpace(request.Description) ? "Açılış Fişi (Devir)" : $"[Açılış Fişi] {request.Description}".Trim())
+                            : $"[{request.Method}] {request.Description}".Trim();
                         mainCH.Borc = isOdeme ? request.Amount : 0;
                         mainCH.Alacak = !isOdeme ? request.Amount : 0;
                         mainCH.YonlendirilenCariId = request.DirectedSupplier?.Id;
@@ -140,8 +144,12 @@ namespace ErmayMuhasebe.Services
                         Tarih = request.Date,
                         EvrakNo = evrakNo,
                         RefId = refId,
-                        IslemTuru = $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})",
-                        Aciklama = $"[{request.Method}] {request.Description}".Trim(),
+                        IslemTuru = request.IsAcilisFisi 
+                            ? $"{request.TransactionType} (Açılış Fişi)" 
+                            : $"{request.TransactionType} ({GetMethodAbbreviation(request.Method)})",
+                        Aciklama = request.IsAcilisFisi
+                            ? (string.IsNullOrWhiteSpace(request.Description) ? "Açılış Fişi (Devir)" : $"[Açılış Fişi] {request.Description}".Trim())
+                            : $"[{request.Method}] {request.Description}".Trim(),
                         Borc = isOdeme ? request.Amount : 0,
                         Alacak = !isOdeme ? request.Amount : 0,
                         YonlendirilenCariId = request.DirectedSupplier?.Id,
@@ -159,8 +167,8 @@ namespace ErmayMuhasebe.Services
                     tran.Update(customer);
                 }
 
-                // 2. Kasa veya Banka Hareketi Ekleme (Eğer finans hesabı seçildiyse)
-                if (request.SelectedKasaOrBanka != null)
+                // 2. Kasa veya Banka Hareketi Ekleme (Eğer finans hesabı seçildiyse ve Açılış Fişi değilse)
+                if (!request.IsAcilisFisi && request.SelectedKasaOrBanka != null)
                 {
                     var financialAccount = tran.Find<BankaKart>(request.SelectedKasaOrBanka.Id);
                     if (financialAccount != null)
@@ -220,8 +228,8 @@ namespace ErmayMuhasebe.Services
                     }
                 }
 
-                // 3. Detay Tablolarına Kayıt (Kredi Kartı / EFT)
-                if (request.Method == "Kredi Kartı")
+                // 3. Detay Tablolarına Kayıt (Kredi Kartı / EFT) - Açılış Fişinde finansal kayıt yapılmaz
+                if (!request.IsAcilisFisi && request.Method == "Kredi Kartı")
                 {
                     kk = new KrediKartiIslem
                     {
@@ -241,7 +249,7 @@ namespace ErmayMuhasebe.Services
                     };
                     tran.Insert(kk);
                 }
-                else if (request.Method == "Havale / EFT" || request.Method == "Havale/EFT" || request.Method == "EFT")
+                else if (!request.IsAcilisFisi && (request.Method == "Havale / EFT" || request.Method == "Havale/EFT" || request.Method == "EFT"))
                 {
                     eft = new EftIslem
                     {
@@ -263,8 +271,8 @@ namespace ErmayMuhasebe.Services
                     tran.Insert(eft);
                 }
 
-                // 4. Yönlendirilen Tedarikçi (Ciro / Endorsement) Kayıtları
-                if (request.DirectedSupplier != null)
+                // 4. Yönlendirilen Tedarikçi (Ciro / Endorsement) Kayıtları (Açılış Fişinde ciro olmaz)
+                if (!request.IsAcilisFisi && request.DirectedSupplier != null)
                 {
                     // Tedarikçi Cari Hareketi (Tedarikçi Borçlandırılır - Ödeme Yapıldı)
                     supplierCH = new CariHareket

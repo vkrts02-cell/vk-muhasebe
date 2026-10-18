@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using ErmayMuhasebe.Helpers;
+using ErmayMuhasebe.Shared.Helpers;
 
 namespace ErmayMuhasebe.Shared.ViewModels;
 
@@ -346,7 +347,7 @@ public abstract partial class KrediKartiListViewModel : ViewModelBase
         else list = list.Where(x => x.Grup == "Müşteri").ToList();
 
         if (!string.IsNullOrWhiteSpace(CariSearchText))
-            list = list.Where(x => x.Unvan != null && x.Unvan.Contains(CariSearchText, StringComparison.OrdinalIgnoreCase)).ToList();
+            list = list.Where(x => TurkishSearchHelper.MatchSearch(x.Unvan, CariSearchText) || TurkishSearchHelper.MatchSearch(x.CariKod, CariSearchText)).ToList();
         
         CariListesi = new ObservableCollection<CariKart>(list);
     }

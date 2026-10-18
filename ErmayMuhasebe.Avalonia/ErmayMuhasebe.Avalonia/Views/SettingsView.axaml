@@ -962,7 +962,7 @@
                                 
                                 <TextBlock Text="Uygulama Görünümü Seçin" FontSize="16" FontWeight="SemiBold" Foreground="#9CA3AF" Margin="0,10,0,0"/>
                                 
-                                <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto" ColumnSpacing="20" RowSpacing="20">
+                                <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto, Auto" ColumnSpacing="20" RowSpacing="20">
                                     <!-- 1. Modern SaaS (Mevcut Standart Tasarım) -->
                                     <Button Grid.Row="0" Grid.Column="0" Command="{Binding SetThemeCommand}" CommandParameter="ModernSaaS"
                                             Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
@@ -1039,6 +1039,53 @@
                                                 </Border>
                                                 <TextBlock Text="IDE Profesyonel" FontWeight="Black" FontSize="16" HorizontalAlignment="Center"/>
                                                 <TextBlock Text="Teknik ve odaklanmış VS Code yapısı." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+
+                                    <!-- 5. Pane (Liquid Glass Workspace) -->
+                                    <Button Grid.Row="2" Grid.Column="0" Command="{Binding SetThemeCommand}" CommandParameter="Pane"
+                                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
+                                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{Binding SelectedTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='Pane', Converter={StaticResource BoolToBlueBrushConverter}}" BorderThickness="2" CornerRadius="16" Padding="20">
+                                            <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                                <Border Width="160" Height="80" Background="#090D18" CornerRadius="10" BorderBrush="#503B82F6" BorderThickness="1">
+                                                    <Grid ColumnDefinitions="34, *">
+                                                        <Border Grid.Column="0" Background="#70141E32" CornerRadius="10,0,0,10" BorderBrush="#303B82F6" BorderThickness="0,0,1,0">
+                                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
+                                                                <Border Width="16" Height="16" Background="#403B82F6" CornerRadius="8"/>
+                                                                <Border Width="14" Height="3" Background="#60A5FA" CornerRadius="1.5"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" Margin="10" Spacing="5">
+                                                            <Border Width="45" Height="6" Background="#353B82F6" CornerRadius="3" BorderBrush="#4060A5FA" BorderThickness="0.8" HorizontalAlignment="Left"/>
+                                                            <Border Height="32" Background="#8018243A" CornerRadius="8" BorderBrush="#3060A5FA" BorderThickness="1"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Text="Pane (Liquid Glass)" FontWeight="Black" FontSize="16" Foreground="#60A5FA" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Yarı saydam sıvı cam, ambient wallpaper &amp; hızlı arama çubuğu." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+
+                                    <!-- 6. Rivet (Black & Neon Fintech) -->
+                                    <Button Grid.Row="2" Grid.Column="1" Command="{Binding SetThemeCommand}" CommandParameter="Rivet"
+                                            Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch">
+                                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{Binding SelectedTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='Rivet', Converter={StaticResource BoolToBlueBrushConverter}}" BorderThickness="2" CornerRadius="16" Padding="20">
+                                            <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                                <Border Width="160" Height="80" Background="#050507" CornerRadius="8" BorderBrush="#60D4FF00" BorderThickness="1">
+                                                    <Grid ColumnDefinitions="30, *">
+                                                        <Border Grid.Column="0" Background="#07080C" BorderBrush="#20FFFFFF" BorderThickness="0,0,1,0">
+                                                            <Border Width="3" Height="16" Background="#D4FF00" CornerRadius="1.5" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" Margin="10" Spacing="5">
+                                                            <Border Width="35" Height="5" Background="#D4FF00" CornerRadius="2" HorizontalAlignment="Left"/>
+                                                            <Border Height="30" Background="#0E1017" CornerRadius="4" BorderBrush="#25FFFFFF" BorderThickness="1"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Text="Rivet (Black &amp; Neon)" FontWeight="Black" FontSize="16" Foreground="#D4FF00" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Obsidyen siyah (#050507), neon lime (#D4FF00) fintech arayüzü." FontSize="11" Foreground="#94a3b8" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
                                     </Button>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ErmayMuhasebe.Models;
 using ErmayMuhasebe.Services;
+using ErmayMuhasebe.Shared.Helpers;
 
 namespace ErmayMuhasebe.Repositories.Firebase;
 
@@ -260,8 +261,7 @@ public class FirebaseCariRepository : BaseFirebaseRepository<CariKart>, ICariRep
 
         if (!string.IsNullOrEmpty(search))
         {
-            query = query.Where(c => (c.Unvan != null && c.Unvan.Contains(search, StringComparison.OrdinalIgnoreCase)) || 
-                                     (c.CariKod != null && c.CariKod.Contains(search, StringComparison.OrdinalIgnoreCase)));
+            query = query.Where(c => TurkishSearchHelper.MatchSearch($"{c.Unvan} {c.CariKod} {c.Yetkili} {c.Telefon} {c.VergiNo} {c.TCNo}", search));
         }
 
         var list = query.ToList();

@@ -41,5 +41,8 @@ namespace ErmayMuhasebe.Services
         public int ExistingHareketId { get; set; }
         public string? ExistingEvrakNo { get; set; }
         public string? ExistingRefId { get; set; }
+
+        // Açılış Fişi (Devir) - True ise Finans (Kasa/Banka) hareketi oluşturulmaz
+        public bool IsAcilisFisi { get; set; }
     }
 }

@@ -41,6 +41,7 @@ import {
 import { subscribeToPath, writeData, deleteData } from '../services/firebase';
 import { triggerSelectionHaptic } from '../services/hapticsService';
 import { generateInt32Id } from '../utils/IdGenerator';
+import { matchTurkishSearch } from '../utils/searchHelper';
 
 export interface MusteriTakipKlasor {
   id: number;
@@ -158,19 +159,8 @@ export default function MusteriTakipScreen({ navigation }: any) {
         return false;
       }
       if (searchString.trim()) {
-        const s = searchString.trim().toLowerCase();
-        const unvan = (k.cariUnvan || '').toLowerCase();
-        const kod = (k.cariKod || '').toLowerCase();
-        const tel = (k.telefon || '').toLowerCase();
-        const yetkili = (k.yetkili || '').toLowerCase();
-        const aciklama = (k.aciklama || '').toLowerCase();
-        return (
-          unvan.includes(s) ||
-          kod.includes(s) ||
-          tel.includes(s) ||
-          yetkili.includes(s) ||
-          aciklama.includes(s)
-        );
+        const composite = `${k.cariUnvan || ''} ${k.cariKod || ''} ${k.telefon || ''} ${k.yetkili || ''} ${k.aciklama || ''}`;
+        return matchTurkishSearch(composite, searchString);
       }
       return true;
     }).sort((a, b) => {
@@ -195,12 +185,9 @@ export default function MusteriTakipScreen({ navigation }: any) {
   const filteredCariler = useMemo(() => {
     const available = cariler.filter((c) => !existingCariIds.has(Number(c.id)));
     if (!cariSearchText.trim()) return available;
-    const s = cariSearchText.trim().toLowerCase();
     return available.filter((c) => {
-      const unvan = (c.unvan || '').toLowerCase();
-      const kod = (c.cariKod || '').toLowerCase();
-      const tel = (c.telefon || '').toLowerCase();
-      return unvan.includes(s) || kod.includes(s) || tel.includes(s);
+      const composite = `${c.unvan || ''} ${c.cariKod || ''} ${c.yetkili || ''} ${c.telefon || ''}`;
+      return matchTurkishSearch(composite, cariSearchText);
     });
   }, [cariler, cariSearchText, existingCariIds]);
 

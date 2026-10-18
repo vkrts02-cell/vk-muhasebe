@@ -25,6 +25,8 @@ export interface FinancialTransactionRequest {
   transactionType: IslemTuru;
   method: OdemeYontemi;
   description: string;
+  /** Açılış Fişi (Devir) seçildiğinde Finans (Kasa/Banka) etkilenmez */
+  isAcilisFisi?: boolean;
   /** Nakit -> kasa (Bankalar/kartTuru=Kasa), diğer -> banka hesabı */
   selectedHesap?: { id: number | string; kartTuru?: string; bakiye?: number } | null;
   bankaAdi?: string;
@@ -66,6 +68,14 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
 
   const isOdeme = req.transactionType === 'Ödeme' || req.transactionType === 'Borç Dekontu' || (req.transactionType as string) === 'Borçlandır' || (req.transactionType as string) === 'Borclandir';
   const chId = (req.id !== undefined && !isNaN(Number(req.id)) && Number(req.id) > 0) ? Number(req.id) : generateInt32Id();
+  const isAcilis = !!req.isAcilisFisi;
+  const islemTuru = isAcilis
+    ? `${req.transactionType} (Açılış Fişi)`
+    : `${req.transactionType} (${getMethodAbbr(req.method)})`;
+  const aciklama = isAcilis
+    ? (req.description ? `[Açılış Fişi] ${req.description}`.trim() : 'Açılış Fişi (Devir)')
+    : `[${req.method}] ${req.description}`.trim();
+
   const mainCH = {
     id: chId,
     cariId: req.cari.id,
@@ -73,12 +83,12 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
     tarih: req.date,
     evrakNo,
     refId,
-    islemTuru: `${req.transactionType} (${getMethodAbbr(req.method)})`,
-    aciklama: `[${req.method}] ${req.description}`.trim(),
+    islemTuru,
+    aciklama,
     borc: isOdeme ? req.amount : 0,
     alacak: !isOdeme ? req.amount : 0,
-    yonlendirilenCariId: req.directedSupplier?.id || undefined,
-    yonlendirilenCariUnvan: req.directedSupplier?.unvan || undefined,
+    yonlendirilenCariId: isAcilis ? undefined : (req.directedSupplier?.id || undefined),
+    yonlendirilenCariUnvan: isAcilis ? undefined : (req.directedSupplier?.unvan || undefined),
     isDeleted: false,
   };
 
@@ -101,8 +111,8 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
     written.push(`Cariler/${cariKey}`);
     if (prevCari) rollback.push(async () => { await writeData(`Cariler/${cariKey}`, prevCari); });
 
-    // --- 2. Kasa / Banka hareketi + hesap bakiyesi ---
-    if (req.selectedHesap && req.selectedHesap.id !== undefined && req.selectedHesap.id !== null) {
+    // --- 2. Kasa / Banka hareketi + hesap bakiyesi (Açılış Fişi seçildiyse finans atlanır) ---
+    if (!isAcilis && req.selectedHesap && req.selectedHesap.id !== undefined && req.selectedHesap.id !== null) {
       const isKasa = req.selectedHesap.kartTuru === 'Kasa' || (req.selectedHesap as any).turu === 'Kasa' || req.selectedHesap.kartTuru === undefined;
       const hesapTable = isKasa ? 'Kasalar' : 'Bankalar';
       const hesapKey = String(req.selectedHesap.id);
@@ -197,7 +207,7 @@ export const saveFinancialTransaction = async (req: FinancialTransactionRequest)
     }
 
     // --- 4. Yönlendirilen tedarikçi (ciro) ---
-    if (req.directedSupplier && req.selectedHesap && req.selectedHesap.id !== undefined && req.selectedHesap.id !== null) {
+    if (!isAcilis && req.directedSupplier && req.selectedHesap && req.selectedHesap.id !== undefined && req.selectedHesap.id !== null) {
       const supKey = String(req.directedSupplier.id);
       const supRef = await readData(`Cariler/${supKey}`);
       const prevSup = supRef ? { ...supRef } : null;

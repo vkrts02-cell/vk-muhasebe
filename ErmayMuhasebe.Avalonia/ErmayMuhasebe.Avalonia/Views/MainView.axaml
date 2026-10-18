@@ -77,8 +77,8 @@
                     <!-- MAIN APP VIEW -->
                     <DataTemplate DataType="{x:Type vm:MainViewModel}">
                       <Grid>
-                        <!-- 1. STANDARD LAYOUT (ModernSaaS, Enterprise, WindowsFluent) -->
-                        <Grid RowDefinitions="Auto, *" IsVisible="{Binding CurrentTheme, Converter={StaticResource StringNotEqualsConverter}, ConverterParameter='IDEProfessional'}">
+                        <!-- 1. STANDARD LAYOUT (ModernSaaS, ObsidianGlow, CupertinoGlass) -->
+                        <Grid RowDefinitions="Auto, *" IsVisible="{Binding IsStandardLayout}">
                           <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}" Height="50">
                               <Grid ColumnDefinitions="60, Auto, *, Auto, Auto">
                               <Button Click="TogglePaneButton_Click" Background="Transparent" Width="60" Height="50" Padding="0" Grid.Column="0">
@@ -352,7 +352,7 @@
                         </Grid>
     
                         <!-- 2. IDE PROFESSIONAL LAYOUT -->
-                        <Grid IsVisible="{Binding CurrentTheme, Converter={StaticResource StringEqualsConverter}, ConverterParameter='IDEProfessional'}">
+                        <Grid IsVisible="{Binding IsIDELayout}">
                            <SplitView Name="IDESplitView"
                                       IsPaneOpen="{Binding IsPaneOpen}"
                                       DisplayMode="CompactInline"
@@ -438,7 +438,7 @@
                                     <!-- Bottom Logout Section -->
                                     <Button Grid.Row="1" Command="{Binding LogoutCommand}" Background="Transparent" Height="50" HorizontalAlignment="Stretch" Padding="0">
                                        <Grid ColumnDefinitions="50, *">
-                                          <ic:SymbolIcon Grid.Column="0" Symbol="SignOut" FontSize="22" Foreground="#EF4444" HorizontalAlignment="Center"/>
+                                          <ic:SymbolIcon Grid.Column="0" Symbol="SignOut" FontSize="22" Foreground="#EF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                           <TextBlock Grid.Column="1" Text="Çıkış Yap" VerticalAlignment="Center" FontSize="13" Foreground="#EF4444" IsVisible="{Binding $parent[SplitView].IsPaneOpen}" Margin="5,0,0,0"/>
                                        </Grid>
                                     </Button>
@@ -568,42 +568,611 @@
                                     <Grid ColumnDefinitions="*, Auto, *">
                                         <!-- SOL: Döviz Kuru, Aktif Mali Yıl -->
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.8" IsVisible="{Binding CurrentSettings.ShowExchangeRates}">
-                                                <ic:SymbolIcon Symbol="Money" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding LiveExchangeRates}" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9" IsVisible="{Binding CurrentSettings.ShowExchangeRates}">
+                                                <ic:SymbolIcon Symbol="Money" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding LiveExchangeRates}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.3" VerticalAlignment="Center" IsVisible="{Binding CurrentSettings.ShowExchangeRates}"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.8">
-                                                <ic:SymbolIcon Symbol="Calendar" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="|" FontSize="11" Foreground="White" Opacity="0.4" VerticalAlignment="Center" IsVisible="{Binding CurrentSettings.ShowExchangeRates}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
+                                                <ic:SymbolIcon Symbol="Calendar" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
 
                                         <!-- ORTA: Tarih ve Saat -->
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Opacity="0.8" IsVisible="{Binding CurrentSettings.ShowDateTime}">
-                                            <ic:SymbolIcon Symbol="Clock" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding LiveDateTime}" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Opacity="0.9" IsVisible="{Binding CurrentSettings.ShowDateTime}">
+                                            <ic:SymbolIcon Symbol="Clock" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding LiveDateTime}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <!-- SAĞ: Kullanıcı Adı, İnternet Durumu ve Bulut Eşitleme -->
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.8">
-                                                <ic:SymbolIcon Symbol="Person" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding CurrentUserName}" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
+                                                <ic:SymbolIcon Symbol="Person" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding CurrentUserName}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.3" VerticalAlignment="Center"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.8">
-                                                <ic:SymbolIcon Symbol="{Binding ConnectionStatusIcon, Converter={StaticResource SymbolIconConverter}}" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding ConnectionStatusText}" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="|" FontSize="11" Foreground="White" Opacity="0.4" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
+                                                <ic:SymbolIcon Symbol="{Binding ConnectionStatusIcon, Converter={StaticResource SymbolIconConverter}}" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.3" VerticalAlignment="Center"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.8">
-                                                <ic:SymbolIcon Symbol="CloudCheckmark" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding SyncStatusText}" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="|" FontSize="11" Foreground="White" Opacity="0.4" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
+                                                <ic:SymbolIcon Symbol="CloudCheckmark" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding SyncStatusText}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
                                </Border>
+                                 </Grid>
+                              </SplitView.Content>
+                           </SplitView>
+                        </Grid>
+
+                        <!-- 3. PANE LIQUID GLASS LAYOUT (demo.codeandchill.store/pane) -->
+                        <Grid IsVisible="{Binding IsPaneLayout}">
+                           <!-- Pane Ambient Mesh Wallpaper -->
+                           <Border Background="{DynamicResource WallpaperBrush}"/>
+                           <Border Opacity="0.45" IsHitTestVisible="False">
+                              <Border.Background>
+                                 <RadialGradientBrush Center="12%,18%" GradientOrigin="12%,18%" RadiusX="55%" RadiusY="55%">
+                                    <GradientStop Color="#4D3B82F6" Offset="0"/>
+                                    <GradientStop Color="#00090B11" Offset="1"/>
+                                 </RadialGradientBrush>
+                              </Border.Background>
+                           </Border>
+                           <Border Opacity="0.30" IsHitTestVisible="False">
+                              <Border.Background>
+                                 <RadialGradientBrush Center="88%,82%" GradientOrigin="88%,82%" RadiusX="50%" RadiusY="50%">
+                                    <GradientStop Color="#386366F1" Offset="0"/>
+                                    <GradientStop Color="#00090B11" Offset="1"/>
+                                 </RadialGradientBrush>
+                              </Border.Background>
+                           </Border>
+
+                           <SplitView Name="PaneSplitView"
+                                      IsPaneOpen="{Binding IsPaneOpen}"
+                                      DisplayMode="CompactInline"
+                                      CompactPaneLength="72"
+                                      OpenPaneLength="215"
+                                      Background="Transparent"
+                                      PaneBackground="Transparent">
+                              <SplitView.Transitions>
+                                 <Transitions>
+                                    <DoubleTransition Property="OpenPaneLength" Duration="0:0:0.4" Easing="CircularEaseOut"/>
+                                 </Transitions>
+                              </SplitView.Transitions>
+
+                              <SplitView.Pane>
+                                 <!-- Floating Glass Capsule Sidebar -->
+                                 <Border Margin="14,14,0,14" 
+                                         CornerRadius="22" 
+                                         Background="#660E1422" 
+                                         BorderBrush="#25FFFFFF" 
+                                         BorderThickness="1"
+                                         ClipToBounds="True">
+                                    <Grid RowDefinitions="Auto, *, Auto">
+                                       <!-- Brand: Pane Capsule Mark -->
+                                       <Border Grid.Row="0" Padding="14,18,14,12" Background="Transparent">
+                                          <Grid ColumnDefinitions="42, *">
+                                             <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12" Background="#263B82F6" BorderBrush="#453B82F6" BorderThickness="1" HorizontalAlignment="Center">
+                                                <ic:SymbolIcon Symbol="AppGeneric" FontSize="20" Foreground="#60A5FA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                             </Border>
+                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" IsVisible="{Binding IsPaneOpen}">
+                                                <TextBlock Text="ERMAY" FontWeight="Black" FontSize="15" LetterSpacing="2" Foreground="White"/>
+                                                <TextBlock Text="VK ÖN MUHASEBE" FontSize="9" FontWeight="Bold" LetterSpacing="1" Foreground="#60A5FA" Opacity="0.9"/>
+                                             </StackPanel>
+                                          </Grid>
+                                       </Border>
+
+                                       <!-- Navigation List -->
+                                       <ListBox Grid.Row="1"
+                                                x:Name="PaneSidebarListBox"
+                                                ItemsSource="{Binding MenuItems}"
+                                                SelectedItem="{Binding SelectedMenuItem}"
+                                                Background="Transparent"
+                                                Padding="0,4"
+                                                VerticalAlignment="Stretch"
+                                                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                          <ListBox.Styles>
+                                             <Style Selector="ListBoxItem">
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="Margin" Value="8,2"/>
+                                                <Setter Property="Height" Value="42"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Template">
+                                                   <ControlTemplate>
+                                                      <Border Name="PART_RootBorder"
+                                                              Background="{TemplateBinding Background}"
+                                                              CornerRadius="12"
+                                                              BorderBrush="Transparent"
+                                                              BorderThickness="1"
+                                                              Padding="8,0">
+                                                         <ContentPresenter Name="PART_ContentPresenter"
+                                                                           Content="{TemplateBinding Content}"
+                                                                           ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                           VerticalAlignment="Center"/>
+                                                      </Border>
+                                                   </ControlTemplate>
+                                                </Setter>
+                                             </Style>
+                                             <Style Selector="ListBoxItem:pointerover /template/ Border#PART_RootBorder">
+                                                <Setter Property="Background" Value="rgba(255, 255, 255, 0.06)"/>
+                                             </Style>
+                                             <Style Selector="ListBoxItem:selected /template/ Border#PART_RootBorder">
+                                                <Setter Property="Background" Value="rgba(59, 130, 246, 0.22)"/>
+                                                <Setter Property="BorderBrush" Value="#453B82F6"/>
+                                             </Style>
+                                             <Style Selector="ListBoxItem:selected TextBlock">
+                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                             </Style>
+                                             <Style Selector="ListBoxItem:selected ic|SymbolIcon">
+                                                <Setter Property="Foreground" Value="#60A5FA"/>
+                                             </Style>
+                                          </ListBox.Styles>
+                                          <ListBox.ItemTemplate>
+                                             <DataTemplate>
+                                                <Grid ColumnDefinitions="36, *" Background="Transparent" ToolTip.Tip="{Binding Name}">
+                                                   <ic:SymbolIcon Grid.Column="0"
+                                                                  Symbol="{Binding IconKey, Converter={StaticResource SymbolIconConverter}}"
+                                                                  FontSize="19"
+                                                                  Foreground="#94A3B8"
+                                                                  HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                                   <TextBlock Grid.Column="1"
+                                                              Text="{Binding Name}"
+                                                              VerticalAlignment="Center"
+                                                              FontSize="13"
+                                                              Foreground="#CBD5E1"
+                                                              Margin="8,0,0,0"
+                                                              IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
+                                                </Grid>
+                                             </DataTemplate>
+                                          </ListBox.ItemTemplate>
+                                       </ListBox>
+
+                                       <!-- Bottom User Profile Pill (btn-me) -->
+                                       <Border Grid.Row="2" Margin="8,4,8,10" Padding="8,10" Background="rgba(255, 255, 255, 0.03)" CornerRadius="14" BorderBrush="#15FFFFFF" BorderThickness="1">
+                                          <Grid ColumnDefinitions="36, *, Auto">
+                                             <Border Grid.Column="0" Width="34" Height="34" CornerRadius="17" Background="rgba(59, 130, 246, 0.25)" BorderBrush="#403B82F6" BorderThickness="1">
+                                                <TextBlock Text="VK" FontWeight="Bold" FontSize="12" Foreground="#60A5FA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                             </Border>
+                                             <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" IsVisible="{Binding IsPaneOpen}">
+                                                <TextBlock Text="{Binding CurrentUserName}" FontWeight="SemiBold" FontSize="12" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="Yönetici" FontSize="10" Foreground="#94A3B8"/>
+                                             </StackPanel>
+                                             <Button Grid.Column="2" Command="{Binding LogoutCommand}" Background="Transparent" Padding="4" BorderThickness="0" ToolTip.Tip="Çıkış Yap">
+                                                <ic:SymbolIcon Symbol="SignOut" FontSize="16" Foreground="#EF4444"/>
+                                             </Button>
+                                          </Grid>
+                                       </Border>
+                                    </Grid>
+                                 </Border>
+                              </SplitView.Pane>
+
+                              <SplitView.Content>
+                                 <Grid RowDefinitions="Auto, *, Auto">
+                                    <!-- Floating Top Toolbar -->
+                                    <Border Grid.Row="0" Margin="14,14,14,8">
+                                       <Grid ColumnDefinitions="Auto, *, Auto, Auto">
+                                          <!-- Left Title Pill -->
+                                          <Border Grid.Column="0" 
+                                                  Background="#660E1422" 
+                                                  BorderBrush="#25FFFFFF" 
+                                                  BorderThickness="1" 
+                                                  CornerRadius="18" 
+                                                  Padding="14,8"
+                                                  VerticalAlignment="Center">
+                                             <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button Click="TogglePaneButton_Click" Background="Transparent" Padding="0" Margin="0" Width="20" Height="20" BorderThickness="0" ToolTip.Tip="Menüyü Genişlet / Daralt">
+                                                   <ic:SymbolIcon Symbol="Navigation" FontSize="16" Foreground="#60A5FA"/>
+                                                </Button>
+                                                <TextBlock Text="{Binding SelectedMenuItem.Name}" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                             </StackPanel>
+                                          </Border>
+
+                                          <!-- Center Floating Search Pill (Pane Signature) -->
+                                          <Border Grid.Column="1" 
+                                                  HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center"
+                                                  Background="#660E1422" 
+                                                  BorderBrush="#25FFFFFF" 
+                                                  BorderThickness="1" 
+                                                  CornerRadius="20" 
+                                                  Padding="14,6" 
+                                                  MinWidth="240">
+                                             <Grid ColumnDefinitions="Auto, *, Auto">
+                                                <ic:SymbolIcon Grid.Column="0" Symbol="Search" FontSize="15" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="Her şeyi arayın..." FontSize="12" Foreground="#94A3B8" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="2" Background="rgba(255, 255, 255, 0.08)" CornerRadius="6" Padding="6,2" BorderBrush="#20FFFFFF" BorderThickness="0.8">
+                                                   <TextBlock Text="Ctrl+K" FontSize="10" FontWeight="Bold" Foreground="#CBD5E1"/>
+                                                </Border>
+                                             </Grid>
+                                          </Border>
+
+                                          <!-- Right Action Pills -->
+                                          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,10,0">
+                                             <!-- Fiscal Year Pill -->
+                                             <Button Command="{Binding SwitchFiscalYearCommand}" 
+                                                     Background="#660E1422" 
+                                                     BorderBrush="#25FFFFFF" 
+                                                     BorderThickness="1" 
+                                                     CornerRadius="18" 
+                                                     Padding="12,7" 
+                                                     ToolTip.Tip="Mali Yıl Değiştir">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                   <ic:SymbolIcon Symbol="Calendar" FontSize="15" Foreground="#60A5FA"/>
+                                                   <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                                                </StackPanel>
+                                             </Button>
+
+                                             <!-- Notifications Pill -->
+                                             <Button Classes="IconButton" 
+                                                     Background="#660E1422" 
+                                                     BorderBrush="#25FFFFFF" 
+                                                     BorderThickness="1" 
+                                                     CornerRadius="18" 
+                                                     Width="38" 
+                                                     Height="38" 
+                                                     Padding="0">
+                                                <Panel>
+                                                   <ic:SymbolIcon Symbol="Alert" FontSize="18" Foreground="White"/>
+                                                   <Border IsVisible="{Binding HasUnreadNotifications}" Background="#EF4444" Width="7" Height="7" CornerRadius="3.5" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"/>
+                                                </Panel>
+                                             </Button>
+                                          </StackPanel>
+
+                                          <!-- Empty space for window buttons -->
+                                          <Border Grid.Column="3" Width="140"/>
+                                       </Grid>
+                                    </Border>
+
+                                    <!-- Main Content Glass Workspace -->
+                                    <Border Grid.Row="1" 
+                                            Margin="14,0,14,10" 
+                                            CornerRadius="20" 
+                                            Background="#400E1422" 
+                                            BorderBrush="#20FFFFFF" 
+                                            BorderThickness="1" 
+                                            ClipToBounds="True">
+                                       <TransitioningContentControl Content="{Binding CurrentPage}" Padding="15">
+                                          <TransitioningContentControl.PageTransition>
+                                             <CrossFade Duration="0:0:0.250" />
+                                          </TransitioningContentControl.PageTransition>
+                                       </TransitioningContentControl>
+                                    </Border>
+
+                                    <!-- Docked Bottom Status Bar -->
+                                    <Border Grid.Row="2" 
+                                            Height="30" 
+                                            Background="#101522" 
+                                            BorderBrush="#20FFFFFF" 
+                                            BorderThickness="0,1,0,0" 
+                                            Padding="16,0">
+                                       <Grid ColumnDefinitions="*, Auto, *">
+                                          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
+                                             <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.85">
+                                                <ic:SymbolIcon Symbol="Money" FontSize="13" Foreground="#60A5FA"/>
+                                                <TextBlock Text="{Binding LiveExchangeRates}" FontSize="11" Foreground="#CBD5E1"/>
+                                             </StackPanel>
+                                             <TextBlock Text="•" FontSize="11" Opacity="0.3" Foreground="White"/>
+                                             <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.85">
+                                                <ic:SymbolIcon Symbol="Calendar" FontSize="13" Foreground="#60A5FA"/>
+                                                <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="11" Foreground="#CBD5E1"/>
+                                             </StackPanel>
+                                          </StackPanel>
+
+                                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Opacity="0.85">
+                                             <ic:SymbolIcon Symbol="Clock" FontSize="13" Foreground="#60A5FA"/>
+                                             <TextBlock Text="{Binding LiveDateTime}" FontSize="11" Foreground="#CBD5E1"/>
+                                          </StackPanel>
+
+                                          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                             <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.85">
+                                                <ic:SymbolIcon Symbol="Person" FontSize="13" Foreground="#60A5FA"/>
+                                                <TextBlock Text="{Binding CurrentUserName}" FontSize="11" Foreground="#CBD5E1"/>
+                                             </StackPanel>
+                                             <TextBlock Text="•" FontSize="11" Opacity="0.3" Foreground="White"/>
+                                             <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.85">
+                                                <ic:SymbolIcon Symbol="CloudCheckmark" FontSize="13" Foreground="#10B981"/>
+                                                <TextBlock Text="{Binding SyncStatusText}" FontSize="11" Foreground="#CBD5E1"/>
+                                             </StackPanel>
+                                          </StackPanel>
+                                       </Grid>
+                                    </Border>
+                                 </Grid>
+                              </SplitView.Content>
+                           </SplitView>
+                        </Grid>
+
+                        <!-- 4. RIVET BLACK & NEON FINTECH LAYOUT (demo.codeandchill.store/rivet) -->
+                        <Grid IsVisible="{Binding IsRivetLayout}" Background="#050507">
+                           <SplitView Name="RivetSplitView"
+                                      IsPaneOpen="{Binding IsPaneOpen}"
+                                      DisplayMode="CompactInline"
+                                      CompactPaneLength="64"
+                                      OpenPaneLength="215"
+                                      Background="#050507"
+                                      PaneBackground="#07080C">
+                              <SplitView.Transitions>
+                                 <Transitions>
+                                    <DoubleTransition Property="OpenPaneLength" Duration="0:0:0.35" Easing="CircularEaseOut"/>
+                                 </Transitions>
+                              </SplitView.Transitions>
+
+                              <SplitView.Pane>
+                                 <Grid RowDefinitions="Auto, *, Auto" Background="#07080C">
+                                    <Border Grid.RowSpan="3" BorderBrush="#1FFFFFFF" BorderThickness="0,0,1,0" HorizontalAlignment="Right" Width="1"/>
+
+                                    <!-- Rivet Brand Header -->
+                                    <Border Grid.Row="0" Height="50" Padding="16,0" Background="#07080C" BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1">
+                                       <Grid ColumnDefinitions="32, *">
+                                          <Border Grid.Column="0" Width="28" Height="28" CornerRadius="6" Background="#141722" BorderBrush="#3538BDF8" BorderThickness="1" HorizontalAlignment="Center">
+                                             <Grid>
+                                                <ic:SymbolIcon Symbol="DataPie" FontSize="16" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                             </Grid>
+                                          </Border>
+                                          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0" IsVisible="{Binding IsPaneOpen}" Spacing="4">
+                                             <TextBlock Text="VK MUHASEBE" FontWeight="Black" FontSize="16" LetterSpacing="2" Foreground="White"/>
+                                             <Border Width="6" Height="6" Background="#38BDF8" CornerRadius="3" VerticalAlignment="Center"/>
+                                          </StackPanel>
+                                       </Grid>
+                                    </Border>
+
+                                    <!-- Rivet Navigation Menu -->
+                                    <ListBox Grid.Row="1"
+                                             x:Name="RivetSidebarListBox"
+                                             ItemsSource="{Binding MenuItems}"
+                                             SelectedItem="{Binding SelectedMenuItem}"
+                                             Background="Transparent"
+                                             Padding="0,8"
+                                             VerticalAlignment="Stretch"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                       <ListBox.Styles>
+                                          <Style Selector="ListBoxItem">
+                                             <Setter Property="Padding" Value="0"/>
+                                             <Setter Property="Margin" Value="6,1"/>
+                                             <Setter Property="Height" Value="42"/>
+                                             <Setter Property="Background" Value="Transparent"/>
+                                             <Setter Property="Template">
+                                                <ControlTemplate>
+                                                   <Border Name="PART_RootBorder"
+                                                           Background="{TemplateBinding Background}"
+                                                           CornerRadius="8"
+                                                           BorderBrush="Transparent"
+                                                           BorderThickness="3,0,0,0"
+                                                           Padding="10,0">
+                                                      <ContentPresenter Name="PART_ContentPresenter"
+                                                                        Content="{TemplateBinding Content}"
+                                                                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                        VerticalAlignment="Center"/>
+                                                   </Border>
+                                                </ControlTemplate>
+                                             </Setter>
+                                          </Style>
+                                          <Style Selector="ListBoxItem:pointerover /template/ Border#PART_RootBorder">
+                                             <Setter Property="Background" Value="#10121A"/>
+                                          </Style>
+                                          <Style Selector="ListBoxItem:selected /template/ Border#PART_RootBorder">
+                                             <Setter Property="Background" Value="rgba(56, 189, 248, 0.12)"/>
+                                             <Setter Property="BorderBrush" Value="#38BDF8"/>
+                                          </Style>
+                                          <Style Selector="ListBoxItem:selected TextBlock">
+                                             <Setter Property="Foreground" Value="#FFFFFF"/>
+                                             <Setter Property="FontWeight" Value="Bold"/>
+                                          </Style>
+                                          <Style Selector="ListBoxItem:selected ic|SymbolIcon">
+                                             <Setter Property="Foreground" Value="#38BDF8"/>
+                                          </Style>
+                                       </ListBox.Styles>
+                                       <ListBox.ItemTemplate>
+                                          <DataTemplate>
+                                             <Grid ColumnDefinitions="32, *" Background="Transparent" ToolTip.Tip="{Binding Name}">
+                                                <ic:SymbolIcon Grid.Column="0"
+                                                               Symbol="{Binding IconKey, Converter={StaticResource SymbolIconConverter}}"
+                                                               FontSize="18"
+                                                               Foreground="#8E8E93"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Name}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Foreground="#C5C5C7"
+                                                           Margin="10,0,0,0"
+                                                           IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
+                                             </Grid>
+                                          </DataTemplate>
+                                       </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                    <!-- Bottom User / Logout Bar (Aligned to 42px) -->
+                                    <Border Grid.Row="2" Height="42" Padding="12,0" Background="#07080C" BorderBrush="#1AFFFFFF" BorderThickness="0,1,0,0">
+                                       <Grid ColumnDefinitions="32, *, Auto" VerticalAlignment="Center">
+                                          <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14" Background="#141722" BorderBrush="#3538BDF8" BorderThickness="1">
+                                             <ic:SymbolIcon Symbol="Person" FontSize="14" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                          </Border>
+                                          <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" IsVisible="{Binding IsPaneOpen}">
+                                             <TextBlock Text="{Binding CurrentUserName}" FontWeight="Bold" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                             <TextBlock Text="Finans Yöneticisi" FontSize="9" Foreground="#8E8E93"/>
+                                          </StackPanel>
+                                          <Button Grid.Column="2" Command="{Binding LogoutCommand}" Classes="IconButton" Width="28" Height="28" Padding="0" ToolTip.Tip="Çıkış Yap">
+                                             <ic:SymbolIcon Symbol="SignOut" FontSize="15" Foreground="#EF4444"/>
+                                          </Button>
+                                       </Grid>
+                                    </Border>
+                                 </Grid>
+                              </SplitView.Pane>
+
+                              <SplitView.Content>
+                                 <Grid RowDefinitions="Auto, *, Auto" Background="#050507">
+                                    <!-- Rivet Topbar -->
+                                    <Border Grid.Row="0" Height="50" Background="#07080C" BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1" Padding="16,0">
+                                       <Grid ColumnDefinitions="Auto, *, Auto, Auto">
+                                          <Button Click="TogglePaneButton_Click" Background="Transparent" Padding="0" Width="32" Height="32" BorderThickness="0" ToolTip.Tip="Menü">
+                                             <ic:SymbolIcon Symbol="Navigation" FontSize="18" Foreground="White"/>
+                                          </Button>
+
+                                          <!-- Search Input Bar -->
+                                          <Border Grid.Column="1" 
+                                                  HorizontalAlignment="Left" 
+                                                  VerticalAlignment="Center"
+                                                  Margin="16,0,0,0"
+                                                  Background="#0D0E14" 
+                                                  BorderBrush="#25FFFFFF" 
+                                                  BorderThickness="1" 
+                                                  CornerRadius="8" 
+                                                  Padding="12,6" 
+                                                  Width="280">
+                                             <Grid ColumnDefinitions="Auto, *">
+                                                <ic:SymbolIcon Grid.Column="0" Symbol="Search" FontSize="15" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="Her şeyi arayın..." FontSize="12" Foreground="#8E8E93" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                             </Grid>
+                                          </Border>
+
+                                          <!-- Right Controls: Fiscal Year, Bell, User -->
+                                          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,10,0">
+                                             <Button Command="{Binding SwitchFiscalYearCommand}" 
+                                                     Background="#0D0E14" 
+                                                     BorderBrush="#30FFFFFF" 
+                                                     BorderThickness="1" 
+                                                     CornerRadius="8" 
+                                                     Padding="10,6"
+                                                     ToolTip.Tip="Mali Yıl Değiştir">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                   <ic:SymbolIcon Symbol="Calendar" FontSize="14" Foreground="#38BDF8"/>
+                                                   <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                                </StackPanel>
+                                             </Button>
+
+                                             <!-- Notification with alert indicator dot & Flyout -->
+                                             <Button Classes="IconButton" 
+                                                     Background="#0D0E14" 
+                                                     BorderBrush="#30FFFFFF" 
+                                                     BorderThickness="1" 
+                                                     CornerRadius="8" 
+                                                     Width="34" 
+                                                     Height="34" 
+                                                     Padding="0"
+                                                     ToolTip.Tip="Bildirimler">
+                                                <Panel>
+                                                   <ic:SymbolIcon Symbol="Alert" FontSize="17" Foreground="White"/>
+                                                   <Border IsVisible="{Binding HasUnreadNotifications}" Background="#EF4444" Width="7" Height="7" CornerRadius="3.5" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"/>
+                                                </Panel>
+                                                <Button.Flyout>
+                                                   <Flyout Placement="BottomEdgeAlignedRight">
+                                                      <Border Width="320" Padding="15" Background="#0E1017" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12">
+                                                         <StackPanel Spacing="10">
+                                                            <!-- Header -->
+                                                            <Grid ColumnDefinitions="*, Auto">
+                                                               <TextBlock Text="Bildirimler" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                                  <Button Command="{Binding MarkAllAsReadCommand}" Classes="IconButton" ToolTip.Tip="Tümünü Okundu İşaretle">
+                                                                     <ic:SymbolIcon Symbol="MailRead" FontSize="16" Foreground="#38BDF8"/>
+                                                                  </Button>
+                                                                  <Button Command="{Binding ClearNotificationsCommand}" Classes="IconButton" ToolTip.Tip="Tümünü Temizle">
+                                                                     <ic:SymbolIcon Symbol="Delete" FontSize="16" Foreground="#EF4444"/>
+                                                                  </Button>
+                                                               </StackPanel>
+                                                            </Grid>
+                                                            
+                                                            <Separator Background="#20FFFFFF" Height="1" Margin="0,5"/>
+                                                            
+                                                            <!-- Notifications List -->
+                                                            <ScrollViewer MaxHeight="250">
+                                                               <Panel>
+                                                                  <TextBlock Text="Yeni bildirim bulunmuyor." FontSize="12" Opacity="0.5" HorizontalAlignment="Center" Margin="0,20" IsVisible="{Binding !Notifications.Count}"/>
+                                                                  <ItemsControl ItemsSource="{Binding Notifications}">
+                                                                     <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate DataType="vm:NotificationItem">
+                                                                           <Button Command="{Binding $parent[ItemsControl].DataContext.NotificationClickCommand}"
+                                                                                   CommandParameter="{Binding}"
+                                                                                   Background="Transparent"
+                                                                                   BorderThickness="0"
+                                                                                   Padding="0"
+                                                                                   HorizontalAlignment="Stretch"
+                                                                                   HorizontalContentAlignment="Stretch">
+                                                                              <Border Background="Transparent" Padding="5,8" BorderBrush="#15FFFFFF" BorderThickness="0,0,0,1">
+                                                                                 <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
+                                                                                    <Border Grid.Column="0" Width="8" Height="8" CornerRadius="4" Background="#F59E0B" VerticalAlignment="Center" IsVisible="{Binding !IsRead}"/>
+                                                                                    <ic:SymbolIcon Grid.Column="0" Symbol="{Binding Icon, Converter={StaticResource SymbolIconConverter}}" FontSize="18" Foreground="#F59E0B" VerticalAlignment="Center" IsVisible="{Binding IsRead}"/>
+                                                                                    
+                                                                                    <StackPanel Grid.Column="1" Spacing="2">
+                                                                                       <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="12" Foreground="White"/>
+                                                                                       <TextBlock Text="{Binding Message}" FontSize="11" Foreground="#94a3b8" TextWrapping="Wrap"/>
+                                                                                       <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" FontSize="9" Opacity="0.5"/>
+                                                                                    </StackPanel>
+                                                                                    
+                                                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                                       <Button Command="{Binding $parent[ItemsControl].DataContext.MarkAsReadCommand}" CommandParameter="{Binding}" IsVisible="{Binding !IsRead}" Classes="IconButton" ToolTip.Tip="Okundu İşaretle">
+                                                                                          <ic:SymbolIcon Symbol="Checkmark" FontSize="14" Foreground="#10B981"/>
+                                                                                       </Button>
+                                                                                       <Button Command="{Binding $parent[ItemsControl].DataContext.DeleteNotificationCommand}" CommandParameter="{Binding}" Classes="IconButton" ToolTip.Tip="Sil">
+                                                                                          <ic:SymbolIcon Symbol="Dismiss" FontSize="14" Foreground="#EF4444"/>
+                                                                                       </Button>
+                                                                                    </StackPanel>
+                                                                                 </Grid>
+                                                                              </Border>
+                                                                           </Button>
+                                                                        </DataTemplate>
+                                                                     </ItemsControl.ItemTemplate>
+                                                                  </ItemsControl>
+                                                               </Panel>
+                                                            </ScrollViewer>
+                                                         </StackPanel>
+                                                      </Border>
+                                                   </Flyout>
+                                                </Button.Flyout>
+                                             </Button>
+                                          </StackPanel>
+
+                                          <!-- Space for window control buttons -->
+                                          <Border Grid.Column="3" Width="140"/>
+                                       </Grid>
+                                    </Border>
+
+                                    <!-- Main Fintech Workspace Content -->
+                                    <Border Grid.Row="1" Background="#050507">
+                                       <TransitioningContentControl Content="{Binding CurrentPage}" Padding="16">
+                                          <TransitioningContentControl.PageTransition>
+                                             <CrossFade Duration="0:0:0.200" />
+                                          </TransitioningContentControl.PageTransition>
+                                       </TransitioningContentControl>
+                                    </Border>
+
+                                    <!-- Rivet Status Bar (Aligned to 42px) -->
+                                    <Border Grid.Row="2" Height="42" Background="#07080C" BorderBrush="#1AFFFFFF" BorderThickness="0,1,0,0" Padding="16,0">
+                                       <Grid ColumnDefinitions="*, Auto, *" VerticalAlignment="Center">
+                                          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <ic:SymbolIcon Symbol="Money" FontSize="14" Foreground="#38BDF8"/>
+                                                <TextBlock Text="{Binding LiveExchangeRates}" FontSize="11" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                                             </StackPanel>
+                                             <TextBlock Text="•" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <ic:SymbolIcon Symbol="Calendar" FontSize="14" Foreground="#38BDF8"/>
+                                                <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="11" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                                             </StackPanel>
+                                          </StackPanel>
+
+                                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                             <ic:SymbolIcon Symbol="Clock" FontSize="14" Foreground="#94A3B8"/>
+                                             <TextBlock Text="{Binding LiveDateTime}" FontSize="11" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                                          </StackPanel>
+
+                                          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                             <!-- Cloud sync status with glowing indicator dot -->
+                                             <Border Background="#121822" BorderBrush="#2510B981" BorderThickness="1" CornerRadius="6" Padding="8,4">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                   <Border Width="6" Height="6" CornerRadius="3" Background="#10B981"/>
+                                                   <ic:SymbolIcon Symbol="CloudCheckmark" FontSize="13" Foreground="#10B981"/>
+                                                   <TextBlock Text="{Binding SyncStatusText}" FontSize="10" FontWeight="Bold" Foreground="#10B981"/>
+                                                </StackPanel>
+                                             </Border>
+                                          </StackPanel>
+                                       </Grid>
+                                    </Border>
                                  </Grid>
                               </SplitView.Content>
                            </SplitView>

@@ -5,6 +5,7 @@ import { subscribeToPath, writeData, readData, mapAppToDatabase } from '../servi
 import { generateInt32Id } from '../utils/IdGenerator';
 import { generateReportPdf } from '../services/pdfService';
 import { KeyboardDoneAccessory, KEYBOARD_ACCESSORY_ID } from '../components/KeyboardDoneAccessory';
+import { matchTurkishSearch } from '../utils/searchHelper';
 
 const BIRIM_LISTESI = ['Adet', 'Kg', 'Mt', 'M2'];
 
@@ -123,8 +124,8 @@ export default function TeklifFormScreen({ route, navigation }: any) {
   }, []);
 
   const filteredTeklifler = teklifler.filter(t => 
-    (t.cariUnvan || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR')) ||
-    (t.teklifNo || '').toLocaleLowerCase('tr-TR').includes(searchQuery.toLocaleLowerCase('tr-TR'))
+    matchTurkishSearch(t.cariUnvan, searchQuery) ||
+    matchTurkishSearch(t.teklifNo, searchQuery)
   );
 
   const generateTeklifNo = () => {

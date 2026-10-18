@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using ErmayMuhasebe.Models;
 using ErmayMuhasebe.Services;
+using ErmayMuhasebe.Shared.Helpers;
 using SQLite;
 
 namespace ErmayMuhasebe.Repositories;
@@ -509,15 +510,19 @@ public class CariRepository : BaseRepository<CariKart>, ICariRepository
     public async Task<CariSummary> GetGlobalSummaryAsync(string? search = null)
     {
         var db = await GetConnectionAsync();
-        var query = db.Table<CariKart>().Where(x => !x.IsDeleted);
+        var allCaris = await db.Table<CariKart>().Where(x => !x.IsDeleted).ToListAsync();
 
-        if (!string.IsNullOrEmpty(search))
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(c => (c.Unvan != null && c.Unvan.Contains(search)) || 
-                                     (c.CariKod != null && c.CariKod.Contains(search)));
+            allCaris = allCaris.Where(c => 
+                TurkishSearchHelper.MatchSearch(c.Unvan, search) || 
+                TurkishSearchHelper.MatchSearch(c.CariKod, search) ||
+                TurkishSearchHelper.MatchSearch(c.Yetkili, search) ||
+                TurkishSearchHelper.MatchSearch(c.Telefon, search) ||
+                TurkishSearchHelper.MatchSearch(c.VergiNo, search) ||
+                TurkishSearchHelper.MatchSearch(c.TCNo, search)
+            ).ToList();
         }
-
-        var allCaris = await query.ToListAsync();
         
         return new CariSummary
         {

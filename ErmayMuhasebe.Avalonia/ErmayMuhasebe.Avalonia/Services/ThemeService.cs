@@ -13,7 +13,9 @@ namespace ErmayMuhasebe.Services
             ModernSaaS,      // Standart / Mevcut Tasarım (Orijinal)
             ObsidianGlow,    // 1. Konsept: Obsidian Glow (Ultra Modern Koyu Lüks, Neon Turkuaz & Çivit Mavi)
             CupertinoGlass,  // 2. Konsept: Cupertino Frosted Glass (Apple macOS Akrilik Buzlu Cam & Safir Mavi)
-            IDEProfessional  // IDE Profesyonel (VS Code Stili)
+            IDEProfessional, // IDE Profesyonel (VS Code Stili)
+            Pane,            // Pane Liquid Glass (demo.codeandchill.store/pane - Yarı Saydam Sıvı Cam, Electric Blue, Mesh Wallpaper)
+            Rivet            // Rivet Black & Neon (demo.codeandchill.store/rivet - Pitch Black #050507, Neon Lime #D4FF00, Fintech)
         }
 
         public AppTheme CurrentTheme { get; private set; } = AppTheme.ModernSaaS;
@@ -64,10 +66,79 @@ namespace ErmayMuhasebe.Services
             // Define Theme Variables
             Color primary, background, surface, panelColor, solidPanelColor, sidebarColor, text, secondaryText, borderColor;
             LinearGradientBrush fluidGradient;
+            IBrush wallpaperBrush;
             double controlCorner, cardCorner, layoutPadding;
 
             switch (theme)
             {
+                case AppTheme.Pane:
+                    // Pane Liquid Glass (demo.codeandchill.store/pane - Sıvı Akrilik Cam, Electric Blue, Ambient Wallpaper)
+                    primary = Color.Parse("#3B82F6");           // Pane Electric Blue
+                    background = Color.Parse("#090B11");        // Tinted Glass Base
+                    surface = Color.Parse("#101522");           // Frosted Surface Bar
+                    panelColor = Color.Parse("#141B2D");        // Frosted Glass Panel
+                    solidPanelColor = Color.Parse("#192238");   // Floating Glass Card
+                    sidebarColor = Color.Parse("#0C101A");      // Glass Capsule Sidebar
+                    text = Color.Parse("#F8FAFC");              // Crisp Ice White
+                    secondaryText = Color.Parse("#94A3B8");     // Muted Blue-Gray
+                    borderColor = Color.Parse("#303B82F6");     // Translucent Sapphire Border
+
+                    fluidGradient = new LinearGradientBrush
+                    {
+                        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                        GradientStops = new GradientStops
+                        {
+                            new GradientStop(Color.Parse("#3B82F6"), 0),
+                            new GradientStop(Color.Parse("#60A5FA"), 0.5),
+                            new GradientStop(Color.Parse("#38BDF8"), 1)
+                        }
+                    };
+                    wallpaperBrush = new LinearGradientBrush
+                    {
+                        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                        GradientStops = new GradientStops
+                        {
+                            new GradientStop(Color.Parse("#070A12"), 0.0),
+                            new GradientStop(Color.Parse("#0B101C"), 0.45),
+                            new GradientStop(Color.Parse("#0E1424"), 1.0)
+                        }
+                    };
+                    controlCorner = 12;
+                    cardCorner = 20;
+                    layoutPadding = 18;
+                    break;
+
+                case AppTheme.Rivet:
+                    // Rivet Black & Neon (demo.codeandchill.store/rivet - Pitch Black #050507, Neon Lime #D4FF00, Fintech)
+                    primary = Color.Parse("#D4FF00");           // Rivet Signature Neon Lime
+                    background = Color.Parse("#050507");        // Pitch Black (#050507)
+                    surface = Color.Parse("#08090E");           // Dark Fintech Surface
+                    panelColor = Color.Parse("#0E1017");        // Elevated Dark Tile
+                    solidPanelColor = Color.Parse("#131620");   // Elevated Card
+                    sidebarColor = Color.Parse("#07080C");      // Obsidian Sidebar
+                    text = Color.Parse("#FFFFFF");              // High-Contrast White
+                    secondaryText = Color.Parse("#8E8E93");     // Neutral Gray
+                    borderColor = Color.Parse("#25FFFFFF");     // Crisp 1px Border
+
+                    fluidGradient = new LinearGradientBrush
+                    {
+                        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                        GradientStops = new GradientStops
+                        {
+                            new GradientStop(Color.Parse("#D4FF00"), 0),
+                            new GradientStop(Color.Parse("#A3E635"), 0.6),
+                            new GradientStop(Color.Parse("#10B981"), 1)
+                        }
+                    };
+                    wallpaperBrush = new SolidColorBrush(Color.Parse("#050507"));
+                    controlCorner = 8;
+                    cardCorner = 14;
+                    layoutPadding = 16;
+                    break;
+
                 case AppTheme.ObsidianGlow:
                     // 1. Konsept: Obsidian Glow (Ultra Modern Koyu Lüks, Neon Turkuaz & Çivit Mavi)
                     primary = Color.Parse("#00E5FF");           // Neon Turkuaz
@@ -90,6 +161,7 @@ namespace ErmayMuhasebe.Services
                             new GradientStop(Color.Parse("#6366F1"), 1)
                         }
                     };
+                    wallpaperBrush = new SolidColorBrush(background);
                     controlCorner = 10;
                     cardCorner = 18;
                     layoutPadding = 16;
@@ -115,6 +187,16 @@ namespace ErmayMuhasebe.Services
                         {
                             new GradientStop(Color.Parse("#0A84FF"), 0),
                             new GradientStop(Color.Parse("#38BDF8"), 1)
+                        }
+                    };
+                    wallpaperBrush = new LinearGradientBrush
+                    {
+                        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                        GradientStops = new GradientStops
+                        {
+                            new GradientStop(Color.Parse("#0B1220"), 0.0),
+                            new GradientStop(Color.Parse("#0F172A"), 1.0)
                         }
                     };
                     controlCorner = 14;
@@ -144,6 +226,7 @@ namespace ErmayMuhasebe.Services
                             new GradientStop(Color.Parse("#0098ff"), 1)
                         }
                     };
+                    wallpaperBrush = new SolidColorBrush(background);
                     controlCorner = 0;
                     cardCorner = 4;
                     layoutPadding = 8;
@@ -172,6 +255,7 @@ namespace ErmayMuhasebe.Services
                             new GradientStop(Color.Parse("#60A5FA"), 1)
                         }
                     };
+                    wallpaperBrush = new SolidColorBrush(background);
                     controlCorner = 8;
                     cardCorner = 16;
                     layoutPadding = 16;
@@ -208,6 +292,9 @@ namespace ErmayMuhasebe.Services
 
             UpdateResource(res, "SecondaryTextBrush", new SolidColorBrush(secondaryText));
             UpdateResource(res, "FluidBlueGradient", fluidGradient);
+            UpdateResource(res, "WallpaperBrush", wallpaperBrush);
+            UpdateResource(res, "AccentColor", primary);
+            UpdateResource(res, "AccentBrush", new SolidColorBrush(primary));
 
             // Update Structure
             UpdateResource(res, "ControlCornerRadius", new CornerRadius(controlCorner));

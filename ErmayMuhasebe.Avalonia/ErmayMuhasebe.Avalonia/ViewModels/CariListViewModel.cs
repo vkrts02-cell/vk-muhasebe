@@ -155,6 +155,10 @@ public partial class CariListViewModel : ErmayMuhasebe.Shared.ViewModels.CariLis
             TransactionMethod = (TransactionType == "Borç Dekontu" || TransactionType == "Alacak Dekontu") ? "Dekont" : "Nakit";
             TransactionDescription = desc;
         }
+        bool isAcilis = (SelectedHareket.IslemTuru?.Contains("Açılış", StringComparison.OrdinalIgnoreCase) == true) || 
+                        (SelectedHareket.Aciklama?.Contains("Açılış", StringComparison.OrdinalIgnoreCase) == true);
+        IsAcilisFisi = isAcilis;
+
         if (SelectedHareket.YonlendirilenCariId.HasValue)
         {
             KkYonlendirilenTedarikciId = SelectedHareket.YonlendirilenCariId;

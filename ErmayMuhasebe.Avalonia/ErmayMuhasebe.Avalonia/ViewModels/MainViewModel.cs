@@ -50,6 +50,19 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty] private string _currentUserName = "Admin";
     [ObservableProperty] private string _currentTheme = "ModernSaaS";
 
+    partial void OnCurrentThemeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsStandardLayout));
+        OnPropertyChanged(nameof(IsPaneLayout));
+        OnPropertyChanged(nameof(IsRivetLayout));
+        OnPropertyChanged(nameof(IsIDELayout));
+    }
+
+    public bool IsStandardLayout => CurrentTheme != "IDEProfessional" && CurrentTheme != "Pane" && CurrentTheme != "Rivet";
+    public bool IsPaneLayout => CurrentTheme == "Pane";
+    public bool IsRivetLayout => CurrentTheme == "Rivet";
+    public bool IsIDELayout => CurrentTheme == "IDEProfessional";
+
     partial void OnCurrentUserNameChanged(string value)
     {
         RefreshStatusBarItems();

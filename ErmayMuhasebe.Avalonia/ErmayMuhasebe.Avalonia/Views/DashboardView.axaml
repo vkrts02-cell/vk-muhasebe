@@ -981,5 +981,869 @@
         </Grid>
       </Grid>
     </ScrollViewer>
+
+    <!-- PANE: Liquid Glass Accounting Workspace (Image 4 & 5 Parity Adapted for ERP) -->
+    <ScrollViewer IsVisible="{Binding IsPane}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <Grid RowDefinitions="Auto, Auto, Auto, Auto" Margin="24,18,24,24" RowSpacing="20">
+        <!-- 1. Header Greeting & Quick Capsule Stats -->
+        <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+          <StackPanel Grid.Column="0" Spacing="6">
+            <TextBlock Text="Hoş Geldiniz, Finans Yönetimi" FontSize="28" FontWeight="Black" Foreground="White" LetterSpacing="-0.5"/>
+            <TextBlock Text="VK Ön Muhasebe · Anlık Kasa, Satış ve Vade Durumu" FontSize="13" Foreground="#94A3B8"/>
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+              <Border Background="#400E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="14,7">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="Günlük Ciro:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding GunlukSatis, StringFormat='{}{0:N2} ₺'}" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Border>
+              <Border Background="#400E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="14,7">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="Toplam Alacak:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding ToplamAlacak, StringFormat='{}{0:N2} ₺'}" FontSize="13" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Border>
+              <Border Background="#400E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="14,7">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="Toplam Borç:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding ToplamBorc, StringFormat='{}{0:N2} ₺'}" FontSize="13" FontWeight="Bold" Foreground="#EF4444" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- Top-Right Action Buttons: Fixed neat size to prevent stretching -->
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top" HorizontalAlignment="Right">
+            <Button Command="{Binding QuickActionCommand}" CommandParameter="Satis" Background="#203B82F6" BorderBrush="#503B82F6" BorderThickness="1" CornerRadius="12" Width="125" Height="36" HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                <ic:SymbolIcon Symbol="Add" FontSize="14" Foreground="#60A5FA"/>
+                <TextBlock Text="Yeni Satış" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding QuickActionCommand}" CommandParameter="Alis" Background="#3B82F6" BorderThickness="0" CornerRadius="12" Width="125" Height="36" HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                <ic:SymbolIcon Symbol="Cart" FontSize="14" Foreground="White"/>
+                <TextBlock Text="Yeni Alış" FontSize="12" FontWeight="Bold" Foreground="White"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+
+        <!-- 2. Row 1: Finansal Göstergeler, Vade & Ödeme Takvimi, Hızlı İşlemler -->
+        <Grid Grid.Row="1" ColumnDefinitions="*, 16, *, 16, *" MinHeight="250">
+          <!-- Card 1: Today - Finansal Göstergeler -->
+          <Border Grid.Column="0" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, *">
+              <StackPanel Grid.Row="0">
+                <TextBlock Text="Finansal Özet" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Anlık Performans Göstergeleri" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+              </StackPanel>
+              
+              <Grid Grid.Row="1" RowDefinitions="Auto, *" Margin="0,14,0,0" RowSpacing="12">
+                <!-- Net Bakiye Highlight Banner -->
+                <Border Grid.Row="0" Background="#1A10B981" BorderBrush="#3510B981" BorderThickness="1" CornerRadius="12" Padding="14,10">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Net Finansal Bakiye" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                      <TextBlock Text="{Binding NetBakiyeText}" FontSize="18" FontWeight="Black" Foreground="{Binding NetColorBrush}"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Width="36" Height="36" CornerRadius="18" Background="#2010B981" VerticalAlignment="Center">
+                      <ic:SymbolIcon Symbol="Wallet" FontSize="18" Foreground="#10B981" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <!-- KPI Metric Rows -->
+                <StackPanel Grid.Row="1" Spacing="9" VerticalAlignment="Center">
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Günlük Satış Hasılatı" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding GunlukSatis, StringFormat='{}{0:N2} ₺'}" FontSize="12" FontWeight="Bold" Foreground="#10B981" VerticalAlignment="Center"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="8" Height="8" CornerRadius="4" Background="#38BDF8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Nakit &amp; Banka Varlığı" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding ToplamNakitVarligi, StringFormat='{}{0:N2} ₺'}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="8" Height="8" CornerRadius="4" Background="#60A5FA" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Karlılık Oranı" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding KarlilikOrani, StringFormat='%{0:N1}'}" FontSize="12" FontWeight="Bold" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                  </Grid>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Border>
+
+          <!-- Card 2: Up next - Vade & Ödeme Takvimi -->
+          <Border Grid.Column="2" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, Auto, *">
+              <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                <TextBlock Text="Vade &amp; Ödemeler" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                <Border Grid.Column="1" Background="#2038BDF8" CornerRadius="6" Padding="8,3">
+                  <TextBlock Text="Bugün" FontSize="10" Foreground="#38BDF8" FontWeight="Bold"/>
+                </Border>
+              </Grid>
+
+              <!-- Meeting Box: Strictly constrained button width to avoid stretching -->
+              <Border Grid.Row="1" Margin="0,12,0,12" Background="#20EF4444" BorderBrush="#40EF4444" BorderThickness="1" CornerRadius="14" Padding="14">
+                <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
+                  <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Bugün Ödenecek" FontSize="10" FontWeight="Bold" Foreground="#F87171"/>
+                    <TextBlock Text="{Binding BugunOdenecek, StringFormat='{}{0:N2} ₺'}" FontSize="16" FontWeight="Black" Foreground="White" Margin="0,2,0,0"/>
+                  </StackPanel>
+                  <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Command="{Binding QuickActionCommand}" CommandParameter="Odeme" Background="#EF4444" CornerRadius="10" Width="95" Height="32" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Ödeme Yap" FontSize="11" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                  </Button>
+                </Grid>
+              </Border>
+
+              <!-- Upcoming List (Strict ERP Semantic Colors) -->
+              <StackPanel Grid.Row="2" Spacing="8">
+                <Grid ColumnDefinitions="3, *, Auto" ColumnSpacing="8">
+                  <Border Grid.Column="0" Background="#10B981" CornerRadius="1.5"/>
+                  <TextBlock Grid.Column="1" Text="Bugün Tahsil Edilecek" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" Text="{Binding BugunTahsilat, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="#10B981" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid ColumnDefinitions="3, *, Auto" ColumnSpacing="8">
+                  <Border Grid.Column="0" Background="#F59E0B" CornerRadius="1.5"/>
+                  <TextBlock Grid.Column="1" Text="Bekleyen Ödemeler" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" Text="{Binding BekleyenOdeme, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="SemiBold" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid ColumnDefinitions="3, *, Auto" ColumnSpacing="8">
+                  <Border Grid.Column="0" Background="#38BDF8" CornerRadius="1.5"/>
+                  <TextBlock Grid.Column="1" Text="Kasa / Banka Mevcudu" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" Text="{Binding ToplamNakitVarligi, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Card 3: Hızlı Muhasebe İşlemleri (Focus Island) -->
+          <Border Grid.Column="4" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, *, Auto">
+              <StackPanel Grid.Row="0">
+                <TextBlock Text="Hızlı İşlemler" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Sık Kullanılan Muhasebe Menüleri" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+              </StackPanel>
+
+              <!-- Quick action 4 grid -->
+              <UniformGrid Grid.Row="1" Columns="2" Rows="2" Margin="0,14,0,14">
+                <Button Command="{Binding QuickActionCommand}" CommandParameter="Satis" Background="#2038BDF8" CornerRadius="10" Margin="3" Padding="8,6">
+                  <StackPanel HorizontalAlignment="Center" Spacing="4">
+                    <ic:SymbolIcon Symbol="Tag" FontSize="16" Foreground="#38BDF8" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Satış Faturası" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding QuickActionCommand}" CommandParameter="Alis" Background="#20EF4444" CornerRadius="10" Margin="3" Padding="8,6">
+                  <StackPanel HorizontalAlignment="Center" Spacing="4">
+                    <ic:SymbolIcon Symbol="Cart" FontSize="16" Foreground="#EF4444" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Alış Faturası" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding QuickActionCommand}" CommandParameter="Siparis" Background="#20F59E0B" CornerRadius="10" Margin="3" Padding="8,6">
+                  <StackPanel HorizontalAlignment="Center" Spacing="4">
+                    <ic:SymbolIcon Symbol="ClipboardText" FontSize="16" Foreground="#F59E0B" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Yeni Sipariş" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding QuickActionCommand}" CommandParameter="Teklif" Background="#2010B981" CornerRadius="10" Margin="3" Padding="8,6">
+                  <StackPanel HorizontalAlignment="Center" Spacing="4">
+                    <ic:SymbolIcon Symbol="DocumentPercent" FontSize="16" Foreground="#10B981" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Teklif Hazırla" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </UniformGrid>
+
+              <!-- Tahsilat Ekle Button -->
+              <Button Grid.Row="2" Command="{Binding QuickActionCommand}" CommandParameter="Tahsilat" Background="#10B981" CornerRadius="12" Height="36" HorizontalAlignment="Stretch">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                  <ic:SymbolIcon Symbol="Money" FontSize="14" Foreground="White"/>
+                  <TextBlock Text="Hızlı Tahsilat Ekle" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+        </Grid>
+
+        <!-- 3. Row 2: Alacak Takibi & Haftalık Satış Grafiği -->
+        <Grid Grid.Row="2" ColumnDefinitions="1.2*, 16, *">
+          <!-- Card 4: Alacak Takibi & Riskli Cariler -->
+          <Border Grid.Column="0" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, *">
+              <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                <StackPanel>
+                  <TextBlock Text="Alacak Takibi" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                  <TextBlock Text="Vadesi Yaklaşan &amp; Yüksek Bakiyeli Cariler" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="Tüm Cariler" FontSize="11" Foreground="#60A5FA" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </Grid>
+
+              <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                <Panel>
+                  <TextBlock Text="Kayıtlı riskli alacak bulunmamaktadır." FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,30" IsVisible="{Binding !HasRiskyCaris}"/>
+                  <ItemsControl ItemsSource="{Binding RiskyCaris}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Background="#200E1422" CornerRadius="10" Padding="12,8" Margin="0,0,0,6" BorderBrush="#15FFFFFF" BorderThickness="1">
+                          <Grid ColumnDefinitions="Auto, *, Auto, Auto" ColumnSpacing="10">
+                            <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14" Background="#2038BDF8">
+                              <ic:SymbolIcon Symbol="Person" FontSize="14" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Unvan}" FontSize="12" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                              <TextBlock Text="{Binding OrtalamaVade, StringFormat='Ort. Vade: {0}'}" FontSize="10" Foreground="#94A3B8"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding Bakiye, StringFormat='{}{0:N2} ₺'}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                            <Border Grid.Column="3" Background="#20F59E0B" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding RiskStatus, FallbackValue='Normal'}" FontSize="9" FontWeight="Bold" Foreground="#F59E0B"/>
+                            </Border>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Panel>
+              </ScrollViewer>
+            </Grid>
+          </Border>
+
+          <!-- Card 5: Haftalık Satış & Hedef Grafiği -->
+          <Border Grid.Column="2" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, *">
+              <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,10">
+                <StackPanel>
+                  <TextBlock Text="Hedef &amp; Satış Analizi" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                  <TextBlock Text="Dönemsel Satış Performansı" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" Background="#25FFFFFF" CornerRadius="8" Padding="6,3">
+                  <TextBlock Text="Canlı Veri" FontSize="9" FontWeight="Bold" Foreground="#60A5FA"/>
+                </Border>
+              </Grid>
+
+              <!-- LiveCharts Chart integration -->
+              <lvc:CartesianChart Grid.Row="1" Series="{Binding TargetVsActualSeries}" XAxes="{Binding TargetVsActualXAxis}" YAxes="{Binding TargetVsActualYAxis}" Height="190"/>
+            </Grid>
+          </Border>
+        </Grid>
+
+        <!-- 4. Row 3: Son İşlemler & Kasa Durumu -->
+        <Grid Grid.Row="3" ColumnDefinitions="1.2*, 16, *">
+          <!-- Card 6: Son Fatura & Kasa İşlemleri -->
+          <Border Grid.Column="0" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, *">
+              <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                <TextBlock Text="Son Muhasebe İşlemleri" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Grid.Column="1" Text="Tüm Hareketler" FontSize="11" Foreground="#60A5FA" FontWeight="SemiBold"/>
+              </Grid>
+
+              <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                <Panel>
+                  <TextBlock Text="Henüz işlem hareketi bulunmuyor." FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,30" IsVisible="{Binding !HasRecentTransactions}"/>
+                  <ItemsControl ItemsSource="{Binding RecentTransactions}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Background="#200E1422" CornerRadius="10" Padding="12,8" Margin="0,0,0,6" BorderBrush="#15FFFFFF" BorderThickness="1">
+                          <Grid ColumnDefinitions="Auto, *, Auto, Auto" ColumnSpacing="10">
+                            <Border Grid.Column="0" Width="28" Height="28" CornerRadius="8" Background="#203B82F6">
+                              <ic:SymbolIcon Symbol="DocumentBulletList" FontSize="14" Foreground="#60A5FA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                              <TextBlock Text="{Binding Description}" FontSize="10" Foreground="#94A3B8"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat='{}{0:N2} ₺'}" FontSize="12" FontWeight="Bold" Foreground="{Binding TextColor, FallbackValue=White}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Date, StringFormat='{}{0:dd MMM HH:mm}'}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Panel>
+              </ScrollViewer>
+            </Grid>
+          </Border>
+
+          <!-- Card 7: Likidite & Kasa Dağılımı -->
+          <Border Grid.Column="2" Background="#500E1422" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="20" Padding="20">
+            <Grid RowDefinitions="Auto, *">
+              <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                <TextBlock Text="Kasa &amp; Likidite Durumu" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                <Border Grid.Column="1" Background="#2010B981" CornerRadius="8" Padding="6,3">
+                  <TextBlock Text="Aktif" FontSize="9" FontWeight="Bold" Foreground="#10B981"/>
+                </Border>
+              </Grid>
+
+              <StackPanel Grid.Row="1" Spacing="10">
+                <Border Background="#200E1422" CornerRadius="12" Padding="12" BorderBrush="#15FFFFFF" BorderThickness="1">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Toplam Nakit Varlığı" FontSize="11" Foreground="#94A3B8"/>
+                      <TextBlock Text="{Binding ToplamNakitVarligi, StringFormat='{}{0:N2} ₺'}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Width="36" Height="36" CornerRadius="18" Background="#2010B981">
+                      <ic:SymbolIcon Symbol="Wallet" FontSize="18" Foreground="#10B981" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+                  <Border Grid.Column="0" Background="#200E1422" CornerRadius="10" Padding="10" BorderBrush="#15FFFFFF" BorderThickness="1">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Aktif Stok Kartı" FontSize="10" Foreground="#94A3B8"/>
+                      <TextBlock Text="{Binding StokSayisi, StringFormat='{}{0} Adet'}" FontSize="14" FontWeight="Bold" Foreground="#60A5FA"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="1" Background="#200E1422" CornerRadius="10" Padding="10" BorderBrush="#15FFFFFF" BorderThickness="1">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Karlılık Oranı" FontSize="10" Foreground="#94A3B8"/>
+                      <TextBlock Text="{Binding KarlilikOrani, StringFormat='%{0:N1}'}" FontSize="14" FontWeight="Bold" Foreground="#10B981"/>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Border Background="#200E1422" CornerRadius="10" Padding="10" BorderBrush="#15FFFFFF" BorderThickness="1">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Cari Tahsilat Süresi" FontSize="10" Foreground="#94A3B8"/>
+                      <TextBlock Text="{Binding CariTahsilatSuresi, StringFormat='Ortalama {0} Gün'}" FontSize="12" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                    </StackPanel>
+                    <ic:SymbolIcon Grid.Column="1" Symbol="Clock" FontSize="18" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Grid>
+    </ScrollViewer>
+
+    <!-- RIVET: Black & Neon Fintech Accounting Dashboard (Image 3 Parity Adapted for ERP) -->
+    <ScrollViewer IsVisible="{Binding IsRivet}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#050507">
+      <Grid ColumnDefinitions="*, 24, 380" Margin="24,18,24,24" Background="#050507">
+        
+        <!-- ==================== LEFT MAIN COLUMN (Image 3 Parity) ==================== -->
+        <Grid Grid.Column="0" RowDefinitions="Auto, Auto, Auto" RowSpacing="18">
+          
+          <!-- 1. Top Section: Unified Big Chart Card (Net Balance + LiveChart + 3 Stacked Stats) -->
+          <Border Grid.Row="0" Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="22">
+            <Grid RowDefinitions="Auto, *">
+              <!-- Card Header: Net Balance & Year on Left, Legend on Right -->
+              <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,18">
+                <StackPanel Grid.Column="0" Spacing="4">
+                  <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding NetBakiyeText}" FontSize="32" FontWeight="Black" Foreground="{Binding NetColorBrush}" LetterSpacing="-0.5"/>
+                    <!-- 2026 Mali Yıl Pill -->
+                    <Border Background="#141722" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,4" VerticalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="2026 Dönemi" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                        <ic:SymbolIcon Symbol="ChevronDown" FontSize="10" Foreground="#8E8E93"/>
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                  <TextBlock Text="Net Finansal Durum (Toplam Alacak - Borç)" FontSize="11" Foreground="#8E8E93"/>
+                </StackPanel>
+
+                <!-- Legend & Period Switcher (Synced with LiveChart) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="8" Height="8" CornerRadius="4" Background="#F59E0B"/>
+                    <TextBlock Text="Hedef" FontSize="11" Foreground="#94A3B8"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="8" Height="8" CornerRadius="4" Background="#10B981"/>
+                    <TextBlock Text="Gerçekleşen Satış" FontSize="11" Foreground="#94A3B8"/>
+                  </StackPanel>
+                  <Border Background="#121622" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="2" Margin="6,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                      <Button Command="{Binding ToggleGoalPeriodCommand}" CommandParameter="Weekly"
+                              Width="56" Height="26" Padding="0"
+                              Background="{Binding IsWeeklyGoal, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#2538BDF8:Transparent'}"
+                              BorderThickness="0" CornerRadius="6"
+                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <TextBlock Text="Hafta" FontSize="11" FontWeight="Bold"
+                                   Foreground="{Binding IsWeeklyGoal, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#38BDF8:#8E8E93'}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Button>
+                      <Button Command="{Binding ToggleGoalPeriodCommand}" CommandParameter="Monthly"
+                              Width="56" Height="26" Padding="0"
+                              Background="{Binding !IsWeeklyGoal, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#2538BDF8:Transparent'}"
+                              BorderThickness="0" CornerRadius="6"
+                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <TextBlock Text="Ay" FontSize="11" FontWeight="Bold"
+                                   Foreground="{Binding !IsWeeklyGoal, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#38BDF8:#8E8E93'}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Grid>
+
+              <!-- Main Chart Body: 2 Columns (Chart on Left, 3 Stats Stacked on Right) -->
+              <Grid Grid.Row="1" ColumnDefinitions="*, 1, 200">
+                <!-- LiveCharts Cartesian Chart -->
+                <lvc:CartesianChart Grid.Column="0" Series="{Binding TargetVsActualSeries}" XAxes="{Binding TargetVsActualXAxis}" YAxes="{Binding TargetVsActualYAxis}" Height="215"/>
+
+                <!-- Subtle Vertical Divider -->
+                <Border Grid.Column="1" Width="1" Background="#15FFFFFF" Margin="0,10,0,10"/>
+
+                <!-- 3 Stats Stacked to the Right of the Chart -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="12" Margin="18,0,0,0">
+                  <!-- Stat 1: Günlük Ciro / Satış -->
+                  <Border Background="#121622" BorderBrush="#1AFFFFFF" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Toplam Satış Hasılatı" FontSize="10" FontWeight="SemiBold" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding GunlukSatis, StringFormat='{}{0:N2} ₺'}" FontSize="16" FontWeight="Black" Foreground="White"/>
+                      <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+                        <TextBlock Text="↗" FontSize="10" FontWeight="Bold" Foreground="#10B981"/>
+                        <TextBlock Text="{Binding KarlilikOrani, StringFormat='%{0:N1} kar marjı'}" FontSize="10" FontWeight="Bold" Foreground="#10B981"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+
+                  <!-- Stat 2: Toplam Alacak -->
+                  <Border Background="#121622" BorderBrush="#1AFFFFFF" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Toplam Alacak" FontSize="10" FontWeight="SemiBold" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding ToplamAlacak, StringFormat='{}{0:N2} ₺'}" FontSize="16" FontWeight="Black" Foreground="White"/>
+                      <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+                        <TextBlock Text="↗" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+                        <TextBlock Text="Vadesi Gelecek" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+
+                  <!-- Stat 3: Toplam Borç -->
+                  <Border Background="#121622" BorderBrush="#1AFFFFFF" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Toplam Borç" FontSize="10" FontWeight="SemiBold" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding ToplamBorc, StringFormat='{}{0:N2} ₺'}" FontSize="16" FontWeight="Black" Foreground="White"/>
+                      <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+                        <TextBlock Text="↘" FontSize="10" FontWeight="Bold" Foreground="#EF4444"/>
+                        <TextBlock Text="Ödenecek Faturalar" FontSize="10" FontWeight="Bold" Foreground="#EF4444"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Border>
+
+          <!-- 2. Middle Row: Aylık Bütçe Hedefi & Kritik Stok Alarmı (Image 3 Parity) -->
+          <Grid Grid.Row="1" ColumnDefinitions="*, 18, *">
+            <!-- Card 1: Aylık Satış / Ciro Hedefi (Spending Cap Parity) -->
+            <Border Grid.Column="0" Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="20">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*, Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="Aylık Satış &amp; Bütçe Hedefi" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="2026 Mali Dönemi" FontSize="11" Foreground="#8E8E93"/>
+                  </StackPanel>
+                  <ic:SymbolIcon Grid.Column="1" Symbol="Edit" FontSize="16" Foreground="#8E8E93"/>
+                </Grid>
+
+                <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                  <TextBlock Text="{Binding GunlukSatis, StringFormat='{}{0:N2} ₺'}" FontSize="20" FontWeight="Black" Foreground="White"/>
+                  <TextBlock Grid.Column="1" Text="Hedef: 250.000 ₺" FontSize="11" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Adaptive Progress Bar -->
+                <Border Height="8" CornerRadius="4" Background="#141722">
+                  <Grid ColumnDefinitions="0.65*, 0.35*">
+                    <Border Grid.Column="0" CornerRadius="4">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                          <GradientStop Color="#10B981" Offset="0"/>
+                          <GradientStop Color="#38BDF8" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                    </Border>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Card 2: Kritik Stok & Tedarik Alarmı -->
+            <Border Grid.Column="2" Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="20">
+              <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                  <TextBlock Text="Kritik Stok &amp; Tedarik Alarmı" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                  <TextBlock Text="{Binding StokSayisi, StringFormat='Toplam {0} stok kartı kayıtlı. Asgari limitin altındaki ürünleri inceleyin.'}" FontSize="11" Foreground="#8E8E93" TextWrapping="Wrap"/>
+                  <Button Command="{Binding QuickActionCommand}" CommandParameter="Siparis" 
+                          Background="#1838BDF8" BorderBrush="#3538BDF8" BorderThickness="1" 
+                          CornerRadius="8" Padding="12,6" Margin="0,8,0,0" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <TextBlock Text="Hızlı Sipariş Aç" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                      <ic:SymbolIcon Symbol="ArrowRight" FontSize="11" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+
+                <!-- Stock Status Indicator Badge -->
+                <Border Grid.Column="1" Width="76" Height="76" CornerRadius="16" Background="#141722" BorderBrush="#3038BDF8" BorderThickness="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+                    <ic:SymbolIcon Symbol="Box" FontSize="22" Foreground="#38BDF8" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding StokSayisi}" FontSize="15" FontWeight="Black" Foreground="White" HorizontalAlignment="Center"/>
+                    <TextBlock Text="KART" FontSize="8" FontWeight="Bold" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Border>
+          </Grid>
+
+          <!-- 3. Bottom Row: Gider Dağılımı, Finansal Sağlık, Hedefler -->
+          <Grid Grid.Row="2" ColumnDefinitions="*, 16, *, 16, *">
+            <!-- Card 1: Gider Dağılımı -->
+            <Border Grid.Column="0" Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="18">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*, Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="Gider Dağılımı" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Masraf Kalemleri" FontSize="10" Foreground="#8E8E93"/>
+                  </StackPanel>
+                  <Border Grid.Column="1" Background="#121622" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="Bu Ay" FontSize="10" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                      <ic:SymbolIcon Symbol="ChevronDown" FontSize="9" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+                <TextBlock Text="{Binding ToplamBorc, StringFormat='{}{0:N2} ₺'}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                
+                <!-- Multi-segment proportional horizontal bar -->
+                <Grid ColumnDefinitions="0.45*, 0.25*, 0.20*, 0.10*" Height="6">
+                  <Border Grid.Column="0" Background="#EF4444" CornerRadius="3,0,0,3"/>
+                  <Border Grid.Column="1" Background="#F59E0B"/>
+                  <Border Grid.Column="2" Background="#38BDF8"/>
+                  <Border Grid.Column="3" Background="#10B981" CornerRadius="0,3,3,0"/>
+                </Grid>
+
+                <!-- Financial Cost & Expense Breakdown with Real Data -->
+                <StackPanel Spacing="6" Margin="0,4,0,0">
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="6" Height="6" CornerRadius="3" Background="#EF4444" Margin="0,0,6,0"/>
+                    <TextBlock Grid.Column="1" Text="Toplam Borç" FontSize="11" Foreground="#CBD5E1"/>
+                    <TextBlock Grid.Column="2" Text="{Binding ToplamBorc, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="#EF4444"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="6" Height="6" CornerRadius="3" Background="#F59E0B" Margin="0,0,6,0"/>
+                    <TextBlock Grid.Column="1" Text="Bekleyen Ödemeler" FontSize="11" Foreground="#CBD5E1"/>
+                    <TextBlock Grid.Column="2" Text="{Binding BekleyenOdeme, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="#F59E0B"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="6" Height="6" CornerRadius="3" Background="#38BDF8" Margin="0,0,6,0"/>
+                    <TextBlock Grid.Column="1" Text="Toplam Maliyet" FontSize="11" Foreground="#CBD5E1"/>
+                    <TextBlock Grid.Column="2" Text="{Binding ToplamMaliyet, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Width="6" Height="6" CornerRadius="3" Background="#10B981" Margin="0,0,6,0"/>
+                    <TextBlock Grid.Column="1" Text="Net Karlılık" FontSize="11" Foreground="#CBD5E1"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Karlilik, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="#10B981"/>
+                  </Grid>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- Card 2: Finansal Sağlık & Vade Skoru (Authentic ERP Metrics) -->
+            <Border Grid.Column="2" Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="18">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*, Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="Finansal Sağlık" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Karlılık &amp; Vade Skoru" FontSize="10" Foreground="#8E8E93"/>
+                  </StackPanel>
+                  <Border Grid.Column="1" Background="#121622" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="30 Gün" FontSize="10" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                      <ic:SymbolIcon Symbol="ChevronDown" FontSize="9" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+                <TextBlock Text="{Binding Karlilik, StringFormat='{}{0:N2} ₺'}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                <TextBlock Text="↗ Cari Vade &amp; Karlılık Analizi" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+
+                <!-- Real Financial Health Metrics -->
+                <Border Background="#141722" CornerRadius="12" Padding="14,10" Margin="0,4,0,0">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Net Karlılık Marjı" FontSize="10" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding KarlilikOrani, StringFormat='%{0:N1}'}" FontSize="18" FontWeight="Black" Foreground="#10B981"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="#2010B981" CornerRadius="8" Padding="8,4" VerticalAlignment="Center">
+                      <TextBlock Text="Pozitif" FontSize="10" FontWeight="Bold" Foreground="#10B981"/>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*, *" ColumnSpacing="8" Margin="0,2,0,0">
+                  <Border Grid.Column="0" Background="#141722" CornerRadius="8" Padding="8,6">
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="Cari Vadesi" FontSize="9" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding CariTahsilatSuresi, StringFormat='{}{0} Gün'}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="1" Background="#141722" CornerRadius="8" Padding="8,6">
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="Stok Devri" FontSize="9" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding StokDevirHizi, StringFormat='{}{0:N1}x'}" FontSize="11" FontWeight="Bold" Foreground="#F59E0B"/>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <!-- Card 3: Ödeme & Vade Hedefleri -->
+            <Border Grid.Column="4" Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="18">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*, Auto">
+                  <TextBlock Text="Hedefler &amp; Vade" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                  <Border Grid.Column="1" Background="#1838BDF8" BorderBrush="#3038BDF8" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                    <TextBlock Text="Dönem" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+                  </Border>
+                </Grid>
+
+                <TextBlock Text="GÜNLÜK VE DÖNEMSEL İŞLEMLER" FontSize="9" FontWeight="Bold" Foreground="#8E8E93" Margin="0,2,0,0"/>
+                <StackPanel Spacing="4">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Text="Bugün Tahsilat" FontSize="10" Foreground="White"/>
+                    <TextBlock Grid.Column="1" Text="{Binding BugunTahsilat, StringFormat='{}{0:N2} ₺'}" FontSize="10" Foreground="#10B981" FontWeight="Bold"/>
+                  </Grid>
+                  <Border Height="4" CornerRadius="2" Background="#141722">
+                    <Grid ColumnDefinitions="0.7*, 0.3*">
+                      <Border Grid.Column="0" Background="#10B981" CornerRadius="2"/>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Spacing="4" Margin="0,3,0,0">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Text="Bugün Ödenecek" FontSize="10" Foreground="White"/>
+                    <TextBlock Grid.Column="1" Text="{Binding BugunOdenecek, StringFormat='{}{0:N2} ₺'}" FontSize="10" Foreground="#EF4444" FontWeight="Bold"/>
+                  </Grid>
+                  <Border Height="4" CornerRadius="2" Background="#141722">
+                    <Grid ColumnDefinitions="0.45*, 0.55*">
+                      <Border Grid.Column="0" Background="#EF4444" CornerRadius="2"/>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Spacing="4" Margin="0,3,0,0">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Text="Bekleyen Ödemeler" FontSize="10" Foreground="White"/>
+                    <TextBlock Grid.Column="1" Text="{Binding BekleyenOdeme, StringFormat='{}{0:N2} ₺'}" FontSize="10" Foreground="#F59E0B" FontWeight="Bold"/>
+                  </Grid>
+                  <Border Height="4" CornerRadius="2" Background="#141722">
+                    <Grid ColumnDefinitions="0.6*, 0.4*">
+                      <Border Grid.Column="0" Background="#F59E0B" CornerRadius="2"/>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Spacing="4" Margin="0,3,0,0">
+                  <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Text="Kasa Rezervi" FontSize="10" Foreground="White"/>
+                    <TextBlock Grid.Column="1" Text="{Binding ToplamNakitVarligi, StringFormat='{}{0:N2} ₺'}" FontSize="10" Foreground="#38BDF8" FontWeight="Bold"/>
+                  </Grid>
+                  <Border Height="4" CornerRadius="2" Background="#141722">
+                    <Grid ColumnDefinitions="0.8*, 0.2*">
+                      <Border Grid.Column="0" Background="#38BDF8" CornerRadius="2"/>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Grid>
+
+        <!-- ==================== RIGHT DEDICATED COLUMN ==================== -->
+        <StackPanel Grid.Column="2" Spacing="16">
+          
+          <!-- Card 1: Kasa & Likidite, Hızlı İşlemler, Alacak Takibi -->
+          <Border Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="20">
+            <StackPanel Spacing="16">
+              <Grid ColumnDefinitions="*, Auto">
+                <StackPanel>
+                  <TextBlock Text="Kasa &amp; Likidite Yönetimi" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                  <TextBlock Text="Nakit Durumu &amp; İşlem Kısayolları" FontSize="11" Foreground="#8E8E93" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" Background="#2038BDF8" BorderBrush="#3538BDF8" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                  <TextBlock Text="VK Kasa" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                </Border>
+              </Grid>
+
+              <!-- Kasa & Likidite Paneli (Desktop ERP) -->
+              <Border Background="#121620" BorderBrush="#2538BDF8" BorderThickness="1" CornerRadius="14" Padding="16">
+                <Grid RowDefinitions="Auto, Auto, Auto" RowSpacing="12">
+                  <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="KASA &amp; BANKA MEVCUDU" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" LetterSpacing="0.5"/>
+                      <TextBlock Text="{Binding ToplamNakitVarligi, StringFormat='{}{0:N2} ₺'}" FontSize="22" FontWeight="Black" Foreground="White"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Width="38" Height="38" CornerRadius="10" Background="#2038BDF8" VerticalAlignment="Center">
+                      <ic:SymbolIcon Symbol="Wallet" FontSize="18" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                  </Grid>
+
+                  <Border Grid.Row="1" Height="1" Background="#18FFFFFF"/>
+
+                  <Grid Grid.Row="2" ColumnDefinitions="*, 1, *">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="Bugün Tahsilat" FontSize="10" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding BugunTahsilat, StringFormat='{}{0:N2} ₺'}" FontSize="13" FontWeight="Bold" Foreground="#10B981"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Width="1" Background="#18FFFFFF" Margin="6,0"/>
+                    <StackPanel Grid.Column="2" Spacing="2" Margin="6,0,0,0">
+                      <TextBlock Text="Bugün Ödeme" FontSize="10" Foreground="#8E8E93"/>
+                      <TextBlock Text="{Binding BugunOdenecek, StringFormat='{}{0:N2} ₺'}" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
+                    </StackPanel>
+                  </Grid>
+                </Grid>
+              </Border>
+
+              <!-- ERP Hızlı İşlemler -->
+              <StackPanel Spacing="8">
+                <TextBlock Text="HIZLI İŞLEMLER" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" LetterSpacing="0.5"/>
+                <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, *" RowSpacing="8" ColumnSpacing="8">
+                  <!-- Satış -->
+                  <Button Grid.Row="0" Grid.Column="0" Command="{Binding QuickActionCommand}" CommandParameter="Satis" 
+                          Background="#121622" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10" 
+                          Height="46" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,0">
+                    <Grid ColumnDefinitions="Auto, *">
+                      <Border Grid.Column="0" Width="28" Height="28" CornerRadius="8" Background="#1838BDF8" BorderBrush="#3538BDF8" BorderThickness="1" VerticalAlignment="Center">
+                        <ic:SymbolIcon Symbol="Tag" FontSize="14" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="Satış Faturası" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="9,0,0,0"/>
+                    </Grid>
+                  </Button>
+                  <!-- Alış -->
+                  <Button Grid.Row="0" Grid.Column="1" Command="{Binding QuickActionCommand}" CommandParameter="Alis" 
+                          Background="#121622" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10" 
+                          Height="46" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,0">
+                    <Grid ColumnDefinitions="Auto, *">
+                      <Border Grid.Column="0" Width="28" Height="28" CornerRadius="8" Background="#18EF4444" BorderBrush="#35EF4444" BorderThickness="1" VerticalAlignment="Center">
+                        <ic:SymbolIcon Symbol="Cart" FontSize="14" Foreground="#EF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="Alış Faturası" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="9,0,0,0"/>
+                    </Grid>
+                  </Button>
+                  <!-- Tahsilat -->
+                  <Button Grid.Row="1" Grid.Column="0" Command="{Binding QuickActionCommand}" CommandParameter="Tahsilat" 
+                          Background="#121622" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10" 
+                          Height="46" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,0">
+                    <Grid ColumnDefinitions="Auto, *">
+                      <Border Grid.Column="0" Width="28" Height="28" CornerRadius="8" Background="#1810B981" BorderBrush="#3510B981" BorderThickness="1" VerticalAlignment="Center">
+                        <ic:SymbolIcon Symbol="ArrowDown" FontSize="14" Foreground="#10B981" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="Tahsilat Al" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="9,0,0,0"/>
+                    </Grid>
+                  </Button>
+                  <!-- Ödeme -->
+                  <Button Grid.Row="1" Grid.Column="1" Command="{Binding QuickActionCommand}" CommandParameter="Odeme" 
+                          Background="#121622" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10" 
+                          Height="46" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,0">
+                    <Grid ColumnDefinitions="Auto, *">
+                      <Border Grid.Column="0" Width="28" Height="28" CornerRadius="8" Background="#18F59E0B" BorderBrush="#35F59E0B" BorderThickness="1" VerticalAlignment="Center">
+                        <ic:SymbolIcon Symbol="ArrowUp" FontSize="14" Foreground="#F59E0B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="Ödeme Yap" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="9,0,0,0"/>
+                    </Grid>
+                  </Button>
+                </Grid>
+              </StackPanel>
+
+              <!-- Alacak Takibi (Kritik Cariler) -->
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*, Auto">
+                  <TextBlock Text="ALACAK TAKİBİ (CARİLER)" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" LetterSpacing="0.5"/>
+                  <Border Grid.Column="1" Background="#1838BDF8" BorderBrush="#3038BDF8" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                    <TextBlock Text="Riskli / Vadeli" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+                  </Border>
+                </Grid>
+                
+                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                  <Panel>
+                    <TextBlock Text="Kayıtlı riskli alacak bulunmuyor." FontSize="11" Foreground="#8E8E93" HorizontalAlignment="Center" Margin="0,15" IsVisible="{Binding !HasRiskyCaris}"/>
+                    <ItemsControl ItemsSource="{Binding RiskyCaris}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Background="#141722" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="*, Auto">
+                              <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="{Binding Unvan}" FontSize="11" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding OrtalamaVade, StringFormat='Ort. Vade: {0} Gün'}" FontSize="9" Foreground="#8E8E93"/>
+                              </StackPanel>
+                              <TextBlock Grid.Column="1" Text="{Binding Bakiye, StringFormat='{}{0:N2} ₺'}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Panel>
+                </ScrollViewer>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Card 2: Son Muhasebe İşlemleri (Gerçek Veri) -->
+          <Border Background="#0E1017" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="16" Padding="20">
+            <StackPanel Spacing="12">
+              <Grid ColumnDefinitions="*, Auto">
+                <TextBlock Text="Son İşlemler" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                <Border Grid.Column="1" Background="#1810B981" BorderBrush="#3510B981" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <Border Width="6" Height="6" CornerRadius="3" Background="#10B981"/>
+                    <TextBlock Text="Canlı" FontSize="10" FontWeight="Bold" Foreground="#10B981"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+              
+              <!-- Subheader: # | İşlem / Cari | Tutar (Shown ONLY when data exists) -->
+              <Border Background="#121622" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,4" IsVisible="{Binding HasRecentTransactions}">
+                <Grid ColumnDefinitions="28, *, Auto">
+                  <TextBlock Text="#" FontSize="10" FontWeight="Bold" Foreground="#8E8E93"/>
+                  <TextBlock Grid.Column="1" Text="İşlem / Cari" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" Margin="8,0,0,0"/>
+                  <TextBlock Grid.Column="2" Text="Tutar" FontSize="10" FontWeight="Bold" Foreground="#8E8E93"/>
+                </Grid>
+              </Border>
+
+              <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto">
+                <Panel>
+                  <!-- Premium Empty State -->
+                  <StackPanel IsVisible="{Binding !HasRecentTransactions}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,20,0,20">
+                    <Border Width="40" Height="40" CornerRadius="20" Background="#121622" BorderBrush="#25FFFFFF" BorderThickness="1" HorizontalAlignment="Center">
+                      <ic:SymbolIcon Symbol="Receipt" FontSize="18" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Kayıtlı İşlem Bulunmuyor" FontSize="12" FontWeight="SemiBold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Bugün henüz fatura, tahsilat veya ödeme hareketi gerçekleşmedi." FontSize="10" Foreground="#64748B" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="220"/>
+                  </StackPanel>
+
+                  <ItemsControl ItemsSource="{Binding RecentTransactions}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Background="#121622" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                          <Grid ColumnDefinitions="28, *, Auto" ColumnSpacing="8">
+                            <Border Grid.Column="0" Width="26" Height="26" CornerRadius="6" Background="#2038BDF8">
+                              <ic:SymbolIcon Symbol="DocumentBulletList" FontSize="13" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                              <TextBlock Text="{Binding Description}" FontSize="9" Foreground="#8E8E93" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Amount, StringFormat='{}{0:N2} ₺'}" FontSize="11" FontWeight="Bold" Foreground="{Binding TextColor, FallbackValue=White}" HorizontalAlignment="Right"/>
+                              <TextBlock Text="{Binding Date, StringFormat='{}{0:dd MMM HH:mm}'}" FontSize="8" Foreground="#8E8E93" HorizontalAlignment="Right"/>
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Panel>
+              </ScrollViewer>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
   </Grid>
 </UserControl>
