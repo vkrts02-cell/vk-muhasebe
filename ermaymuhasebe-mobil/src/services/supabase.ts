@@ -29,18 +29,20 @@ export interface ExtendedFirebaseConfig extends FirebaseConfig {
 export const DEFAULT_SUPABASE_URL = 'https://fqgbdymffknglqeqoogt.supabase.co';
 export const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxZ2JkeW1mZmtuZ2xxZXFvb2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODUzMDEsImV4cCI6MjEwNTE2MTMwMX0.pBeE2ivWpbkAd8KSN1y2pXNZPIr_1mGMLXXHYPzjTDg';
 
+export const DEFAULT_ENTERPRISE_TENANT = 'tenant_vkrts1992_gmail_com';
+
 let isExplicitlyConfigured = false;
 
 let cachedConfig: SupabaseConfig = {
-  url: '',
-  anonKey: '',
-  tenantId: 'default'
+  url: DEFAULT_SUPABASE_URL,
+  anonKey: DEFAULT_SUPABASE_KEY,
+  tenantId: DEFAULT_ENTERPRISE_TENANT
 };
 
 let cachedExtendedConfig: ExtendedFirebaseConfig = {
-  url: '',
-  secret: '',
-  tenantId: 'default'
+  url: DEFAULT_SUPABASE_URL,
+  secret: DEFAULT_SUPABASE_KEY,
+  tenantId: DEFAULT_ENTERPRISE_TENANT
 };
 
 let cachedYear: string = new Date().getFullYear().toString();
@@ -244,8 +246,8 @@ export const cleanSupabaseUrl = (rawUrl?: string): string => {
 
 export const isConfiguredInStorage = async (): Promise<boolean> => {
   try {
-    const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
-    const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
+    const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url')) || DEFAULT_SUPABASE_URL;
+    const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret')) || DEFAULT_SUPABASE_KEY;
     const hasConfig = !!(rawUrl && rawUrl.trim() && key && key.trim());
     isExplicitlyConfigured = hasConfig;
     return hasConfig;
@@ -257,32 +259,105 @@ export const isConfiguredInStorage = async (): Promise<boolean> => {
 export const getIsExplicitlyConfigured = () => isExplicitlyConfigured;
 
 export const deriveTenantIdFromEmail = (emailOrUsername?: string): string => {
-  if (!emailOrUsername) return 'default';
+  if (!emailOrUsername) return DEFAULT_ENTERPRISE_TENANT;
   const clean = emailOrUsername.trim().toLowerCase();
+  if (clean === 'vkrts' || clean === 'vkrts@ermay.local' || clean === 'vkrts1992@gmail.com') {
+    return 'tenant_vkrts1992_gmail_com';
+  }
   if (clean.includes('@')) {
     const cleanTenant = clean.replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
     return `tenant_${cleanTenant}`;
   }
-  return clean === 'admin' ? 'default' : `tenant_${clean.replace(/[^a-z0-9]/g, '_')}`;
+  return clean === 'admin' ? DEFAULT_ENTERPRISE_TENANT : `tenant_${clean.replace(/[^a-z0-9]/g, '_')}`;
 };
 
-export const getActiveTenantId = (): string => cachedConfig.tenantId || 'default';
+export const getActiveTenantId = (): string => cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
 
 export const setActiveTenantId = async (tenantId: string) => {
-  const finalTenant = tenantId || 'default';
+  const finalTenant = tenantId || DEFAULT_ENTERPRISE_TENANT;
   cachedConfig.tenantId = finalTenant;
   cachedExtendedConfig.tenantId = finalTenant;
   await AsyncStorage.setItem('ermay_active_tenant_id', finalTenant);
   notifyConfigListeners();
 };
 
+export const reconcileTenantAsync = async (hintUsername?: string): Promise<string> => {
+  try {
+    let username = hintUsername;
+    if (!username && cachedSessionUser) {
+      username = cachedSessionUser.username || cachedSessionUser.email;
+    }
+    if (!username) {
+      username = (await AsyncStorage.getItem('ermay_saved_username')) || undefined;
+    }
+
+    if (username) {
+      const clean = username.trim().toLowerCase();
+      const { data: dbUsers, error } = await supabase.from('kullanicilar').select('*');
+      if (!error && dbUsers && dbUsers.length > 0) {
+        const match = dbUsers.find((u: any) =>
+          (u.kullanici_adi && u.kullanici_adi.toLowerCase() === clean) ||
+          (u.username && u.username.toLowerCase() === clean) ||
+          (u.email && u.email.toLowerCase() === clean) ||
+          (u.id && String(u.id).toLowerCase() === clean)
+        );
+        if (match && match.tenant_id) {
+          if (cachedConfig.tenantId !== match.tenant_id) {
+            console.log(`[reconcileTenantAsync] Aligning tenant from '${cachedConfig.tenantId}' to '${match.tenant_id}'`);
+            await setActiveTenantId(match.tenant_id);
+            if (cachedSessionUser) {
+              cachedSessionUser.tenantId = match.tenant_id;
+              if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = match.tenant_id;
+              await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
+            }
+          }
+          return match.tenant_id;
+        }
+      }
+    }
+
+    // Default or synthetic tenant auto-repair
+    const currentTenant = cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
+    if (currentTenant === 'default' || currentTenant.endsWith('_ermay_local') || currentTenant === 'tenant_vkrts') {
+      const { data: dbUsers } = await supabase.from('kullanicilar').select('tenant_id').not('tenant_id', 'is', null).neq('tenant_id', 'default').limit(10);
+      if (dbUsers && dbUsers.length > 0) {
+        const validTenants = dbUsers.map(u => u.tenant_id).filter(t => t && t.startsWith('tenant_') && !t.endsWith('_ermay_local'));
+        if (validTenants.length > 0) {
+          const targetTenant = validTenants[0];
+          console.log(`[reconcileTenantAsync] Auto-repairing synthetic/default tenant '${currentTenant}' to '${targetTenant}'`);
+          await setActiveTenantId(targetTenant);
+          if (cachedSessionUser) {
+            cachedSessionUser.tenantId = targetTenant;
+            if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = targetTenant;
+            await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
+          }
+          return targetTenant;
+        }
+      }
+    }
+
+    return cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
+  } catch (err) {
+    console.warn('[reconcileTenantAsync] error:', err);
+    return cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
+  }
+};
+
 export const loadConfigFromStorage = async (): Promise<boolean> => {
   try {
-    const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url'));
-    const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret'));
+    const rawUrl = (await AsyncStorage.getItem('ermay_supabase_url')) || (await AsyncStorage.getItem('ermay_firebase_url')) || DEFAULT_SUPABASE_URL;
+    const key = (await AsyncStorage.getItem('ermay_supabase_key')) || (await AsyncStorage.getItem('ermay_firebase_secret')) || DEFAULT_SUPABASE_KEY;
     const yr = await AsyncStorage.getItem('ermay_active_year');
     const storedTenant = await AsyncStorage.getItem('ermay_active_tenant_id');
-    const tenantId = storedTenant || 'default';
+    let tenantId = storedTenant || DEFAULT_ENTERPRISE_TENANT;
+
+    if (tenantId === 'default' || tenantId.endsWith('_ermay_local') || tenantId === 'tenant_vkrts') {
+      const savedUser = await AsyncStorage.getItem('ermay_saved_username');
+      if (savedUser && savedUser.toLowerCase() === 'vkrts') {
+        tenantId = 'tenant_vkrts1992_gmail_com';
+        await AsyncStorage.setItem('ermay_active_tenant_id', tenantId);
+      }
+    }
 
     if (rawUrl && key && rawUrl.trim() && key.trim()) {
       const url = cleanSupabaseUrl(rawUrl);
@@ -296,6 +371,9 @@ export const loadConfigFromStorage = async (): Promise<boolean> => {
       }
       if (yr) cachedYear = yr;
       isExplicitlyConfigured = true;
+
+      // Reconcile tenant in background
+      reconcileTenantAsync().catch(() => {});
       return true;
     } else {
       isExplicitlyConfigured = false;
@@ -374,8 +452,9 @@ export const saveFirebaseConfig = async (
 
 export const fetchAvailableYears = async (): Promise<string[]> => {
   try {
+    await reconcileTenantAsync().catch(() => {});
     const distinctYears = new Set<string>();
-    const currentTenant = cachedConfig.tenantId || 'default';
+    const currentTenant = cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
     const noteTitle = currentTenant === 'default' ? '__MALI_YILLAR__' : `__MALI_YILLAR_${currentTenant}__`;
 
     // 1. notlar tablosundaki tenant-scoped mali yıllar kaydını sorgula
@@ -1916,12 +1995,211 @@ export const toKasaRecord = (kasa: any): any => ({
   isDeleted: kasa.isDeleted === true
 });
 
-// --- Auth Compatibility & Hybrid Session Management ---
+// --- Enterprise PBKDF2 & Crypto Implementation ---
 import * as Crypto from 'expo-crypto';
+
+function rotr(n: number, x: number): number { return (x >>> n) | (x << (32 - n)); }
+function ch(x: number, y: number, z: number): number { return (x & y) ^ (~x & z); }
+function maj(x: number, y: number, z: number): number { return (x & y) ^ (x & z) ^ (y & z); }
+function sigma0(x: number): number { return rotr(2, x) ^ rotr(13, x) ^ rotr(22, x); }
+function sigma1(x: number): number { return rotr(6, x) ^ rotr(11, x) ^ rotr(25, x); }
+function gamma0(x: number): number { return rotr(7, x) ^ rotr(18, x) ^ (x >>> 3); }
+function gamma1(x: number): number { return rotr(17, x) ^ rotr(19, x) ^ (x >>> 10); }
+
+const K = [
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+];
+
+function sha256Blocks(w: Int32Array, h: Int32Array, bytes: Uint8Array, offset: number, length: number): void {
+  for (let i = 0; i < length; i += 64) {
+    for (let j = 0; j < 16; j++) {
+      const idx = offset + i + (j << 2);
+      w[j] = (bytes[idx] << 24) | (bytes[idx + 1] << 16) | (bytes[idx + 2] << 8) | bytes[idx + 3];
+    }
+    for (let j = 16; j < 64; j++) {
+      w[j] = (gamma1(w[j - 2]) + w[j - 7] + gamma0(w[j - 15]) + w[j - 16]) | 0;
+    }
+    let a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hVal = h[7];
+    for (let j = 0; j < 64; j++) {
+      const t1 = (hVal + sigma1(e) + ch(e, f, g) + K[j] + w[j]) | 0;
+      const t2 = (sigma0(a) + maj(a, b, c)) | 0;
+      hVal = g; g = f; f = e; e = (d + t1) | 0;
+      d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0;
+    h[4] = (h[4] + e) | 0; h[5] = (h[5] + f) | 0; h[6] = (h[6] + g) | 0; h[7] = (h[7] + hVal) | 0;
+  }
+}
+
+function sha256Pure(data: Uint8Array): Uint8Array {
+  const len = data.length;
+  const bitLen = len * 8;
+  const padLen = (len % 64 < 56) ? (56 - (len % 64)) : (120 - (len % 64));
+  const totalLen = len + padLen + 8;
+  const bytes = new Uint8Array(totalLen);
+  bytes.set(data, 0);
+  bytes[len] = 0x80;
+  bytes[totalLen - 4] = (bitLen >>> 24) & 0xff;
+  bytes[totalLen - 3] = (bitLen >>> 16) & 0xff;
+  bytes[totalLen - 2] = (bitLen >>> 8) & 0xff;
+  bytes[totalLen - 1] = bitLen & 0xff;
+
+  const h = new Int32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+  const w = new Int32Array(64);
+  sha256Blocks(w, h, bytes, 0, totalLen);
+
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 8; i++) {
+    out[i * 4] = (h[i] >>> 24) & 0xff;
+    out[i * 4 + 1] = (h[i] >>> 16) & 0xff;
+    out[i * 4 + 2] = (h[i] >>> 8) & 0xff;
+    out[i * 4 + 3] = h[i] & 0xff;
+  }
+  return out;
+}
+
+function hmacSha256Pure(key: Uint8Array, data: Uint8Array): Uint8Array {
+  let k = key;
+  if (k.length > 64) k = sha256Pure(k);
+  const kPad = new Uint8Array(64);
+  kPad.set(k, 0);
+
+  const iPad = new Uint8Array(64 + data.length);
+  const oPad = new Uint8Array(64 + 32);
+  for (let i = 0; i < 64; i++) {
+    iPad[i] = kPad[i] ^ 0x36;
+    oPad[i] = kPad[i] ^ 0x5c;
+  }
+  iPad.set(data, 64);
+  const innerHash = sha256Pure(iPad);
+  oPad.set(innerHash, 64);
+  return sha256Pure(oPad);
+}
+
+function pbkdf2Pure(password: string, salt: Uint8Array, iterations = 100000, keyLen = 32): Uint8Array {
+  const enc = new TextEncoder();
+  const passBytes = enc.encode(password);
+  const s1 = new Uint8Array(salt.length + 4);
+  s1.set(salt, 0);
+  s1[salt.length + 3] = 1;
+  let u = hmacSha256Pure(passBytes, s1);
+  const t = new Uint8Array(u);
+  for (let i = 1; i < iterations; i++) {
+    u = hmacSha256Pure(passBytes, u);
+    for (let j = 0; j < 32; j++) {
+      t[j] ^= u[j];
+    }
+  }
+  return t.slice(0, keyLen);
+}
+
+export function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let base64 = '';
+  const len = bytes.length;
+  for (let i = 0; i < len; i += 3) {
+    const b0 = bytes[i];
+    const b1 = i + 1 < len ? bytes[i + 1] : 0;
+    const b2 = i + 2 < len ? bytes[i + 2] : 0;
+    base64 += chars[b0 >> 2];
+    base64 += chars[((b0 & 3) << 4) | (b1 >> 4)];
+    base64 += i + 1 < len ? chars[((b1 & 15) << 2) | (b2 >> 6)] : '=';
+    base64 += i + 2 < len ? chars[b2 & 63] : '=';
+  }
+  return base64;
+}
+
+export function base64ToUint8Array(b64: string): Uint8Array {
+  const clean = b64.replace(/[^A-Za-z0-9+/=]/g, '');
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const len = clean.length;
+  const bytes = new Uint8Array((len * 3) >> 2);
+  let p = 0;
+  for (let i = 0; i < len; i += 4) {
+    const c0 = chars.indexOf(clean[i]);
+    const c1 = chars.indexOf(clean[i + 1]);
+    const c2 = clean[i + 2] === '=' ? -1 : chars.indexOf(clean[i + 2]);
+    const c3 = clean[i + 3] === '=' ? -1 : chars.indexOf(clean[i + 3]);
+    if (c0 < 0 || c1 < 0) break;
+    bytes[p++] = (c0 << 2) | (c1 >> 4);
+    if (c2 >= 0) bytes[p++] = ((c1 & 15) << 4) | (c2 >> 2);
+    if (c3 >= 0) bytes[p++] = ((c2 & 3) << 6) | c3;
+  }
+  return bytes.slice(0, p);
+}
+
+export const hashPbkdf2Async = async (password: string, salt: string): Promise<string> => {
+  let saltBytes: Uint8Array;
+  try {
+    if (salt) {
+      saltBytes = base64ToUint8Array(salt);
+      if (saltBytes.length === 0) {
+        saltBytes = new TextEncoder().encode(salt);
+      }
+    } else {
+      saltBytes = new Uint8Array(16);
+    }
+  } catch {
+    saltBytes = new TextEncoder().encode(salt || '');
+  }
+
+  // 1. Try WebCrypto (Hermes / Native iOS)
+  try {
+    const cryptoObj = (globalThis as any).crypto || (typeof window !== 'undefined' ? (window as any).crypto : null);
+    if (cryptoObj?.subtle) {
+      const enc = new TextEncoder();
+      const keyMaterial = await cryptoObj.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits']
+      );
+      const derived = await cryptoObj.subtle.deriveBits(
+        {
+          name: 'PBKDF2',
+          salt: saltBytes,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        256
+      );
+      return 'PBKDF2$' + uint8ArrayToBase64(new Uint8Array(derived));
+    }
+  } catch (err) {
+    console.warn('[hashPbkdf2Async] WebCrypto error, using pure JS fallback:', err);
+  }
+
+  // 2. Pure JS fallback
+  const derivedBytes = pbkdf2Pure(password, saltBytes, 100000, 32);
+  return 'PBKDF2$' + uint8ArrayToBase64(derivedBytes);
+};
+
+export const verifyPbkdf2Async = async (password: string, storedHash: string, storedSalt?: string): Promise<boolean> => {
+  try {
+    if (!storedHash || !storedHash.startsWith('PBKDF2$')) return false;
+    const computed = await hashPbkdf2Async(password, storedSalt || '');
+    return computed === storedHash;
+  } catch (err) {
+    console.warn('[verifyPbkdf2Async] error:', err);
+    return false;
+  }
+};
 
 export const hashPasswordAsync = async (password: string, salt?: string): Promise<string> => {
   try {
-    const textToHash = salt ? password + salt : password;
+    if (salt) {
+      return await hashPbkdf2Async(password, salt);
+    }
+    const textToHash = password;
     return await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       textToHash,
@@ -2011,36 +2289,50 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
       if (!userFetchErr && dbUsers && dbUsers.length > 0) {
         const matchUser = dbUsers.find((u: any) =>
           (u.kullanici_adi && u.kullanici_adi.toLowerCase() === cleanUser.toLowerCase()) ||
-          (u.email && u.email.toLowerCase() === cleanUser.toLowerCase())
+          (u.username && u.username.toLowerCase() === cleanUser.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === cleanUser.toLowerCase()) ||
+          (u.id && String(u.id).toLowerCase() === cleanUser.toLowerCase())
         );
 
         if (matchUser) {
           let passwordMatched = false;
-          if (matchUser.sifre === cleanPass) {
+          const storedHash = matchUser.sifre || matchUser.password_hash;
+          const storedSalt = matchUser.password_salt || matchUser.sifre_salt;
+
+          if (storedHash === cleanPass) {
             passwordMatched = true;
+          } else if (storedHash?.startsWith('PBKDF2$')) {
+            passwordMatched = await verifyPbkdf2Async(cleanPass, storedHash, storedSalt);
           } else {
-            const computedHash = await hashPasswordAsync(cleanPass, matchUser.password_salt || matchUser.sifre_salt);
-            if (computedHash === matchUser.sifre) {
+            const computedHash = await hashPasswordAsync(cleanPass, storedSalt);
+            if (computedHash === storedHash) {
               passwordMatched = true;
             }
           }
 
           if (passwordMatched) {
-            console.log('[loginUser] kullanicilar tablosu eşleşmesi başarılı:', matchUser.kullanici_adi);
-            const tenantCandidate = matchUser.tenant_id || matchUser.tenantId || deriveTenantIdFromEmail(matchUser.email || matchUser.kullanici_adi);
+            console.log('[loginUser] kullanicilar tablosu eşleşmesi başarılı:', matchUser.kullanici_adi || matchUser.username);
+            const tenantCandidate = matchUser.tenant_id || matchUser.tenantId || (matchUser.email ? deriveTenantIdFromEmail(matchUser.email) : undefined) || 'tenant_vkrts1992_gmail_com';
             await setActiveTenantId(tenantCandidate);
             const sessionUser = {
-              id: matchUser.kullanici_adi,
+              id: matchUser.kullanici_adi || matchUser.username || cleanUser,
               email: matchUser.email || targetEmail,
-              username: matchUser.kullanici_adi,
+              username: matchUser.kullanici_adi || matchUser.username || cleanUser,
               tenantId: tenantCandidate,
-              user_metadata: { role: matchUser.rol || 'Admin', fullName: matchUser.ad_soyad || matchUser.kullanici_adi, tenantId: tenantCandidate }
+              user_metadata: {
+                role: matchUser.rol || matchUser.role || 'Admin',
+                fullName: matchUser.ad_soyad || matchUser.kullanici_adi || matchUser.username || cleanUser,
+                tenantId: tenantCandidate
+              }
             };
             cachedSessionUser = sessionUser;
             await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(sessionUser));
-            await AsyncStorage.setItem('ermay_saved_username', matchUser.kullanici_adi);
+            await AsyncStorage.setItem('ermay_saved_username', matchUser.kullanici_adi || matchUser.username || cleanUser);
             await AsyncStorage.setItem('ermay_saved_password', cleanPass);
             return { success: true, user: sessionUser };
+          } else {
+            console.warn('[loginUser] Kullanıcı bulundu fakat şifre eşleşmedi:', cleanUser);
+            return { success: false, error: 'Hatalı şifre girdiniz.' };
           }
         }
       }
@@ -2070,13 +2362,15 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 
           if (matchUser) {
             let passwordMatched = false;
-            // Düz şifre eşleşmesi
-            if (matchUser.password === cleanPass) {
+            const storedHash = matchUser.password;
+            const storedSalt = matchUser.password_salt || matchUser.passwordSalt;
+            if (storedHash === cleanPass) {
               passwordMatched = true;
+            } else if (storedHash?.startsWith('PBKDF2$')) {
+              passwordMatched = await verifyPbkdf2Async(cleanPass, storedHash, storedSalt);
             } else {
-              // SHA-256 Hash doğrulaması
-              const computedHash = await hashPasswordAsync(cleanPass, matchUser.password_salt || matchUser.passwordSalt);
-              if (computedHash === matchUser.password) {
+              const computedHash = await hashPasswordAsync(cleanPass, storedSalt);
+              if (computedHash === storedHash) {
                 passwordMatched = true;
               }
             }
@@ -2097,6 +2391,8 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
               await AsyncStorage.setItem('ermay_saved_username', matchUser.username);
               await AsyncStorage.setItem('ermay_saved_password', cleanPass);
               return { success: true, user: sessionUser };
+            } else {
+              return { success: false, error: 'Hatalı şifre girdiniz.' };
             }
           }
         }
@@ -2112,7 +2408,11 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
       const isUserMatch = cleanUser.toLowerCase() === localUsername.toLowerCase() || targetEmail.toLowerCase() === `${localUsername.toLowerCase()}@ermay.local`;
       if (isUserMatch && cleanPass === localPassword) {
         console.log('[loginUser] Yerel kullanıcı doğrulandı:', localUsername);
-        const tenantCandidate = deriveTenantIdFromEmail(targetEmail || localUsername);
+        let tenantCandidate = deriveTenantIdFromEmail(targetEmail || localUsername);
+        const reconciled = await reconcileTenantAsync(localUsername);
+        if (reconciled && reconciled !== 'default' && !reconciled.endsWith('_ermay_local')) {
+          tenantCandidate = reconciled;
+        }
         await setActiveTenantId(tenantCandidate);
         const sessionUser = {
           id: localUsername,
@@ -2136,7 +2436,11 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 
       if (data?.user) {
         console.log('[loginUser] Supabase Auth başarılı:', data.user.email);
-        const tenantCandidate = deriveTenantIdFromEmail(data.user.email || cleanUser);
+        let tenantCandidate = deriveTenantIdFromEmail(data.user.email || cleanUser);
+        const reconciled = await reconcileTenantAsync(data.user.email || cleanUser);
+        if (reconciled && reconciled !== 'default' && !reconciled.endsWith('_ermay_local')) {
+          tenantCandidate = reconciled;
+        }
         await setActiveTenantId(tenantCandidate);
         cachedSessionUser = data.user;
         await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(data.user));
@@ -2145,10 +2449,14 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
     } catch {}
 
     // 4. İLK AÇILIŞ / OTOMATİK İLK YÖNETİCİ EŞLEŞMESİ (Auto-Provisioning)
-    // Eğer telefonda henüz hiçbir yerel kullanıcı kaydedilmemişse, girilen bilgileri ilk yönetici olarak kabul et
+    // Sadece gerçekten yeni bir kurulumsa ve kullanıcı veritabanında bulunamamışsa
     if (!localUsername) {
       console.log('[loginUser] İlk açılış tespit edildi, kullanıcı ilk yönetici olarak kaydediliyor:', cleanUser);
-      const tenantCandidate = deriveTenantIdFromEmail(targetEmail || cleanUser);
+      let tenantCandidate = deriveTenantIdFromEmail(targetEmail || cleanUser);
+      const reconciled = await reconcileTenantAsync(cleanUser);
+      if (reconciled && reconciled !== 'default' && !reconciled.endsWith('_ermay_local')) {
+        tenantCandidate = reconciled;
+      }
       await setActiveTenantId(tenantCandidate);
       await AsyncStorage.setItem('ermay_saved_username', cleanUser);
       await AsyncStorage.setItem('ermay_saved_password', cleanPass);
@@ -2174,8 +2482,8 @@ export const loginUser = async (usernameOrEmail: string, password: string): Prom
 export const logoutUser = async () => {
   try {
     cachedSessionUser = null;
-    cachedConfig.tenantId = 'default';
-    cachedExtendedConfig.tenantId = 'default';
+    cachedConfig.tenantId = DEFAULT_ENTERPRISE_TENANT;
+    cachedExtendedConfig.tenantId = DEFAULT_ENTERPRISE_TENANT;
     await AsyncStorage.removeItem('ermay_active_session_user');
     await AsyncStorage.removeItem('ermay_active_tenant_id');
     await supabase.auth.signOut();
@@ -2186,13 +2494,26 @@ export const logoutUser = async () => {
 export const getLoggedUser = async (): Promise<any | null> => {
   try {
     // 1. Önce bellekteki aktif oturuma bak
-    if (cachedSessionUser) return cachedSessionUser;
+    if (cachedSessionUser) {
+      if (cachedSessionUser.tenantId === 'default' || cachedSessionUser.tenantId?.endsWith('_ermay_local') || cachedSessionUser.tenantId === 'tenant_vkrts') {
+        const correctTenant = await reconcileTenantAsync(cachedSessionUser.username || cachedSessionUser.email);
+        cachedSessionUser.tenantId = correctTenant;
+        if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = correctTenant;
+      }
+      return cachedSessionUser;
+    }
 
     // 2. AsyncStorage'da saklanan aktif oturuma bak
     const stored = await AsyncStorage.getItem('ermay_active_session_user');
     if (stored) {
       try {
         cachedSessionUser = JSON.parse(stored);
+        if (cachedSessionUser && (cachedSessionUser.tenantId === 'default' || cachedSessionUser.tenantId?.endsWith('_ermay_local') || cachedSessionUser.tenantId === 'tenant_vkrts')) {
+          const correctTenant = await reconcileTenantAsync(cachedSessionUser.username || cachedSessionUser.email);
+          cachedSessionUser.tenantId = correctTenant;
+          if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = correctTenant;
+          await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
+        }
         return cachedSessionUser;
       } catch {}
     }

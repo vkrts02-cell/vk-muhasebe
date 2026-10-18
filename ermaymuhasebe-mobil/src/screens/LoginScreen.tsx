@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Key, Link, Calendar, ShieldAlert, LogIn, Settings, CheckCircle2, User, History, ChevronRight, Send, Mail, Globe, Shield, Smartphone } from 'lucide-react-native';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, getSupabaseClient, cleanSupabaseUrl, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY } from '../services/firebase';
+import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, reconcileTenantAsync, getSupabaseClient, cleanSupabaseUrl, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY } from '../services/firebase';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -110,6 +110,7 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     setError('');
     try {
       await loadConfigFromStorage();
+      await reconcileTenantAsync().catch(() => {});
       const years = await fetchAvailableYears();
       setAvailableYears(years);
       
@@ -118,6 +119,8 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
         setSelectedYear(storedYear);
       } else if (years.length > 0) {
         setSelectedYear(years[0]);
+      } else {
+        setSelectedYear('2026');
       }
     } catch (err) {
       console.error('Years load error:', err);

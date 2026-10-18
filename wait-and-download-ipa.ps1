@@ -62,19 +62,30 @@ while ($elapsed -lt $maxWaitSeconds) {
                 
                 # 2. Release asset dene (eger artifactten gelmediyse)
                 if (-not $downloadedIpa) {
-                    Write-Host "Release asset deneniyor..." -ForegroundColor Cyan
-                    try {
-                        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/latest-ios" -UserAgent "Mozilla/5.0"
-                        $asset = $rel.assets | Where-Object { $_.name -eq "VK.ipa" } | Select-Object -First 1
-                        if ($asset -and $asset.browser_download_url) {
-                            $assetDest = Join-Path $tempDir "VK.ipa"
-                            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $assetDest -UserAgent "Mozilla/5.0"
-                            if (Test-Path $assetDest) {
-                                $downloadedIpa = Get-Item $assetDest
+                    $maxReleaseWait = 60
+                    $relElapsed = 0
+                    while ($relElapsed -lt $maxReleaseWait) {
+                        try {
+                            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/latest-ios" -UserAgent "Mozilla/5.0"
+                            $asset = $rel.assets | Where-Object { $_.name -eq "VK.ipa" } | Select-Object -First 1
+                            if ($asset -and $asset.browser_download_url) {
+                                $assetDest = Join-Path $tempDir "VK.ipa"
+                                Write-Host "VK.ipa indiriliyor ($($asset.browser_download_url))..." -ForegroundColor Cyan
+                                curl.exe -L --fail --retry 3 -o "$assetDest" "$($asset.browser_download_url)"
+                                if (-not (Test-Path $assetDest) -or (Get-Item $assetDest).Length -lt 1000000) {
+                                    $ProgressPreference = 'SilentlyContinue'
+                                    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $assetDest -UserAgent "Mozilla/5.0"
+                                }
+                                if ((Test-Path $assetDest) -and ((Get-Item $assetDest).Length -gt 1000000)) {
+                                    $downloadedIpa = Get-Item $assetDest
+                                    break
+                                }
                             }
+                        } catch {
+                            Write-Host "Release kontrol denemesi ($relElapsed sn): $($_.Exception.Message)" -ForegroundColor DarkGray
                         }
-                    } catch {
-                        Write-Host "Release kontrol hatasi: $($_.Exception.Message)" -ForegroundColor DarkGray
+                        Start-Sleep -Seconds 10
+                        $relElapsed += 10
                     }
                 }
 

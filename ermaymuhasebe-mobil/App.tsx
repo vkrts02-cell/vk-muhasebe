@@ -5,7 +5,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import LoginScreen from './src/screens/LoginScreen';
 import AsyncStorage from './src/services/storage';
 import LockScreen from './src/screens/LockScreen';
-import { loadConfigFromStorage, getFirebaseConfig, addConfigListener, getLoggedUser, isConfiguredInStorage } from './src/services/firebase';
+import { loadConfigFromStorage, getFirebaseConfig, addConfigListener, getLoggedUser, isConfiguredInStorage, reconcileTenantAsync } from './src/services/firebase';
 import { recordBackground, shouldLock, clearBackgroundRecord } from './src/services/lockService';
 import { loadFirmaProfili } from './src/services/pdfService';
 import { initNotifications } from './src/services/alertService';
@@ -62,6 +62,7 @@ export default function App() {
 
       if (configured) {
         await loadConfigFromStorage();
+        await reconcileTenantAsync().catch(() => {});
         const user = await getLoggedUser();
         setLoggedUser(user);
 
@@ -111,6 +112,7 @@ export default function App() {
 
   const handleLoginSuccess = async () => {
     console.log('[APP] handleLoginSuccess çağrıldı');
+    await reconcileTenantAsync().catch(() => {});
     // Giriş başarılı olunca kullanıcıyı yeniden yükle
     let user = await getLoggedUser();
     if (!user) {
