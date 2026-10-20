@@ -10,7 +10,7 @@ on:
 jobs:
   build-ios:
     name: Build iOS IPA (ARM64 Unsigned)
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: write
 
