@@ -314,6 +314,13 @@ public class CloudPdfService : IPdfService
         return await FetchPdfBytes("stok-hareket", new ErmayMuhasebe.Models.StokHareketReportRequest(stok, hareketler, logo, profil?.LogoRaporlar ?? ShowLogoRaporlar));
     }
 
+    public async Task<byte[]> GenerateCokluStokHareketleriPdfBytesAsync(List<(StokKart Stok, List<StokHareket> Hareketler)> data)
+    {
+        var (logo, profil) = await GetLogoAndProfileAsync();
+        var items = data.Select(d => new { Stok = d.Stok, Hareketler = d.Hareketler }).ToList();
+        return await FetchPdfBytes("coklu-stok-hareket", new { Data = items, Logo = logo, ShowLogo = profil?.LogoRaporlar ?? ShowLogoRaporlar });
+    }
+
     public async Task<byte[]> GenerateVadeRaporuPdfBytesAsync(List<VadeReportItem> items)
     {
         var (logo, profil) = await GetLogoAndProfileAsync();

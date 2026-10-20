@@ -567,39 +567,39 @@
                                     <Border Grid.Row="3" Height="50" Background="#007acc" Padding="15,0">
                                     <Grid ColumnDefinitions="*, Auto, *">
                                         <!-- SOL: Döviz Kuru, Aktif Mali Yıl -->
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9" IsVisible="{Binding CurrentSettings.ShowExchangeRates}">
-                                                <ic:SymbolIcon Symbol="Money" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding LiveExchangeRates}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="7" Opacity="0.95" IsVisible="{Binding CurrentSettings.ShowExchangeRates}">
+                                                <ic:SymbolIcon Symbol="Money" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding LiveExchangeRates}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="|" FontSize="11" Foreground="White" Opacity="0.4" VerticalAlignment="Center" IsVisible="{Binding CurrentSettings.ShowExchangeRates}"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
-                                                <ic:SymbolIcon Symbol="Calendar" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.5" VerticalAlignment="Center" IsVisible="{Binding CurrentSettings.ShowExchangeRates}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="7" Opacity="0.95">
+                                                <ic:SymbolIcon Symbol="Calendar" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding ActiveFiscalYear}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
 
                                         <!-- ORTA: Tarih ve Saat -->
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Opacity="0.9" IsVisible="{Binding CurrentSettings.ShowDateTime}">
-                                            <ic:SymbolIcon Symbol="Clock" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding LiveDateTime}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Opacity="0.95" IsVisible="{Binding CurrentSettings.ShowDateTime}">
+                                            <ic:SymbolIcon Symbol="Clock" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding LiveDateTime}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <!-- SAĞ: Kullanıcı Adı, İnternet Durumu ve Bulut Eşitleme -->
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
-                                                <ic:SymbolIcon Symbol="Person" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding CurrentUserName}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="18" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="7" Opacity="0.95">
+                                                <ic:SymbolIcon Symbol="Person" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding CurrentUserName}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="|" FontSize="11" Foreground="White" Opacity="0.4" VerticalAlignment="Center"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
-                                                <ic:SymbolIcon Symbol="{Binding ConnectionStatusIcon, Converter={StaticResource SymbolIconConverter}}" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.5" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="7" Opacity="0.95">
+                                                <ic:SymbolIcon Symbol="{Binding ConnectionStatusIcon, Converter={StaticResource SymbolIconConverter}}" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding ConnectionStatusText}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="|" FontSize="11" Foreground="White" Opacity="0.4" VerticalAlignment="Center"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.9">
-                                                <ic:SymbolIcon Symbol="CloudCheckmark" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding SyncStatusText}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.5" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="7" Opacity="0.95">
+                                                <ic:SymbolIcon Symbol="CloudCheckmark" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding SyncStatusText}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>

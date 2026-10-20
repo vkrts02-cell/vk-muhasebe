@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Linq.Expressions;
 using ErmayMuhasebe.Helpers;
+using ErmayMuhasebe.Shared.Helpers;
 
 namespace ErmayMuhasebe.Shared.ViewModels;
 
@@ -36,10 +37,31 @@ public abstract partial class StokListViewModel : ViewModelBase
     [ObservableProperty] private string _filterGrup = "";
     [ObservableProperty] private bool _onlyWithBalance = false;
 
-    partial void OnFilterKodChanged(string value) => _ = LoadStoklarAsync();
-    partial void OnFilterStokAdiChanged(string value) => _ = LoadStoklarAsync();
-    partial void OnFilterGrupChanged(string value) => _ = LoadStoklarAsync();
-    partial void OnOnlyWithBalanceChanged(bool value) => _ = LoadStoklarAsync();
+    private System.Threading.CancellationTokenSource? _searchCts;
+
+    partial void OnFilterKodChanged(string value) => TriggerDebouncedSearch();
+    partial void OnFilterStokAdiChanged(string value) => TriggerDebouncedSearch();
+    partial void OnFilterGrupChanged(string value) => TriggerDebouncedSearch();
+    partial void OnOnlyWithBalanceChanged(bool value) => TriggerDebouncedSearch();
+
+    private void TriggerDebouncedSearch()
+    {
+        _searchCts?.Cancel();
+        _searchCts = new System.Threading.CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        Task.Delay(50, token).ContinueWith(t => 
+        {
+            if (!t.IsCanceled)
+            {
+                InvokeOnUIThreadAsync(async () => 
+                {
+                    CurrentPageIndex = 0;
+                    await LoadStoklarAsync(isSilent: true);
+                });
+            }
+        }, token);
+    }
 
     // Groups
     [ObservableProperty] private ObservableCollection<string> _groupList = new();
@@ -52,7 +74,7 @@ public abstract partial class StokListViewModel : ViewModelBase
     }
 
     // Pagination Properties
-    [ObservableProperty] private int _pageSize = 100;
+    [ObservableProperty] private int _pageSize = 1000;
     [ObservableProperty] private int _currentPageIndex = 0;
     [ObservableProperty] private int _totalCount;
     [ObservableProperty] private bool _canNextPage;
@@ -147,18 +169,12 @@ public abstract partial class StokListViewModel : ViewModelBase
             int? targetSelectId = selectId ?? SelectedStok?.Id;
             
             Expression<Func<StokKart, bool>>? filter = null;
-            bool hasKod = !string.IsNullOrWhiteSpace(FilterKod);
-            bool hasAd = !string.IsNullOrWhiteSpace(FilterStokAdi);
             bool hasGrup = !string.IsNullOrWhiteSpace(FilterGrup);
-            string kod = FilterKod ?? "";
-            string ad = FilterStokAdi ?? "";
             string grup = FilterGrup ?? "";
 
-            if (hasKod || hasAd || hasGrup || OnlyWithBalance)
+            if (hasGrup || OnlyWithBalance)
             {
                 filter = s => !s.IsDeleted && 
-                    (!hasKod || (s.StokKodu != null && s.StokKodu.Contains(kod)) || (s.StokAdi != null && s.StokAdi.Contains(kod)) || (s.Barkod != null && s.Barkod.Contains(kod))) &&
-                    (!hasAd || (s.StokAdi != null && s.StokAdi.Contains(ad))) &&
                     (!hasGrup || (s.Kategori != null && s.Kategori.Contains(grup))) &&
                     (!OnlyWithBalance || (s.Miktar > 0.0001m || s.Miktar < -0.0001m));
             }
@@ -167,8 +183,29 @@ public abstract partial class StokListViewModel : ViewModelBase
                 filter = s => !s.IsDeleted;
             }
 
-            TotalCount = await _uow.Stoklar.GetCountAsync(filter);
-            var pagedList = await _uow.Stoklar.GetPagedAsync(CurrentPageIndex * PageSize, PageSize, filter, s => s.StokAdi!);
+            List<StokKart> pagedList;
+            string searchPattern = $"{FilterKod} {FilterStokAdi}".Trim();
+
+            if (!string.IsNullOrWhiteSpace(searchPattern))
+            {
+                // Cari hesaplardaki gibi Türkçe büyük/küçük harf duyarsız ve tüm alanlarda arama (TurkishSearchHelper.MatchSearch)
+                var candidateList = await _uow.Stoklar.GetPagedAsync(0, 100000, filter);
+                var filteredList = candidateList.Where(s => 
+                    TurkishSearchHelper.MatchSearch($"{s.StokAdi} {s.StokKodu} {s.Barkod} {s.Kategori}", searchPattern)
+                ).ToList();
+
+                TotalCount = filteredList.Count;
+                pagedList = filteredList
+                    .OrderBy(s => s.StokAdi ?? "")
+                    .Skip(CurrentPageIndex * PageSize)
+                    .Take(PageSize)
+                    .ToList();
+            }
+            else
+            {
+                TotalCount = await _uow.Stoklar.GetCountAsync(filter);
+                pagedList = await _uow.Stoklar.GetPagedAsync(CurrentPageIndex * PageSize, PageSize, filter, s => s.StokAdi!);
+            }
             
             var distinctGroups = await _uow.Stoklar.GetGruplarAsync();
 
@@ -883,18 +920,47 @@ public abstract partial class StokListViewModel : ViewModelBase
     [RelayCommand]
     public virtual async Task GenerateStokHareketleriReportAsync()
     {
-        if (SelectedStok == null)
+        var selectedList = Stoklar.Where(s => s.IsSelected).ToList();
+        if (selectedList.Count == 0 && SelectedStok != null)
+        {
+            selectedList.Add(SelectedStok);
+        }
+
+        if (selectedList.Count == 0)
         {
             ErrorMessage = "Lütfen önce hareket raporunu almak istediğiniz stok kartını seçiniz.";
             return;
         }
+
         try
         {
-            var list = await _uow.Stoklar.GetHareketlerAsync(SelectedStok.Id);
-            var pdfBytes = await _pdfService.GenerateStokHareketleriPdfBytesAsync(SelectedStok, list);
-            await HandleFileOpenAsync(pdfBytes, $"StokHareket_{SelectedStok.StokKodu}.pdf");
+            if (selectedList.Count == 1)
+            {
+                var targetStok = selectedList[0];
+                var list = await _uow.Stoklar.GetHareketlerAsync(targetStok.Id);
+                var pdfBytes = await _pdfService.GenerateStokHareketleriPdfBytesAsync(targetStok, list);
+                await HandleFileOpenAsync(pdfBytes, $"StokHareket_{targetStok.StokKodu}.pdf");
+            }
+            else
+            {
+                StatusMessage = "Seçili stokların hareket raporu hazırlanıyor...";
+                var reportData = new List<(StokKart Stok, List<StokHareket> Hareketler)>();
+                foreach (var stok in selectedList)
+                {
+                    var list = await _uow.Stoklar.GetHareketlerAsync(stok.Id);
+                    reportData.Add((stok, list));
+                }
+
+                var pdfBytes = await _pdfService.GenerateCokluStokHareketleriPdfBytesAsync(reportData);
+                await HandleFileOpenAsync(pdfBytes, $"TopluStokHareket_{DateTime.Now:ddMMyyyy_HHmmss}.pdf");
+                StatusMessage = "";
+            }
         }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Rapor oluşturma hatası: {ex.Message}";
+            StatusMessage = "";
+        }
     }
 
     [RelayCommand]

@@ -145,7 +145,7 @@
                              <Border Background="{DynamicResource FluidBlueGradient}" Width="38" Height="38" CornerRadius="8">
                                 <ic:SymbolIcon Symbol="PersonAdd" FontSize="18" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                              </Border>
-                             <TextBlock Text="Yeni Portföy / Cari Kaydı" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                             <TextBlock Text="Yeni Portföy Kaydı (Potansiyel Müşteri)" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Grid.Column="2" Command="{Binding CloseDialogsCommand}" 
                                 Background="#15FFFFFF" BorderThickness="0" Width="44" Height="44" CornerRadius="22" Padding="0">

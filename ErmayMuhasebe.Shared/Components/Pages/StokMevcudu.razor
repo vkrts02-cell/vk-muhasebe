@@ -196,7 +196,10 @@
 
     private async Task RaporOlustur()
     {
-        stoklar = await DbService.GetStoklarAsync();
+        var tumStoklar = await DbService.GetStoklarAsync();
+        var tumHareketler = await DbService.GetStokHareketleriAsync();
+        var hareketliIdler = tumHareketler.Select(h => h.StokId).ToHashSet();
+        stoklar = tumStoklar.Where(s => hareketliIdler.Contains(s.Id)).ToList();
         raporOlusturuldu = true;
         StateHasChanged();
     }

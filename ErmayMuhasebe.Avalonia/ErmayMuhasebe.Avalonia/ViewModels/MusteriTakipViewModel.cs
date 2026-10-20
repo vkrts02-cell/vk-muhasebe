@@ -44,6 +44,19 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         }
     }
 
+    public class MusteriAdayItem
+    {
+        public int Id { get; set; }
+        public string? CariKod { get; set; }
+        public string Unvan { get; set; } = string.Empty;
+        public string? Yetkili { get; set; }
+        public string? Telefon { get; set; }
+        public string Kaynak { get; set; } = "Cari Hesap";
+        public string KaynakRenk => Kaynak == "Portföy" ? "#10B981" : "#3B82F6";
+        public CariKart? OriginalCari { get; set; }
+        public PortfoyKart? OriginalPortfoy { get; set; }
+    }
+
     public partial class MusteriTakipViewModel : ViewModelBase
     {
         private readonly IUnitOfWork _uow;
@@ -57,11 +70,14 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         [ObservableProperty] private ObservableCollection<string> _etiketListesi = new() { "Tümü", "Sıcak Müşteri", "Teklif Aşamasında", "Önemli", "Yeni İletişim", "Takipte" };
         [ObservableProperty] private bool _hasKlasorler = false;
 
-        // Cari Seçim Modalı
+        // Cari ve Portföy Seçim Modalı
         [ObservableProperty] private bool _isCariSelectionOpen = false;
+        [ObservableProperty] private ObservableCollection<MusteriAdayItem> _adaylar = new();
+        [ObservableProperty] private ObservableCollection<MusteriAdayItem> _filteredAdaylar = new();
         [ObservableProperty] private ObservableCollection<CariKart> _cariler = new();
         [ObservableProperty] private ObservableCollection<CariKart> _filteredCariler = new();
         [ObservableProperty] private string _cariSearchText = string.Empty;
+        [ObservableProperty] private MusteriAdayItem? _selectedAdayForAdd;
         [ObservableProperty] private CariKart? _selectedCariForAdd;
 
         // Klasör Detay Ekranı
@@ -97,14 +113,14 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                FilteredCariler = new ObservableCollection<CariKart>(Cariler);
+                FilteredAdaylar = new ObservableCollection<MusteriAdayItem>(Adaylar);
             }
             else
             {
-                var filtered = Cariler.Where(c => 
-                    TurkishSearchHelper.MatchSearch($"{c.Unvan} {c.CariKod} {c.Yetkili} {c.Telefon}", value)
+                var filtered = Adaylar.Where(c => 
+                    TurkishSearchHelper.MatchSearch($"{c.Unvan} {c.CariKod} {c.Yetkili} {c.Telefon} {c.Kaynak}", value)
                 );
-                FilteredCariler = new ObservableCollection<CariKart>(filtered);
+                FilteredAdaylar = new ObservableCollection<MusteriAdayItem>(filtered);
             }
         }
 
@@ -192,12 +208,60 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
             {
                 var existingKlasorler = await _uow.MusteriTakip.GetKlasorlerAsync();
                 var existingCariIds = existingKlasorler.Select(k => k.CariId).ToHashSet();
+                var existingUnvanlar = existingKlasorler
+                    .Where(k => !string.IsNullOrWhiteSpace(k.CariUnvan))
+                    .Select(k => k.CariUnvan.Trim().ToLower(TurkishSearchHelper.Culture))
+                    .ToHashSet();
 
+                var adaylarList = new List<MusteriAdayItem>();
+
+                // 1. Cari Hesaplar
                 var carilerList = await _uow.Cariler.GetAllAsync();
-                var availableCariler = carilerList.Where(c => !existingCariIds.Contains(c.Id)).OrderBy(c => c.Unvan);
+                foreach (var c in carilerList.Where(c => !existingCariIds.Contains(c.Id) && !c.IsDeleted))
+                {
+                    adaylarList.Add(new MusteriAdayItem
+                    {
+                        Id = c.Id,
+                        CariKod = c.CariKod,
+                        Unvan = c.Unvan ?? "İsimsiz Cari",
+                        Yetkili = c.Yetkili,
+                        Telefon = !string.IsNullOrWhiteSpace(c.Telefon) ? c.Telefon : c.CepTelefon,
+                        Kaynak = "Cari Hesap",
+                        OriginalCari = c
+                    });
+                }
 
-                Cariler = new ObservableCollection<CariKart>(availableCariler);
-                FilteredCariler = new ObservableCollection<CariKart>(Cariler);
+                // 2. Portföy Listesi (Araçlar -> Portföy Kartları)
+                try
+                {
+                    var portfoyList = await _uow.Portfolyo.GetAllAsync();
+                    foreach (var p in portfoyList.Where(p => !p.IsDeleted))
+                    {
+                        string pUnvan = (p.FirmaIsmi ?? "").Trim().ToLower(TurkishSearchHelper.Culture);
+                        // Eğer aynı isimde cari zaten takipte değilse ve aday listesinde henüz yoksa ekle
+                        if (!existingUnvanlar.Contains(pUnvan) && !adaylarList.Any(a => a.Unvan.Trim().ToLower(TurkishSearchHelper.Culture) == pUnvan))
+                        {
+                            adaylarList.Add(new MusteriAdayItem
+                            {
+                                Id = p.Id,
+                                CariKod = p.PortfoyNo,
+                                Unvan = p.FirmaIsmi ?? "İsimsiz Portföy",
+                                Yetkili = p.YetkiliKisi,
+                                Telefon = !string.IsNullOrWhiteSpace(p.GSM) ? p.GSM : p.Telefon,
+                                Kaynak = "Portföy",
+                                OriginalPortfoy = p
+                            });
+                        }
+                    }
+                }
+                catch (Exception pex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MusteriTakipViewModel] Portfoy load error: {pex.Message}");
+                }
+
+                var orderedAdaylar = adaylarList.OrderBy(a => a.Unvan).ToList();
+                Adaylar = new ObservableCollection<MusteriAdayItem>(orderedAdaylar);
+                FilteredAdaylar = new ObservableCollection<MusteriAdayItem>(Adaylar);
                 CariSearchText = string.Empty;
                 IsCariSelectionOpen = true;
             }
@@ -211,40 +275,79 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         public void CloseCariSelection()
         {
             IsCariSelectionOpen = false;
+            SelectedAdayForAdd = null;
             SelectedCariForAdd = null;
         }
 
         [RelayCommand]
-        public async Task SelectCariAndCreateKlasorAsync(CariKart cari)
+        public async Task SelectAdayAndCreateKlasorAsync(MusteriAdayItem aday)
         {
-            if (cari == null) return;
+            if (aday == null) return;
 
             try
             {
-                // Seçilen müşteriyi seçim listesinden kaldır (gizle)
-                var itemInAll = Cariler.FirstOrDefault(c => c.Id == cari.Id);
-                if (itemInAll != null) Cariler.Remove(itemInAll);
+                // Seçilen adayı modal listesinden kaldır
+                var itemInAll = Adaylar.FirstOrDefault(a => a.Id == aday.Id && a.Kaynak == aday.Kaynak);
+                if (itemInAll != null) Adaylar.Remove(itemInAll);
 
-                var itemInFiltered = FilteredCariler.FirstOrDefault(c => c.Id == cari.Id);
-                if (itemInFiltered != null) FilteredCariler.Remove(itemInFiltered);
+                var itemInFiltered = FilteredAdaylar.FirstOrDefault(a => a.Id == aday.Id && a.Kaynak == aday.Kaynak);
+                if (itemInFiltered != null) FilteredAdaylar.Remove(itemInFiltered);
 
-                // Zaten var mı kontrol et
-                var existing = await _uow.MusteriTakip.GetByCariIdAsync(cari.Id);
+                int targetCariId = 0;
+                string targetUnvan = aday.Unvan;
+                string? targetKod = aday.CariKod;
+                string? targetTelefon = aday.Telefon;
+                string? targetYetkili = aday.Yetkili;
+
+                if (aday.OriginalPortfoy != null)
+                {
+                    // Portföy adayı: Cari karta dönüştürme! Cari hesaplar kısmına aktarılmamalıdır.
+                    // Yalnızca kullanıcı Portföy ekranında "Cariye Aktar" butonuna tıklarsa cari oluşturulur.
+                    var portfoy = aday.OriginalPortfoy;
+                    targetCariId = 0;
+                    targetUnvan = portfoy.FirmaIsmi ?? aday.Unvan;
+                    targetKod = portfoy.PortfoyNo ?? aday.CariKod;
+                    targetTelefon = !string.IsNullOrWhiteSpace(portfoy.GSM) ? portfoy.GSM : portfoy.Telefon;
+                    targetYetkili = portfoy.YetkiliKisi ?? aday.Yetkili;
+                }
+                else if (aday.OriginalCari != null)
+                {
+                    targetCariId = aday.OriginalCari.Id;
+                    targetUnvan = aday.OriginalCari.Unvan ?? aday.Unvan;
+                    targetKod = aday.OriginalCari.CariKod;
+                    targetTelefon = aday.OriginalCari.Telefon ?? aday.OriginalCari.CepTelefon;
+                    targetYetkili = aday.OriginalCari.Yetkili;
+                }
+                else
+                {
+                    targetCariId = aday.Id;
+                }
+
+                // Zaten takip klasörü var mı kontrol et
+                MusteriTakipKlasor? existing = null;
+                if (targetCariId > 0)
+                {
+                    existing = await _uow.MusteriTakip.GetByCariIdAsync(targetCariId);
+                }
+                else
+                {
+                    var all = await _uow.MusteriTakip.GetKlasorlerAsync();
+                    existing = all.FirstOrDefault(k => !string.IsNullOrEmpty(k.CariUnvan) && k.CariUnvan.Trim().Equals(targetUnvan.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+
                 if (existing != null)
                 {
                     CloseCariSelection();
-                    // Zaten varsa o klasörü aç
-                    OpenKlasorDetail(new MusteriTakipKlasorCardViewModel(existing));
                     return;
                 }
 
                 var yeniKlasor = new MusteriTakipKlasor
                 {
-                    CariId = cari.Id,
-                    CariUnvan = cari.Unvan ?? "İsimsiz Müşteri",
-                    CariKod = cari.CariKod,
-                    Telefon = cari.Telefon,
-                    Yetkili = cari.Yetkili,
+                    CariId = targetCariId,
+                    CariUnvan = targetUnvan,
+                    CariKod = targetKod,
+                    Telefon = targetTelefon,
+                    Yetkili = targetYetkili,
                     Etiket = "Yeni İletişim",
                     Renk = "#3B82F6",
                     OlusturmaTarihi = DateTime.Now,
@@ -255,16 +358,30 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
                 CloseCariSelection();
                 await LoadKlasorlerAsync();
 
-                var createdCard = Klasorler.FirstOrDefault(k => k.Id == yeniKlasor.Id);
-                if (createdCard != null)
-                {
-                    OpenKlasorDetail(createdCard);
-                }
+                // 2. Sorun Çözümü: Müşteri eklendiğinde detay sayfası otomatik açılmasın!
+                // Kullanıcı ana listeden istediği zaman klasörün üzerine tıklayarak açabilir.
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[MusteriTakipViewModel] SelectCariAndCreateKlasorAsync Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MusteriTakipViewModel] SelectAdayAndCreateKlasorAsync Error: {ex.Message}");
             }
+        }
+
+        [RelayCommand]
+        public async Task SelectCariAndCreateKlasorAsync(CariKart cari)
+        {
+            if (cari == null) return;
+            var aday = new MusteriAdayItem
+            {
+                Id = cari.Id,
+                CariKod = cari.CariKod,
+                Unvan = cari.Unvan ?? "İsimsiz Müşteri",
+                Yetkili = cari.Yetkili,
+                Telefon = cari.Telefon,
+                Kaynak = "Cari Hesap",
+                OriginalCari = cari
+            };
+            await SelectAdayAndCreateKlasorAsync(aday);
         }
 
         [RelayCommand]
@@ -285,6 +402,18 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
         private async void OnBackFromDetail()
         {
             await LoadKlasorlerAsync();
+        }
+
+        [RelayCommand]
+        public void DeleteKlasorConfirm(MusteriTakipKlasorCardViewModel card)
+        {
+            if (card == null) return;
+            ShowConfirm("Müşteri Takip Klasörünü Sil", 
+                $"'{card.CariUnvan}' müşterisine ait takip klasörünü ve tüm kayıtlarını silmek istediğinize emin misiniz?", 
+                async () =>
+                {
+                    await DeleteKlasorAsync(card);
+                });
         }
 
         [RelayCommand]

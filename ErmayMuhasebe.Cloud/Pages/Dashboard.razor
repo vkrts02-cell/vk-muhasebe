@@ -107,23 +107,119 @@
                     </div>
                 </div>
                 
-                <div class="chart-container flex-grow-1" style="min-height: 0; position: relative; padding: 10px 0;">
-                    @if (ViewModel.IsLoading)
-                    {
-                        <div class="skeleton" style="height: 100%; width: 100%; border-radius: 12px;"></div>
-                    }
-                    else if (!GoalSeries.Any() || GoalSeries.All(x => x.Data.All(d => d == 0)))
-                    {
-                        <div class="d-flex flex-column align-center justify-center h-100" style="color: rgba(255,255,255,0.15);">
-                            <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="font-size: 54px; margin-bottom: 12px;" />
-                            <MudText Typo="Typo.h6" Style="font-size: 14px; opacity: 0.6;">Henüz Hedef Verisi Tanımlanmamış</MudText>
+                @if (ViewModel.IsLoading)
+                {
+                    <div class="skeleton flex-grow-1" style="width: 100%; min-height: 220px; border-radius: 12px;"></div>
+                }
+                else if (!GoalLabels.Any() || (TotalGoalTarget == 0 && TotalGoalActual == 0))
+                {
+                    <div class="d-flex flex-column align-center justify-center flex-grow-1" style="color: rgba(255,255,255,0.15); min-height: 220px;">
+                        <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="font-size: 54px; margin-bottom: 12px;" />
+                        <MudText Typo="Typo.h6" Style="font-size: 14px; opacity: 0.6;">Henüz Hedef Verisi Tanımlanmamış</MudText>
+                    </div>
+                }
+                else
+                {
+                    <!-- HARMAN MODEL 2: Apple Radial Ring (Sol) + Türkiye Muhasebe Çift Kolon Barları (Sağ) -->
+                    <div class="hybrid-chart-wrapper d-flex flex-grow-1 align-center">
+                        <!-- SOL PANEL: Apple Radial Progress Ring & Toplamlar -->
+                        <div class="apple-ring-card d-flex flex-column align-center justify-center flex-shrink-0">
+                            <div class="ring-svg-container position-relative">
+                                <svg width="124" height="124" viewBox="0 0 124 124">
+                                    <defs>
+                                        <linearGradient id="appleRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stop-color="@(GoalCompletionRate >= 100 ? "#34d399" : "#f87171")" />
+                                            <stop offset="100%" stop-color="@(GoalCompletionRate >= 100 ? "#10b981" : "#ef4444")" />
+                                        </linearGradient>
+                                    </defs>
+                                    <circle cx="62" cy="62" r="46" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="9" />
+                                    <circle cx="62" cy="62" r="46" fill="none" stroke="url(#appleRingGrad)" stroke-width="9"
+                                            stroke-linecap="round"
+                                            stroke-dasharray="289"
+                                            stroke-dashoffset="@GoalRingDashOffset"
+                                            transform="rotate(-90 62 62)"
+                                            style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1); filter: drop-shadow(0 0 6px @(GoalCompletionRate >= 100 ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)"));" />
+                                </svg>
+                                <div class="ring-center-text d-flex flex-column align-center justify-center">
+                                    <span class="ring-pct">@GoalCompletionRate%</span>
+                                    <span class="ring-lbl">Tamamlandı</span>
+                                </div>
+                            </div>
+                            
+                            <div class="ring-summary-box mt-3 d-flex flex-column">
+                                <div class="ring-summary-row d-flex justify-space-between align-center">
+                                    <span class="ring-sum-label"><span class="legend-dot dot-green"></span>Hedef:</span>
+                                    <span class="ring-sum-val">₺ @TotalGoalTarget.ToString("N0")</span>
+                                </div>
+                                <div class="ring-summary-row d-flex justify-space-between align-center">
+                                    <span class="ring-sum-label"><span class="legend-dot dot-red"></span>Gerçekleşen:</span>
+                                    <span class="ring-sum-val val-red">₺ @TotalGoalActual.ToString("N0")</span>
+                                </div>
+                            </div>
                         </div>
-                    }
-                    else
-                    {
-                        <MudChart ChartType="ChartType.Line" ChartSeries="@GoalSeries" XAxisLabels="@ProcessedGoalLabels" Width="100%" Height="100%" ChartOptions="@chartOptions" Interpolated="true" />
-                    }
-                </div>
+
+                        <!-- SAĞ PANEL: Türkiye Muhasebe Standardı Çift Kolon Grafiği -->
+                        <div class="accounting-bars-card flex-grow-1 d-flex flex-column h-100">
+                            <!-- Çizim Alanı (Y-Axis Kılavuzları ve Barlar) -->
+                            <div class="bars-drawing-area position-relative flex-grow-1 d-flex">
+                                <!-- Y-Axis Etiketleri -->
+                                <div class="y-axis-labels d-flex flex-column justify-space-between align-end pr-2 flex-shrink-0">
+                                    <span>₺ @FormatShortCurrency(MaxGoalValue)</span>
+                                    <span>₺ @FormatShortCurrency(MaxGoalValue * 0.75m)</span>
+                                    <span>₺ @FormatShortCurrency(MaxGoalValue * 0.50m)</span>
+                                    <span>₺ @FormatShortCurrency(MaxGoalValue * 0.25m)</span>
+                                    <span>₺ 0</span>
+                                </div>
+
+                                <!-- Barlar ve Izgara Çizgileri -->
+                                <div class="bars-plot-area position-relative flex-grow-1">
+                                    <!-- Yatay Kılavuz Çizgileri -->
+                                    <div class="grid-line" style="top: 0%;"></div>
+                                    <div class="grid-line" style="top: 25%;"></div>
+                                    <div class="grid-line" style="top: 50%;"></div>
+                                    <div class="grid-line" style="top: 75%;"></div>
+                                    <div class="grid-line" style="top: 100%;"></div>
+
+                                    <!-- Barların Esnek Dağılımı -->
+                                    <div class="bars-columns-wrapper d-flex justify-space-between align-end h-100">
+                                        @for (int i = 0; i < GoalLabels.Length; i++)
+                                        {
+                                            var idx = i;
+                                            var lbl = GoalLabels[idx];
+                                            var tVal = GoalTargetValues.Length > idx ? GoalTargetValues[idx] : 0m;
+                                            var aVal = GoalActualValues.Length > idx ? GoalActualValues[idx] : 0m;
+                                            var tHeight = GetBarHeightPercent(tVal);
+                                            var aHeight = GetBarHeightPercent(aVal);
+
+                                            <div class="bar-pair-group d-flex flex-column align-center flex-grow-1" 
+                                                 title="@($"{lbl} | Hedef: ₺{tVal:N0} | Gerçekleşen: ₺{aVal:N0}")">
+                                                <div class="pair-bars-box d-flex align-end gap-1 flex-grow-1">
+                                                    <!-- Hedef Bar (Muted Slate) -->
+                                                    <div class="bar-col bar-target" style="height: @(tHeight)%;"></div>
+                                                    <!-- Gerçekleşen Bar (Apple Canlı Mavi) -->
+                                                    <div class="bar-col bar-actual" style="height: @(aHeight)%;"></div>
+                                                </div>
+                                                <span class="x-axis-lbl mt-2">@lbl</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Legend / Gösterge -->
+                            <div class="bars-legend d-flex justify-center align-center gap-5 mt-2 flex-shrink-0">
+                                <div class="d-flex align-center gap-1">
+                                    <span class="legend-dot dot-green"></span>
+                                    <span class="legend-text">Hedef</span>
+                                </div>
+                                <div class="d-flex align-center gap-1">
+                                    <span class="legend-dot dot-red"></span>
+                                    <span class="legend-text">Gerçekleşen</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
         
@@ -226,12 +322,51 @@
         Data = ds.Values.Select(v => (double)v).ToArray() 
     }).ToList();
 
+    private decimal TotalGoalTarget => ViewModel.TargetVsActualData?.FirstOrDefault()?.Values?.Sum() ?? 0m;
+    private decimal TotalGoalActual => (ViewModel.TargetVsActualData?.Length > 1 ? ViewModel.TargetVsActualData[1].Values?.Sum() : 0m) ?? 0m;
+    private int GoalCompletionRate => TotalGoalTarget > 0 ? (int)Math.Min(999, Math.Round((TotalGoalActual / TotalGoalTarget) * 100m)) : 0;
+    
+    private double GoalRingDashOffset {
+        get {
+            const double circ = 289.0;
+            if (TotalGoalTarget <= 0) return circ;
+            double ratio = Math.Min(1.0, (double)(TotalGoalActual / TotalGoalTarget));
+            return circ * (1.0 - ratio);
+        }
+    }
+
+    private string[] GoalLabels => ViewModel.TargetVsActualData?.FirstOrDefault()?.Labels ?? Array.Empty<string>();
+    private decimal[] GoalTargetValues => ViewModel.TargetVsActualData?.FirstOrDefault()?.Values ?? Array.Empty<decimal>();
+    private decimal[] GoalActualValues => (ViewModel.TargetVsActualData?.Length > 1 ? ViewModel.TargetVsActualData[1].Values : Array.Empty<decimal>());
+
+    private decimal MaxGoalValue {
+        get {
+            var maxT = GoalTargetValues.Length > 0 ? GoalTargetValues.Max() : 0m;
+            var maxA = GoalActualValues.Length > 0 ? GoalActualValues.Max() : 0m;
+            var m = Math.Max(maxT, maxA);
+            if (m <= 0) m = 100000m;
+            decimal magnitude = (decimal)Math.Pow(10, Math.Floor(Math.Log10((double)m)));
+            return Math.Ceiling(m / magnitude) * magnitude;
+        }
+    }
+
+    private double GetBarHeightPercent(decimal val) {
+        if (MaxGoalValue <= 0 || val <= 0) return 0;
+        double pct = (double)(val / MaxGoalValue) * 100.0;
+        return Math.Min(100.0, Math.Max(2.5, pct));
+    }
+
+    private string FormatShortCurrency(decimal val) {
+        if (val >= 1_000_000) return (val / 1_000_000m).ToString("0.#") + "M";
+        if (val >= 1_000) return (val / 1_000m).ToString("0.#") + "K";
+        return val.ToString("0");
+    }
+
     private List<ChartSeries> GoalSeries {
         get {
             var rawData = ViewModel.TargetVsActualData?.ToList();
             if (rawData == null || rawData.Count == 0) return new List<ChartSeries>();
 
-            // Find global max to normalize to 0-100 scale for "Image 2" look
             var allValues = rawData.SelectMany(x => x.Values).ToList();
             var max = allValues.Any() ? (double)allValues.Max() : 0;
             if (max <= 0) max = 1;
@@ -254,7 +389,6 @@
             for(int i=0; i<labels.Length; i++) {
                 var t = data[0].Values.Length > i ? data[0].Values[i] : 0;
                 var a = hasActual && data[1].Values.Length > i ? data[1].Values[i] : 0;
-                // Extremely compact format for 12 months
                 result[i] = $"{FormatVal(t)} {FormatVal(a)}\n{labels[i]}";
             }
             return result;
@@ -463,16 +597,187 @@
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .chart-container {
-        height: 260px !important;
-        padding-bottom: 30px !important;
+    /* HARMAN MODEL 2: Apple + Türkiye Muhasebe Stili */
+    .hybrid-chart-wrapper {
+        gap: 16px;
+        min-height: 0;
+        width: 100%;
+        overflow: hidden;
     }
-    .chart-container svg text {
-        font-size: 7.5px !important;
-        fill: rgba(255,255,255,0.3) !important;
+    .apple-ring-card {
+        width: 170px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+    }
+    .ring-svg-container {
+        width: 124px;
+        height: 124px;
+    }
+    .ring-center-text {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    .ring-pct {
+        font-size: 22px;
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1.1;
+        letter-spacing: -0.5px;
+    }
+    .ring-lbl {
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.45);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .ring-summary-box {
+        width: 100%;
+        gap: 4px;
+    }
+    .ring-summary-row {
+        font-size: 11px;
+    }
+    .ring-sum-label {
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .ring-sum-val {
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .val-blue {
+        color: #ef4444 !important;
+    }
+    .val-red {
+        color: #ef4444 !important;
+    }
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .dot-slate, .dot-green {
+        background: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    }
+    .dot-blue, .dot-red {
+        background: #ef4444;
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+    }
+    .accounting-bars-card {
+        padding: 4px 6px 2px 4px;
+        min-width: 0;
+    }
+    .bars-drawing-area {
+        height: 180px;
+        min-height: 160px;
+    }
+    .y-axis-labels {
+        height: 100%;
+        font-size: 9.5px;
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 500;
+        padding-bottom: 24px;
+        padding-right: 14px;
+        font-variant-numeric: tabular-nums;
+    }
+    .bars-plot-area {
+        height: 100%;
+        padding-bottom: 24px;
+    }
+    .grid-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: rgba(0, 122, 204, 0.5); /* #007ACC blue from 2nd image */
+        pointer-events: none;
+    }
+    .bars-columns-wrapper {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        z-index: 1;
+        padding: 0 2px;
+    }
+    .bar-pair-group {
+        height: 100%;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        padding: 0 1px;
+        position: relative;
+    }
+    .bar-pair-group:hover {
+        transform: translateY(-2px);
+    }
+    .pair-bars-box {
+        height: 100%;
+        width: 100%;
+        justify-content: center;
+    }
+    .bar-col {
+        width: 7px;
+        min-width: 5px;
+        max-width: 11px;
+        border-radius: 3px 3px 0 0;
+        transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bar-target {
+        background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
+    }
+    .bar-actual {
+        background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.3);
+    }
+    .bar-pair-group:hover .bar-actual {
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+        filter: brightness(1.15);
+    }
+    .bar-pair-group:hover .bar-target {
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+        filter: brightness(1.15);
+    }
+    .x-axis-lbl {
+        font-size: 9.5px;
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 600;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .bars-legend {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.6);
         font-weight: 500;
     }
-    .mud-chart-serie-text {
-        display: none !important; /* Hide redundant serie labels if they overlap */
+    .legend-text {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    @@media (max-width: 900px) {
+        .hybrid-chart-wrapper {
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .apple-ring-card {
+            width: 100%;
+            flex-direction: row !important;
+            justify-content: space-around !important;
+        }
+        .ring-summary-box {
+            width: auto !important;
+        }
     }
 </style>

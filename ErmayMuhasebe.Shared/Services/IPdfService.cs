@@ -85,6 +85,7 @@ public interface IPdfService
     Task<byte[]> GenerateFinansRaporPdfBytesAsync(string title, FinancialReportData data);
     Task<byte[]> GenerateStokListPdfBytesAsync(List<StokKart> stoklar);
     Task<byte[]> GenerateStokHareketleriPdfBytesAsync(StokKart stok, List<StokHareket> hareketler);
+    Task<byte[]> GenerateCokluStokHareketleriPdfBytesAsync(List<(StokKart Stok, List<StokHareket> Hareketler)> data);
     Task<byte[]> GenerateVadeRaporuPdfBytesAsync(List<VadeReportItem> items);
     Task<byte[]> GenerateMusteriTakipRaporuPdfBytesAsync(MusteriTakipKlasor klasor, List<MusteriTakipDetay> detaylar);
 

@@ -5103,7 +5103,7 @@ namespace ErmayMuhasebe.Services
 
                 // Devir hareketleri olan carilerin DevirBorc / DevirAlacak alanlarını eşitle
                 var devirHarekets = tran.Table<CariHareket>()
-                    .Where(x => x.IslemTuru == "Devir Fişi" || (x.EvrakNo != null && x.EvrakNo.StartsWith("DEVIR-")))
+                    .Where(x => (x.IslemTuru != null && (x.IslemTuru == "Devir Fişi" || x.IslemTuru == "Açılış Fişi" || x.IslemTuru.StartsWith("Devir"))) || (x.EvrakNo != null && x.EvrakNo.StartsWith("DEVIR-")))
                     .ToList();
                 foreach (var dh in devirHarekets)
                 {
@@ -5739,12 +5739,12 @@ namespace ErmayMuhasebe.Services
                 var mtKlasorler = await _db.Table<MusteriTakipKlasor>().ToListAsync();
                 foreach (var mtk in mtKlasorler)
                 {
-                    if (mtk != null) await _sync.SyncGenericAsync("MusteriTakipKlasorler", mtk, mtk.Id);
+                    if (mtk != null) await _sync.SyncMusteriTakipKlasorAsync(mtk);
                 }
                 var mtDetaylar = await _db.Table<MusteriTakipDetay>().ToListAsync();
                 foreach (var mtd in mtDetaylar)
                 {
-                    if (mtd != null) await _sync.SyncGenericAsync("MusteriTakipDetaylar", mtd, mtd.Id);
+                    if (mtd != null) await _sync.SyncMusteriTakipDetayAsync(mtd);
                 }
             }
             catch (Exception ex)
@@ -5984,6 +5984,8 @@ namespace ErmayMuhasebe.Services
                             existing.AktifMi = c.AktifMi;
                             existing.Borc = c.Borc;
                             existing.Alacak = c.Alacak;
+                            existing.DevirBorc = c.DevirBorc;
+                            existing.DevirAlacak = c.DevirAlacak;
                             existing.UpdatedAt = c.UpdatedAt > existing.UpdatedAt ? c.UpdatedAt : existing.UpdatedAt;
                             existing.Version = Math.Max(existing.Version, c.Version);
                             await _db.UpdateAsync(existing);
@@ -6006,6 +6008,8 @@ namespace ErmayMuhasebe.Services
                                              existing.Yetkili != c.Yetkili ||
                                              existing.Borc != c.Borc ||
                                              existing.Alacak != c.Alacak ||
+                                             existing.DevirBorc != c.DevirBorc ||
+                                             existing.DevirAlacak != c.DevirAlacak ||
                                              existing.Grup != c.Grup ||
                                              (c.VadeGunu > 0 && existing.VadeGunu != c.VadeGunu) ||
                                              (c.RiskLimiti > 0 && existing.RiskLimiti != c.RiskLimiti) ||
@@ -6046,6 +6050,8 @@ namespace ErmayMuhasebe.Services
                                 existing.AktifMi = c.AktifMi;
                                 existing.Borc = c.Borc;
                                 existing.Alacak = c.Alacak;
+                                existing.DevirBorc = c.DevirBorc;
+                                existing.DevirAlacak = c.DevirAlacak;
                                 existing.UpdatedAt = c.UpdatedAt > existing.UpdatedAt ? c.UpdatedAt : existing.UpdatedAt;
                                 existing.Version = Math.Max(existing.Version, c.Version);
                                 await _db.UpdateAsync(existing);

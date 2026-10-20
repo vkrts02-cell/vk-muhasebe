@@ -22,7 +22,7 @@ namespace ErmayMuhasebe.Services
             targetLabel = targetLabel ?? "Hedef";
             labelHeader = labelHeader ?? "";
 
-            int effectiveWidth = Math.Max(width, data.Count * 55 + 120);
+            int effectiveWidth = Math.Max(width, data.Count * 80 + 120);
             int pxW = (int)(effectiveWidth * Scale);
             int pxH = (int)(height * Scale);
 
@@ -32,7 +32,7 @@ namespace ErmayMuhasebe.Services
             canvas.Clear(SKColors.White);
             canvas.Scale(Scale);
 
-            float mL = 65, mR = 15, mT = 35, mB = 35;
+            float mL = 65, mR = 15, mT = 35, mB = 48;
             float chartW = effectiveWidth - mL - mR;
             float chartH = height - mT - mB;
             float x0 = mL, y0 = height - mB;
@@ -43,7 +43,8 @@ namespace ErmayMuhasebe.Services
 
 #pragma warning disable CS0618
             using var pYTxt = MkPaint("#64748b", 9);
-            using var pXTxt = MkPaint("#334155", 9, bold: true);
+            using var pXTxt = MkPaint("#334155", 8.5f, bold: true);
+            using var pXSubTxt = MkPaint("#64748b", 7.5f, bold: false);
             using var pLeg = MkPaint("#334155", 9);
             using var pValTxt = MkPaint("#1e40af", 7, bold: true);
 #pragma warning restore CS0618
@@ -82,9 +83,7 @@ namespace ErmayMuhasebe.Services
                 if (hT > 0 && hT < 3) hT = 3;
                 canvas.DrawRoundRect(new SKRect(cx + 1, y0 - hT, cx + bw + 1, y0), 2, 2, pTgt);
 
-                string dl = MonthName(item.Label) ?? "";
-                float lw = pXTxt.MeasureText(dl);
-                canvas.DrawText(dl, cx - lw / 2, y0 + 14, pXTxt);
+                DrawCategoryLabel(canvas, item.Label, cx, y0, slot, pXTxt, pXSubTxt);
 
                 // Değer etiketlerini barların üzerine ekle
                 if (item.Actual > 0)
@@ -131,7 +130,7 @@ namespace ErmayMuhasebe.Services
             canvas.Clear(SKColors.White);
             canvas.Scale(Scale);
 
-            float mL = 65, mR = 15, mT = 30, mB = 40;
+            float mL = 65, mR = 15, mT = 30, mB = 48;
             float chartW = effectiveWidth - mL - mR;
             float chartH = height - mT - mB;
             float x0 = mL, y0 = height - mB;
@@ -142,7 +141,8 @@ namespace ErmayMuhasebe.Services
 
 #pragma warning disable CS0618
             using var pYTxt = MkPaint("#64748b", 9);
-            using var pXTxt = MkPaint("#334155", 8);
+            using var pXTxt = MkPaint("#334155", 8.5f, bold: true);
+            using var pXSubTxt = MkPaint("#64748b", 7.5f, bold: false);
             using var pTitle = MkPaint("#1e3a8a", 10, bold: true);
             using var pValTxt = MkPaint("#1e40af", 7, bold: true);
 #pragma warning restore CS0618
@@ -188,9 +188,7 @@ namespace ErmayMuhasebe.Services
                 }
 
                 // Etiket
-                string dl = item.Label ?? "";
-                float lw = pXTxt.MeasureText(dl);
-                canvas.DrawText(dl, cx - lw / 2, y0 + 14, pXTxt);
+                DrawCategoryLabel(canvas, item.Label, cx, y0, slot, pXTxt, pXSubTxt);
             }
 
             return Encode(surface);
@@ -242,7 +240,17 @@ namespace ErmayMuhasebe.Services
                 var item = data[i];
                 float y = mT + i * rowH;
 
-                canvas.DrawText(item.Label ?? "", 5, y + 15, pLabel);
+                float maxLabelW = labelAreaW - 10;
+                string lbl = item.Label ?? "";
+                if (pLabel.MeasureText(lbl) > maxLabelW)
+                {
+                    while (lbl.Length > 3 && pLabel.MeasureText(lbl + "…") > maxLabelW)
+                    {
+                        lbl = lbl.Substring(0, lbl.Length - 1);
+                    }
+                    lbl += "…";
+                }
+                canvas.DrawText(lbl, 5, y + 15, pLabel);
 
                 float bLen = (float)(Math.Abs(item.Value) / maxVal) * barAreaW;
                 if (bLen < 3 && item.Value != 0) bLen = 3;
@@ -258,6 +266,87 @@ namespace ErmayMuhasebe.Services
         // ═══════════════════════════════════════════════════════════════
         // Yardımcı Fonksiyonlar
         // ═══════════════════════════════════════════════════════════════
+
+        private static void DrawCategoryLabel(SKCanvas canvas, string rawLabel, float cx, float y0, float maxSlot, SKPaint mainPaint, SKPaint? subPaint = null)
+        {
+            if (string.IsNullOrWhiteSpace(rawLabel)) return;
+
+            string label = MonthName(rawLabel) ?? rawLabel;
+            string line1 = label;
+            string? line2 = null;
+
+            int pIdx = label.IndexOf('(');
+            if (pIdx > 0)
+            {
+                line1 = label.Substring(0, pIdx).Trim();
+                line2 = label.Substring(pIdx).Trim();
+            }
+            else if (label.Contains('\n'))
+            {
+                var parts = label.Split('\n');
+                line1 = parts[0].Trim();
+                line2 = parts.Length > 1 ? parts[1].Trim() : null;
+            }
+            else if (mainPaint.MeasureText(label) > maxSlot - 4 && label.Contains(' '))
+            {
+                int mid = label.Length / 2;
+                int bestSpace = -1;
+                int bestDist = int.MaxValue;
+                for (int s = 0; s < label.Length; s++)
+                {
+                    if (label[s] == ' ')
+                    {
+                        int dist = Math.Abs(s - mid);
+                        if (dist < bestDist)
+                        {
+                            bestDist = dist;
+                            bestSpace = s;
+                        }
+                    }
+                }
+                if (bestSpace > 0)
+                {
+                    line1 = label.Substring(0, bestSpace).Trim();
+                    line2 = label.Substring(bestSpace).Trim();
+                }
+            }
+
+            DrawSingleFittedText(canvas, line1, cx, line2 != null ? y0 + 13 : y0 + 15, maxSlot, mainPaint);
+
+            if (!string.IsNullOrEmpty(line2))
+            {
+                var p2 = subPaint ?? mainPaint;
+                DrawSingleFittedText(canvas, line2, cx, y0 + 26, maxSlot, p2);
+            }
+        }
+
+        private static void DrawSingleFittedText(SKCanvas canvas, string text, float cx, float y, float maxSlot, SKPaint basePaint)
+        {
+            float maxAllow = Math.Max(maxSlot - 4, 30);
+            float origSize = basePaint.TextSize;
+            float measured = basePaint.MeasureText(text);
+
+            if (measured > maxAllow && origSize > 6)
+            {
+                float scaledSize = Math.Max(origSize * (maxAllow / measured), 6.5f);
+#pragma warning disable CS0618
+                using var scaledPaint = new SKPaint
+                {
+                    Color = basePaint.Color,
+                    TextSize = scaledSize,
+                    IsAntialias = true,
+                    FakeBoldText = basePaint.FakeBoldText,
+                    Typeface = basePaint.Typeface
+                };
+#pragma warning restore CS0618
+                float w = scaledPaint.MeasureText(text);
+                canvas.DrawText(text, cx - w / 2, y, scaledPaint);
+            }
+            else
+            {
+                canvas.DrawText(text, cx - measured / 2, y, basePaint);
+            }
+        }
         
         /// <summary>Y ekseni ve değer formatı. Tekrar etmeyen, anlamlı etiketler üretir.</summary>
         private static string FmtAxis(float val, float maxVal)

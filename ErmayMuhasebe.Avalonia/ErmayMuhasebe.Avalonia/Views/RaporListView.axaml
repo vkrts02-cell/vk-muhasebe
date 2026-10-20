@@ -35,36 +35,106 @@
           <Setter Property="Background" Value="Transparent"/>
           <Setter Property="BorderThickness" Value="0"/>
       </Style>
+
+      <Style Selector="Button.DateFilterBtn">
+          <Setter Property="Background" Value="#1A2230"/>
+          <Setter Property="Foreground" Value="#CBD5E1"/>
+          <Setter Property="BorderBrush" Value="#2A384C"/>
+          <Setter Property="BorderThickness" Value="1"/>
+          <Setter Property="CornerRadius" Value="8"/>
+          <Setter Property="Padding" Value="14,8"/>
+          <Setter Property="FontSize" Value="13"/>
+          <Setter Property="FontWeight" Value="SemiBold"/>
+          <Setter Property="Cursor" Value="Hand"/>
+      </Style>
+      <Style Selector="Button.DateFilterBtn:pointerover">
+          <Setter Property="Background" Value="#2563EB"/>
+          <Setter Property="Foreground" Value="White"/>
+          <Setter Property="BorderBrush" Value="#3B82F6"/>
+      </Style>
   </UserControl.Styles>
 
   <Panel>
     <Grid RowDefinitions="Auto, *" Margin="40">
-      <!-- Header: Consistent Alignment -->
-      <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,50">
-        <StackPanel Spacing="10">
-          <TextBlock Text="Raporlar Merkezi" FontSize="18" FontWeight="Bold" Foreground="White">
-             <TextBlock.Foreground>
-                <SolidColorBrush Color="#3B82F6"/>
-             </TextBlock.Foreground>
-          </TextBlock>
-          <TextBlock Text="İşletme analizlerinizi tek noktadan profesyonelce yönetin." 
-                     FontSize="16" Foreground="#85FFFFFF" FontWeight="Medium"/>
-        </StackPanel>
+      <!-- Header & Date Filter Bar -->
+      <Grid Grid.Row="0" Margin="0,0,0,30">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-        <!-- Advanced Search Box with Precision Centering -->
-        <Border Grid.Column="1" Background="#080A0C" CornerRadius="12" BorderBrush="#33FFFFFF" BorderThickness="1.5" Height="48" VerticalAlignment="Center">
-           <Grid ColumnDefinitions="48, *">
-              <ic:SymbolIcon Grid.Column="0" Symbol="Search" Foreground="#60A5FA" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              <TextBox Grid.Column="1" Width="300" Watermark="Rapor adı ara..." 
-                       Classes="SearchInput"
-                       Text="{Binding SearchString}" 
-                       VerticalContentAlignment="Center" 
-                       FontSize="15" Padding="0,0,20,0"
-                       VerticalAlignment="Center">
-                 <TextBox.KeyBindings>
-                    <KeyBinding Command="{Binding SearchReportsCommand}" Gesture="Enter"/>
-                 </TextBox.KeyBindings>
-              </TextBox>
+        <!-- Top Header: Title and Search Box -->
+        <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Raporlar Merkezi" FontSize="18" FontWeight="Bold">
+               <TextBlock.Foreground>
+                  <SolidColorBrush Color="#3B82F6"/>
+               </TextBlock.Foreground>
+            </TextBlock>
+            <TextBlock Text="İşletme analizlerinizi tek noktadan profesyonelce yönetin." 
+                       FontSize="16" Foreground="#85FFFFFF" FontWeight="Medium"/>
+          </StackPanel>
+
+          <!-- Advanced Search Box with Precision Centering -->
+          <Border Grid.Column="1" Background="#080A0C" CornerRadius="12" BorderBrush="#33FFFFFF" BorderThickness="1.5" Height="48" VerticalAlignment="Center">
+             <Grid ColumnDefinitions="48, *">
+                <ic:SymbolIcon Grid.Column="0" Symbol="Search" Foreground="#60A5FA" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="1" Width="300" Watermark="Rapor adı ara..." 
+                         Classes="SearchInput"
+                         Text="{Binding SearchString}" 
+                         VerticalContentAlignment="Center" 
+                         FontSize="15" Padding="0,0,20,0"
+                         VerticalAlignment="Center">
+                   <TextBox.KeyBindings>
+                      <KeyBinding Command="{Binding SearchReportsCommand}" Gesture="Enter"/>
+                   </TextBox.KeyBindings>
+                </TextBox>
+             </Grid>
+          </Border>
+        </Grid>
+
+        <!-- Date Filter Toolbar -->
+        <Border Grid.Row="1" Margin="0,20,0,0" Background="#111622" CornerRadius="14" BorderBrush="#26334D" BorderThickness="1" Padding="14,10">
+           <Grid ColumnDefinitions="Auto, *, Auto">
+              <!-- Left: Quick Date Filters -->
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                 <Border Background="#1E293B" CornerRadius="8" Padding="10,6" Margin="0,0,6,0">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                       <ic:SymbolIcon Symbol="Calendar" FontSize="16" Foreground="#60A5FA"/>
+                       <TextBlock Text="Dönem:" FontSize="13" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                    </StackPanel>
+                 </Border>
+
+                 <Button Content="Tümü" Classes="DateFilterBtn"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="All"
+                         ToolTip.Tip="Tüm zamanların verilerini listele"/>
+                 <Button Content="Haftalık" Classes="DateFilterBtn"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="Weekly"
+                         ToolTip.Tip="Bu haftanın verilerini listele"/>
+                 <Button Content="Aylık" Classes="DateFilterBtn"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="Monthly"
+                         ToolTip.Tip="Bu ayın verilerini listele"/>
+                 <Button Content="Yıllık" Classes="DateFilterBtn"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="Yearly"
+                         ToolTip.Tip="Bu yılın verilerini listele"/>
+                 <Button Classes="DateFilterBtn"
+                         Command="{Binding OpenDateSelectionCommand}"
+                         ToolTip.Tip="Özel başlangıç ve bitiş tarihi belirle">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                       <ic:SymbolIcon Symbol="Calendar" FontSize="15" Foreground="#38BDF8"/>
+                       <TextBlock Text="Özel Tarih..." VerticalAlignment="Center"/>
+                    </StackPanel>
+                 </Button>
+              </StackPanel>
+
+              <!-- Right: Active Date Range Display -->
+              <Border Grid.Column="2" Background="#182234" CornerRadius="8" Padding="12,6" BorderBrush="#3B82F6" BorderThickness="1" VerticalAlignment="Center">
+                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <ic:SymbolIcon Symbol="CalendarClock" FontSize="16" Foreground="#38BDF8"/>
+                    <TextBlock Text="Seçili Aralık:" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding DateRangeText}" FontSize="13" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                 </StackPanel>
+              </Border>
            </Grid>
         </Border>
       </Grid>
@@ -225,6 +295,18 @@
                 <Button Grid.Column="1" Command="{Binding CloseDateSelectionCommand}" Classes="Danger" Width="32" Height="32" Padding="0" CornerRadius="16">
                    <ic:SymbolIcon Symbol="Dismiss" FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/> 
                 </Button>
+             </Grid>
+
+             <!-- Quick Period Selectors inside overlay -->
+             <Grid ColumnDefinitions="*, *, *, *">
+                 <Button Grid.Column="0" Content="Haftalık" Classes="DateFilterBtn" Margin="0,0,4,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="Weekly"/>
+                 <Button Grid.Column="1" Content="Aylık" Classes="DateFilterBtn" Margin="2,0,2,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="Monthly"/>
+                 <Button Grid.Column="2" Content="Yıllık" Classes="DateFilterBtn" Margin="2,0,2,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="Yearly"/>
+                 <Button Grid.Column="3" Content="Tümü" Classes="DateFilterBtn" Margin="4,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                         Command="{Binding SetDateFilterCommand}" CommandParameter="All"/>
              </Grid>
 
              <StackPanel Spacing="15">

@@ -40,6 +40,41 @@ export default function RaporlarScreen() {
   const [aylikHedef, setAylikHedef] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Weekly' | 'Monthly' | 'Yearly'>('All');
+
+  const getDateRange = () => {
+    const now = new Date();
+    if (selectedFilter === 'Weekly') {
+      const d = new Date(now);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const start = new Date(d.setDate(diff));
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    if (selectedFilter === 'Monthly') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      return { start, end };
+    }
+    if (selectedFilter === 'Yearly') {
+      const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      return { start, end };
+    }
+    return null;
+  };
+
+  const isWithinDate = (dateVal: any, range: { start: Date; end: Date } | null) => {
+    if (!range) return true;
+    if (!dateVal) return false;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return true;
+    return d >= range.start && d <= range.end;
+  };
 
   // Modals state
   const [selectedReport, setSelectedReport] = useState<ReportItem | null>(null);
@@ -139,21 +174,29 @@ export default function RaporlarScreen() {
     let headers: string[] = [];
     let rows: string[][] = [];
     
-    const activeFaturalar = faturalar.filter(f => !f.isDeleted);
+    const range = getDateRange();
+    const activeFaturalar = faturalar.filter(f => !f.isDeleted && isWithinDate(f.tarih || f.faturaTarihi, range));
     const activeCariler = cariler.filter(c => !c.isDeleted);
     const activeStoklar = stoklar.filter(s => !s.isDeleted);
+    const filteredStokHareketler = stokHareketler.filter(h => isWithinDate(h.tarih, range));
+    const filteredCariHareketler = cariHareketler.filter(h => isWithinDate(h.tarih, range));
+    const filteredKasaHareketler = kasaHareketler.filter(h => isWithinDate(h.tarih, range));
+    const filteredBankaHareketler = bankaHareketler.filter(h => isWithinDate(h.tarih, range));
 
     if (reportTitle === 'Genel Özet') {
       headers = ['Rapor Kalemi', 'Detay'];
       const totalRecv = activeCariler.filter(c => c.borc > c.alacak).reduce((sum, c) => sum + ((c.borc || 0) - (c.alacak || 0)), 0);
       const totalPay = activeCariler.filter(c => c.alacak > c.borc).reduce((sum, c) => sum + (c.alacak - c.borc), 0);
       const bankaTotal = bankalar.reduce((sum, b) => sum + ((b.acilisBakiyesi || 0) + (b.borc || 0) - (b.alacak || 0)), 0);
-      const stockQty = activeStoklar.reduce((sum, s) => sum + s.miktar, 0);
-      const stockVal = activeStoklar.reduce((sum, s) => sum + s.miktar * s.alisFiyati, 0);
+      const hareketliStokIds = new Set(filteredStokHareketler.map(h => h.stokId));
+      const hareketliStoklar = activeStoklar.filter(s => hareketliStokIds.has(s.id));
+      const stockQty = hareketliStoklar.reduce((sum, s) => sum + s.miktar, 0);
+      const stockVal = hareketliStoklar.reduce((sum, s) => sum + s.miktar * s.alisFiyati, 0);
 
+      const dateSuffix = range ? ` (${range.start.toLocaleDateString('tr-TR')} - ${range.end.toLocaleDateString('tr-TR')})` : '';
       rows = [
-        ['Toplam Alacaklar', formatMoney(totalRecv)],
-        ['Toplam Borçlar', formatMoney(totalPay)],
+        [`Toplam Alacaklar${dateSuffix}`, formatMoney(totalRecv)],
+        [`Toplam Borçlar${dateSuffix}`, formatMoney(totalPay)],
         ['Kasa / Banka Mevcudu', formatMoney(bankaTotal)],
         ['Toplam Stok Miktarı', `${stockQty.toFixed(2)}`],
         ['Stok Maliyet Değeri', formatMoney(stockVal)]
@@ -169,7 +212,7 @@ export default function RaporlarScreen() {
     }
     else if (reportTitle === 'Cari Hareket Dökümü' && selectedCari) {
       headers = ['Tarih', 'İşlem', 'Evrak No', 'Borç', 'Alacak'];
-      const list = cariHareketler
+      const list = filteredCariHareketler
         .filter(h => h.cariId === selectedCari.id)
         .sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
       
@@ -183,7 +226,9 @@ export default function RaporlarScreen() {
     }
     else if (reportTitle === 'Stok Mevcudu') {
       headers = ['Stok Kodu', 'Stok Adı', 'Kategori', 'Miktar', 'Ort. Alış F.', 'Ort. Satış F.', 'Satış F.'];
-      rows = activeStoklar.map(s => [
+      const hareketliStokIds = new Set(filteredStokHareketler.map(h => h.stokId));
+      const hareketliStoklar = activeStoklar.filter(s => hareketliStokIds.has(s.id));
+      rows = hareketliStoklar.map(s => [
         s.stokKodu || '-',
         s.stokAdi,
         s.kategori || '-',
@@ -195,7 +240,7 @@ export default function RaporlarScreen() {
     }
     else if (reportTitle === 'Stok Hareketleri') {
       headers = ['Tarih', 'Stok Adı', 'İşlem', 'Giren', 'Çıkan', 'Birim Fiyat', 'Kalan'];
-      const listed = [...stokHareketler].sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
+      const listed = [...filteredStokHareketler].sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
       const balances: Record<string, number> = {};
       const withKalan = listed.map(h => {
         balances[h.stokId] = (balances[h.stokId] || 0) + (h.giren || 0) - (h.cikan || 0);
@@ -224,8 +269,10 @@ export default function RaporlarScreen() {
     }
     else if (reportTitle === 'Stok Devir Hızı') {
       headers = ['Stok Adı', 'Mevcut Stok', 'Toplam Satış (Çıkan)', 'Stok Devir Hızı', 'Kategori'];
-      rows = activeStoklar.map(s => {
-        const satis = stokHareketler.filter(h => h.stokId === s.id && (h.cikan || 0) > 0).reduce((sum, h) => sum + (h.cikan || 0), 0);
+      const hareketliStokIds = new Set(filteredStokHareketler.map(h => h.stokId));
+      const hareketliStoklar = activeStoklar.filter(s => hareketliStokIds.has(s.id));
+      rows = hareketliStoklar.map(s => {
+        const satis = filteredStokHareketler.filter(h => h.stokId === s.id && (h.cikan || 0) > 0).reduce((sum, h) => sum + (h.cikan || 0), 0);
         const devir = (s.miktar || 0) > 0 ? satis / (s.miktar || 0) : 0;
         return [s.stokAdi, (s.miktar || 0).toFixed(2), satis.toFixed(2), devir.toFixed(2), s.kategori || '-'];
       });
@@ -251,7 +298,7 @@ export default function RaporlarScreen() {
         rowsMap.set(f.cariId, cur);
       });
       rows = [...rowsMap.values()].sort((a, b) => b.total - a.total).slice(0, 100).map(g => {
-        const maliyet = stokHareketler
+        const maliyet = filteredStokHareketler
           .filter(h => isSatisHareketi(h.islemTuru) && g.faturaIds.has(h.faturaId))
           .reduce((sum, h) => sum + (h.miktar || 0) * (activeStoklar.find(x => x.id === h.stokId)?.ortAlisFiyati || 0), 0);
         const netKar = g.total - maliyet;
@@ -261,21 +308,19 @@ export default function RaporlarScreen() {
     }
     else if (reportTitle === 'En Çok Satan Ürünler') {
       headers = ['Ürün Adı', 'Toplam Satış Adeti'];
-      rows = activeStoklar.map(s => {
-        const sold = stokHareketler.filter(h => h.stokId === s.id && isSatisHareketi(h.islemTuru)).reduce((sum, h) => sum + h.miktar, 0);
+      const hareketliStokIds = new Set(filteredStokHareketler.map(h => h.stokId));
+      const hareketliStoklar = activeStoklar.filter(s => hareketliStokIds.has(s.id));
+      rows = hareketliStoklar.map(s => {
+        const sold = filteredStokHareketler.filter(h => h.stokId === s.id && isSatisHareketi(h.islemTuru)).reduce((sum, h) => sum + h.miktar, 0);
         return [s.stokAdi, `${sold.toFixed(0)} Adet`];
       }).sort((a, b) => parseInt(b[1]) - parseInt(a[1])).slice(0, 10);
     }
     else if (reportTitle === 'Nakit Akış Tablosu') {
       headers = ['Tarih', 'Açıklama', 'Giren', 'Çıkan', 'Bakiye'];
-      const now = new Date();
       const combined = [
-        ...kasaHareketler.map(h => ({ ...h })),
-        ...bankaHareketler.map(h => ({ ...h }))
-      ].filter(h => {
-        const d = new Date(h.tarih);
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      }).sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
+        ...filteredKasaHareketler.map(h => ({ ...h })),
+        ...filteredBankaHareketler.map(h => ({ ...h }))
+      ].sort((a, b) => new Date(a.tarih).getTime() - new Date(b.tarih).getTime());
 
       let running = 0;
       rows = combined.map(h => {
@@ -286,8 +331,8 @@ export default function RaporlarScreen() {
     else if (reportTitle === 'Nakit İşlem Detay Raporu') {
       headers = ['Tarih', 'Cari Ünvan', 'İşlem', 'Açıklama', 'Giren', 'Çıkan'];
       const combined = [
-        ...kasaHareketler.map(h => ({ ...h })),
-        ...bankaHareketler.map(h => ({ ...h }))
+        ...filteredKasaHareketler.map(h => ({ ...h })),
+        ...filteredBankaHareketler.map(h => ({ ...h }))
       ].sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
 
       rows = combined.map(h => [
@@ -742,6 +787,20 @@ export default function RaporlarScreen() {
         />
       </View>
 
+      <View style={styles.periodRow}>
+        {(['All', 'Weekly', 'Monthly', 'Yearly'] as const).map(f => (
+          <TouchableOpacity 
+            key={f} 
+            style={[styles.periodBtn, selectedFilter === f && styles.periodBtnActive]}
+            onPress={() => setSelectedFilter(f)}
+          >
+            <Text style={[styles.periodBtnText, selectedFilter === f && styles.periodBtnTextActive]}>
+              {f === 'All' ? 'Tümü' : f === 'Weekly' ? 'Haftalık' : f === 'Monthly' ? 'Aylık' : 'Yıllık'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#0061FF" />
@@ -999,5 +1058,34 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 13,
     marginTop: 4,
+  },
+  periodRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 6,
+    gap: 8,
+  },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: '#161A22',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  periodBtnActive: {
+    backgroundColor: '#0061FF',
+    borderColor: '#3B82F6',
+  },
+  periodBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  periodBtnTextActive: {
+    color: '#FFFFFF',
   }
 });

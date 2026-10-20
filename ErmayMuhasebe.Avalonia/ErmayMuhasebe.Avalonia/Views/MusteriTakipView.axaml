@@ -184,6 +184,8 @@
 
                       <!-- Silme Butonu (Sessiz varsayılan, üzerine gelince kırmızı) -->
                       <Button Grid.Column="2" Classes="CardDeleteBtn" VerticalAlignment="Center"
+                              Command="{Binding $parent[UserControl].((vm:MusteriTakipViewModel)DataContext).DeleteKlasorConfirmCommand}"
+                              CommandParameter="{Binding}"
                               Click="OnDeleteCardClick"
                               Tag="{Binding}"
                               ToolTip.Tip="Klasörü Sil">
@@ -269,8 +271,8 @@
                 <ic:SymbolIcon Symbol="PeopleSearch" FontSize="20" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
               <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="Cari Hesaplardan Müşteri Seç" FontSize="17" FontWeight="Bold" Foreground="White"/>
-                <TextBlock Text="Seçilen müşteri için otomatik takip klasörü açılacaktır." FontSize="11.5" Foreground="#9CA3AF"/>
+                <TextBlock Text="Cari Hesap veya Portföyden Müşteri Seç" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Cari hesaplarınızdan veya portföy listenizden müşteri seçerek takip klasörü oluşturabilirsiniz." FontSize="11.5" Foreground="#9CA3AF"/>
               </StackPanel>
             </StackPanel>
 
@@ -281,25 +283,33 @@
 
           <!-- Arama Çubuğu -->
           <TextBox Grid.Row="1" Text="{Binding CariSearchText, UpdateSourceTrigger=PropertyChanged}" 
-                   Watermark="Cari Ünvanı, Kodu veya Telefon ile ara..." 
+                   Watermark="Cari Ünvanı, Kodu, Yetkili, Telefon veya Kaynak ile ara..." 
                    Height="38" CornerRadius="8" Margin="0,0,0,12" VerticalContentAlignment="Center">
             <TextBox.InnerLeftContent>
               <ic:SymbolIcon Symbol="Search" Margin="10,0,0,0" FontSize="16" Foreground="#88FFFFFF"/>
             </TextBox.InnerLeftContent>
           </TextBox>
 
-          <!-- Cari Listesi -->
-          <DataGrid Grid.Row="2" ItemsSource="{Binding FilteredCariler}" AutoGenerateColumns="False" IsReadOnly="True"
+          <!-- Aday Müşteri Listesi (Cari + Portföy) -->
+          <DataGrid Grid.Row="2" ItemsSource="{Binding FilteredAdaylar}" AutoGenerateColumns="False" IsReadOnly="True"
                     GridLinesVisibility="Horizontal" Height="300" Background="{DynamicResource BackgroundBrush}" RowBackground="Transparent">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="Kod" Binding="{Binding CariKod}" Width="100"/>
-              <DataGridTextColumn Header="Ünvan" Binding="{Binding Unvan}" Width="*"/>
-              <DataGridTextColumn Header="Telefon" Binding="{Binding Telefon}" Width="130"/>
-              <DataGridTemplateColumn Width="120">
+              <DataGridTemplateColumn Header="Kaynak" Width="100">
                 <DataTemplate>
-                  <Button Command="{Binding $parent[UserControl].DataContext.SelectCariAndCreateKlasorCommand}"
+                  <Border Background="{Binding KaynakRenk}" CornerRadius="6" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Kaynak}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Kod" Binding="{Binding CariKod}" Width="90"/>
+              <DataGridTextColumn Header="Ünvan" Binding="{Binding Unvan}" Width="*"/>
+              <DataGridTextColumn Header="Yetkili" Binding="{Binding Yetkili}" Width="120"/>
+              <DataGridTextColumn Header="Telefon" Binding="{Binding Telefon}" Width="110"/>
+              <DataGridTemplateColumn Width="110">
+                <DataTemplate>
+                  <Button Command="{Binding $parent[UserControl].DataContext.SelectAdayAndCreateKlasorCommand}"
                           CommandParameter="{Binding}"
-                          Classes="SaveButton" Height="28" Padding="12,0" Margin="4,2">
+                          Classes="SaveButton" Height="28" Padding="10,0" Margin="4,2">
                     <TextBlock Text="SEÇ &amp; AKTAR" FontSize="10.5" FontWeight="Bold" Foreground="White"/>
                   </Button>
                 </DataTemplate>
@@ -311,6 +321,43 @@
           <Button Grid.Row="3" Command="{Binding CloseCariSelectionCommand}" Background="#15FFFFFF" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Right" Margin="0,15,0,0" Height="34" Padding="18,0">
             <TextBlock Text="Kapat" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
           </Button>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- 5. SİLME ONAY MODALI (EVET/HAYIR) -->
+    <Grid Grid.RowSpan="3" Background="#E6000000" IsVisible="{Binding IsConfirmVisible}">
+      <Border Background="#080A0C" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="16" Width="400" VerticalAlignment="Center" HorizontalAlignment="Center" BoxShadow="0 20 60 0 #CC000000" ClipToBounds="True">
+        <Grid RowDefinitions="Auto, *">
+          <Border Grid.Row="0" Background="#26FF416C" Padding="20,12">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <ic:SymbolIcon Symbol="Delete" Foreground="White" FontSize="20"/> 
+              <TextBlock Text="Onay Gerekiyor" FontWeight="Bold" FontSize="15" Foreground="White" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Grid.Row="1" Margin="30" Spacing="25">
+            <ic:SymbolIcon Symbol="Warning" Foreground="#FF416C" FontSize="48" HorizontalAlignment="Center"/> 
+            <StackPanel Spacing="8">
+              <TextBlock Text="{Binding ConfirmTitle}" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" FontSize="18"/>
+              <TextBlock Text="{Binding ConfirmMessage}" Foreground="#BBB" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="13"/>
+            </StackPanel>
+            
+            <Grid ColumnDefinitions="*,*" Margin="0,10,0,0">
+              <Button Grid.Column="0" Classes="SideButton Danger" Command="{Binding ConfirmYesCommand}" Margin="0,0,5,0" Height="45">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                  <ic:SymbolIcon Symbol="Checkmark" FontSize="18" VerticalAlignment="Center"/> 
+                  <TextBlock Text="EVET, SİL" FontWeight="Bold" VerticalAlignment="Center" FontSize="12"/>
+                </StackPanel>
+              </Button>
+              <Button Grid.Column="1" Classes="SideButton Secondary" Command="{Binding ConfirmNoCommand}" Margin="5,0,0,0" Height="45">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                  <ic:SymbolIcon Symbol="Dismiss" FontSize="18" VerticalAlignment="Center"/> 
+                  <TextBlock Text="VAZGEÇ" FontWeight="Bold" VerticalAlignment="Center" FontSize="12"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+          </StackPanel>
         </Grid>
       </Border>
     </Grid>

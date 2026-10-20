@@ -404,7 +404,7 @@ namespace ErmayMuhasebe.Services
                 if (!res.IsSuccessStatusCode)
                 {
                     var err = await res.Content.ReadAsStringAsync();
-                    if (err.Contains("PGRST204") && err.Contains("tenant_id"))
+                    if ((err.Contains("PGRST204") || err.Contains("42703") || err.Contains("does not exist")) && err.Contains("tenant_id"))
                     {
                         // Fallback without tenant_id if schema column does not exist yet
                         using var fallbackReq = CreateRequest(HttpMethod.Post, table);
@@ -439,7 +439,7 @@ namespace ErmayMuhasebe.Services
                 if (!res.IsSuccessStatusCode)
                 {
                     var err = await res.Content.ReadAsStringAsync();
-                    if (err.Contains("PGRST204") && err.Contains("tenant_id"))
+                    if ((err.Contains("PGRST204") || err.Contains("42703") || err.Contains("does not exist")) && err.Contains("tenant_id"))
                     {
                         using var fallbackReq = CreateRequest(HttpMethod.Post, table);
                         fallbackReq.Headers.Add("Prefer", "resolution=merge-duplicates");
@@ -528,7 +528,7 @@ namespace ErmayMuhasebe.Services
                 if (!res.IsSuccessStatusCode)
                 {
                     var err = await res.Content.ReadAsStringAsync();
-                    if (err.Contains("PGRST204") && err.Contains("tenant_id") && finalFilter != filter)
+                    if ((err.Contains("PGRST204") || err.Contains("42703") || err.Contains("does not exist")) && err.Contains("tenant_id") && finalFilter != filter)
                     {
                         // Fallback without tenant_id filter if column doesn't exist yet
                         string fallbackQuery = table + "?select=*";
@@ -663,6 +663,8 @@ namespace ErmayMuhasebe.Services
             ["alacak_tutari"] = c.Alacak,
             ["borc"] = c.Borc,
             ["alacak"] = c.Alacak,
+            ["devir_borc"] = c.DevirBorc,
+            ["devir_alacak"] = c.DevirAlacak,
             ["vergi_dairesi"] = c.VergiDairesi,
             ["vergi_no"] = c.VergiNo,
             ["telefon"] = string.IsNullOrWhiteSpace(c.Telefon) ? c.CepTelefon : c.Telefon,
@@ -739,6 +741,12 @@ namespace ErmayMuhasebe.Services
 
             if (el.TryGetProperty("alacak_tutari", out var aq1)) c.Alacak = ParseDecimal(aq1);
             else if (el.TryGetProperty("alacak", out var aq2)) c.Alacak = ParseDecimal(aq2);
+
+            if (el.TryGetProperty("devir_borc", out var db1)) c.DevirBorc = ParseDecimal(db1);
+            else if (el.TryGetProperty("devirBorc", out var db2)) c.DevirBorc = ParseDecimal(db2);
+
+            if (el.TryGetProperty("devir_alacak", out var da1)) c.DevirAlacak = ParseDecimal(da1);
+            else if (el.TryGetProperty("devirAlacak", out var da2)) c.DevirAlacak = ParseDecimal(da2);
 
             if (el.TryGetProperty("is_active", out var isAct)) c.AktifMi = isAct.ValueKind != JsonValueKind.False;
             if (el.TryGetProperty("is_deleted", out var isDel) && isDel.ValueKind == JsonValueKind.True) c.IsDeleted = true;
@@ -2163,7 +2171,16 @@ namespace ErmayMuhasebe.Services
                 {
                     dict["id"] = id.ToString();
                 }
-                await UpsertPayloadAsync(table.ToLower(), dict);
+
+                string targetTable = table.ToLower() switch
+                {
+                    "musteritakipklasorler" => "musteri_takip_klasorler",
+                    "musteritakipdetaylar" => "musteri_takip_detaylar",
+                    "portfoykartlar" or "portfoykartlari" => "portfoy_kartlar",
+                    _ => table.ToLower()
+                };
+
+                await UpsertPayloadAsync(targetTable, dict);
             });
         }
 
@@ -2932,6 +2949,61 @@ namespace ErmayMuhasebe.Services
         // ==========================================
         // MÜŞTERİ TAKİP
         // ==========================================
+        private static Dictionary<string, object?> MapMusteriTakipKlasorToPayload(MusteriTakipKlasor k) => new()
+        {
+            ["id"] = k.Id,
+            ["cari_id"] = k.CariId,
+            ["cari_unvan"] = k.CariUnvan,
+            ["cari_kod"] = k.CariKod,
+            ["telefon"] = k.Telefon,
+            ["yetkili"] = k.Yetkili,
+            ["etiket"] = k.Etiket,
+            ["klasor_adi"] = k.Etiket ?? k.CariUnvan,
+            ["renk"] = string.IsNullOrWhiteSpace(k.Renk) ? "#3B82F6" : k.Renk,
+            ["aciklama"] = k.Aciklama,
+            ["is_deleted"] = k.IsDeleted,
+            ["created_at"] = (k.OlusturmaTarihi == default ? DateTime.Now : k.OlusturmaTarihi).ToString("o")
+        };
+
+        private static Dictionary<string, object?> MapMusteriTakipDetayToPayload(MusteriTakipDetay d) => new()
+        {
+            ["id"] = d.Id,
+            ["klasor_id"] = d.KlasorId,
+            ["cari_id"] = d.CariId,
+            ["baslik"] = d.Baslik,
+            ["icerik"] = d.Icerik,
+            ["tip"] = d.Tip ?? "Not",
+            ["fiyat_bilgisi"] = d.FiyatBilgisi,
+            ["para_birimi"] = d.ParaBirimi ?? "₺",
+            ["dosya_yolu"] = d.DosyaYolu,
+            ["gorsel_base64"] = d.GorselBase64,
+            ["tarih"] = (d.Tarih == default ? DateTime.Now : d.Tarih).ToString("o"),
+            ["is_deleted"] = d.IsDeleted
+        };
+
+        public async Task SyncMusteriTakipKlasorAsync(MusteriTakipKlasor klasor)
+        {
+            if (klasor == null) return;
+            await UpsertPayloadAsync("musteri_takip_klasorler", MapMusteriTakipKlasorToPayload(klasor));
+        }
+
+        public async Task DeleteMusteriTakipKlasorAsync(int id)
+        {
+            await DeleteFilteredAsync("musteri_takip_detaylar", $"klasor_id=eq.{id}");
+            await DeleteAsync("musteri_takip_klasorler", id);
+        }
+
+        public async Task SyncMusteriTakipDetayAsync(MusteriTakipDetay detay)
+        {
+            if (detay == null) return;
+            await UpsertPayloadAsync("musteri_takip_detaylar", MapMusteriTakipDetayToPayload(detay));
+        }
+
+        public async Task DeleteMusteriTakipDetayAsync(int id)
+        {
+            await DeleteAsync("musteri_takip_detaylar", id);
+        }
+
         public async Task<List<MusteriTakipKlasor>> PullMusteriTakipKlasorlerAsync()
         {
             using var doc = await GetJsonAsync("musteri_takip_klasorler");

@@ -5,6 +5,8 @@ namespace ErmayMuhasebe.Shared.Helpers;
 
 public static class TurkishSearchHelper
 {
+    public static readonly System.Globalization.CultureInfo Culture = new("tr-TR");
+
     /// <summary>
     /// Türkçe karakter ve büyük/küçük harf duyarsız arama için metni normalize eder.
     /// I/ı/İ/i -> i, Ğ/ğ -> g, Ü/ü -> u, Ş/ş -> s, Ö/ö -> o, Ç/ç -> c dönüşümü yapar.

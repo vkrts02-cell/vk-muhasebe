@@ -147,7 +147,6 @@
         outline: none;
         font-size: 13px;
         margin-left: 10px;
-    }
     .r-search-input::placeholder {
         color: rgba(255, 255, 255, 0.4);
     }
@@ -163,12 +162,55 @@
         align-items: center;
         justify-content: center;
     }
+
+    .r-period-bar {
+        background: #111622;
+        border: 1px solid #26334D;
+        border-radius: 14px;
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 32px;
+        flex-shrink: 0;
+    }
+
+    .r-btn-period {
+        background: #1A2230;
+        border: 1px solid #2A384C;
+        color: #CBD5E1;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .r-btn-period:hover, .r-btn-period.active {
+        background: #2563EB;
+        color: white;
+        border-color: #3B82F6;
+    }
+
+    .r-badge-range {
+        background: #182234;
+        border: 1px solid #3B82F6;
+        border-radius: 8px;
+        padding: 8px 16px;
+        color: #38BDF8;
+        font-size: 13px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 </style>
 
 <div class="fade-in d-flex flex-grow-1 flex-column rapor-page-container" style="overflow-y: auto; overflow-x: hidden; height: 100%; padding: 40px;">
 
     <!-- Top Header -->
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 48px; flex-shrink: 0;">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; flex-shrink: 0;">
         <div>
             <h1 class="r-header-title">Raporlar Merkezi</h1>
             <div class="r-header-sub">İşletme analizlerinizi tek noktadan profesyonelce yönetin.</div>
@@ -182,6 +224,30 @@
                        @onkeyup='(e) => { if(e.Key == "Enter") ViewModel.SearchReports(); }'
                        class="r-search-input" />
             </div>
+        </div>
+    </div>
+
+    <!-- Date Period Filter Toolbar -->
+    <div class="r-period-bar">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px; background: #1E293B; padding: 6px 12px; border-radius: 8px; margin-right: 6px;">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Style="color: #60A5FA;" />
+                <span style="font-size: 13px; font-weight: 700; color: #94A3B8;">Dönem:</span>
+            </div>
+            <button class="r-btn-period @(ViewModel.SelectedDateFilter == "All" ? "active" : "")" @onclick='() => ViewModel.SetDateFilter("All")'>Tümü</button>
+            <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Weekly" ? "active" : "")" @onclick='() => ViewModel.SetDateFilter("Weekly")'>Haftalık</button>
+            <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Monthly" ? "active" : "")" @onclick='() => ViewModel.SetDateFilter("Monthly")'>Aylık</button>
+            <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Yearly" ? "active" : "")" @onclick='() => ViewModel.SetDateFilter("Yearly")'>Yıllık</button>
+            <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Custom" ? "active" : "")" @onclick="ViewModel.OpenDateSelection">
+                <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Style="vertical-align: middle; margin-right: 4px;" />
+                Özel Tarih...
+            </button>
+        </div>
+
+        <div class="r-badge-range">
+            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" />
+            <span style="font-weight: 500; color: #94A3B8; font-size: 12px;">Seçili Aralık:</span>
+            <span>@ViewModel.DateRangeText</span>
         </div>
     </div>
 
@@ -275,6 +341,43 @@
             
             <div class="pa-6 pt-0 d-flex justify-content-end">
                 <button class="premium-button secondary" @onclick="ViewModel.CloseCariSelection">VAZGEÇ</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Date Selection Overlay -->
+@if (ViewModel.IsDateSelectionVisible)
+{
+    <div class="dialog-overlay-desktop fade-in">
+        <div class="dialog-card-desktop glass-morphism" style="max-width: 450px;">
+            <div class="dialog-header-desktop">
+                <h3 class="m-0 h5 fw-black">Tarih Aralığı Seçiniz</h3>
+                <button class="dialog-close-btn" @onclick="ViewModel.CloseDateSelection">
+                    <MudIcon Icon="@Icons.Material.Filled.Close" />
+                </button>
+            </div>
+            
+            <div class="pa-6">
+                <!-- Quick Buttons inside dialog -->
+                <div class="d-flex gap-2 mb-4 justify-content-between">
+                    <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Weekly" ? "active" : "")" style="flex: 1;" @onclick='() => ViewModel.SetDateFilter("Weekly")'>Haftalık</button>
+                    <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Monthly" ? "active" : "")" style="flex: 1;" @onclick='() => ViewModel.SetDateFilter("Monthly")'>Aylık</button>
+                    <button class="r-btn-period @(ViewModel.SelectedDateFilter == "Yearly" ? "active" : "")" style="flex: 1;" @onclick='() => ViewModel.SetDateFilter("Yearly")'>Yıllık</button>
+                    <button class="r-btn-period @(ViewModel.SelectedDateFilter == "All" ? "active" : "")" style="flex: 1;" @onclick='() => ViewModel.SetDateFilter("All")'>Tümü</button>
+                </div>
+
+                <div class="mb-4">
+                    <MudDatePicker @bind-Date="ViewModel.StartDate" Label="Başlangıç Tarihi" DateFormat="dd.MM.yyyy" Variant="Variant.Outlined" />
+                </div>
+                <div class="mb-4">
+                    <MudDatePicker @bind-Date="ViewModel.EndDate" Label="Bitiş Tarihi" DateFormat="dd.MM.yyyy" Variant="Variant.Outlined" />
+                </div>
+            </div>
+            
+            <div class="pa-6 pt-0 d-flex justify-content-between">
+                <button class="premium-button secondary" @onclick="ViewModel.CloseDateSelection">VAZGEÇ</button>
+                <button class="premium-button primary" @onclick="ViewModel.SelectDateRangeAsync">RAPORU HAZIRLA</button>
             </div>
         </div>
     </div>

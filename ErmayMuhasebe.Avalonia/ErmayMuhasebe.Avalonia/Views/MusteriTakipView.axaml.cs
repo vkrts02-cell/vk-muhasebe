@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using ErmayMuhasebe.Avalonia.ViewModels;
 using System;
 using System.Diagnostics;
@@ -74,6 +75,16 @@ namespace ErmayMuhasebe.Avalonia.Views
         }
         private void OnKlasorCardClick(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
+            if (e.Source is global::Avalonia.Visual visual)
+            {
+                var delBtn = visual.FindAncestorOfType<Button>(includeSelf: true);
+                if (delBtn != null && delBtn.Classes.Contains("CardDeleteBtn"))
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             if (sender is Button btn && btn.Tag is MusteriTakipKlasorCardViewModel card)
             {
                 if (DataContext is MusteriTakipViewModel vm)
@@ -90,7 +101,7 @@ namespace ErmayMuhasebe.Avalonia.Views
             {
                 if (DataContext is MusteriTakipViewModel vm)
                 {
-                    _ = vm.DeleteKlasorAsync(card);
+                    vm.DeleteKlasorConfirm(card);
                 }
             }
         }

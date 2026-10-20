@@ -156,6 +156,9 @@ namespace ErmayMuhasebe.Services
         public virtual Task<byte[]> GenerateStokHareketleriPdfBytesAsync(StokKart stok, List<StokHareket> hareketler)
             => Task.FromResult(GenerateStokHareketleriPdf(stok, hareketler));
 
+        public virtual Task<byte[]> GenerateCokluStokHareketleriPdfBytesAsync(List<(StokKart Stok, List<StokHareket> Hareketler)> data)
+            => Task.FromResult(GenerateCokluStokHareketleriPdf(data));
+
         public virtual Task<byte[]> GenerateVadeRaporuPdfBytesAsync(List<VadeReportItem> items)
             => Task.FromResult(GenerateVadeRaporuPdf(items));
 
@@ -3010,7 +3013,12 @@ namespace ErmayMuhasebe.Services
                         });
 
                         decimal grandTotalCost = 0;
-                        foreach (var s in stoklar)
+                        var sortedStoklar = stoklar
+                            .OrderByDescending(s => Math.Abs(s.Miktar) > 0.0001m ? 1 : 0)
+                            .ThenBy(s => s.StokAdi, ErmayMuhasebe.Shared.Helpers.NaturalStringComparer.Instance)
+                            .ToList();
+
+                        foreach (var s in sortedStoklar)
                         {
                             decimal totalCost = (decimal)s.Miktar * s.OrtalamaAlisFiyati;
                             grandTotalCost += totalCost;
@@ -3155,6 +3163,157 @@ namespace ErmayMuhasebe.Services
                     });
 
                     page.Footer().AlignCenter().Text(x => {
+                        x.Span("Sayfa ");
+                        x.CurrentPageNumber();
+                        x.Span(" / ");
+                        x.TotalPages();
+                    });
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+
+        public byte[] GenerateCokluStokHareketleriPdf(List<(StokKart Stok, List<StokHareket> Hareketler)> data)
+        {
+            if (data == null || data.Count == 0) return Array.Empty<byte>();
+            if (data.Count == 1) return GenerateStokHareketleriPdf(data[0].Stok, data[0].Hareketler);
+
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(DefaultFontFamily));
+
+                    page.Header().Row(row =>
+                    {
+                        if (ShowLogoRaporlar)
+                        {
+                            var logoBytes = LoadLogoBytes();
+                            if (logoBytes != null && logoBytes.Length > 0)
+                            {
+                                row.ConstantItem(60).Image(logoBytes).FitArea();
+                                row.ConstantItem(10);
+                            }
+                        }
+
+                        row.RelativeItem(3).Column(col =>
+                        {
+                            col.Item().Text("TOPLU STOK HAREKET RAPORU").Bold().FontSize(18).FontColor("#1e3a8a");
+                            col.Item().Text($"Rapor Tarihi: {DateTime.Now:dd.MM.yyyy HH:mm} | Seçili Stok Sayısı: {data.Count}").FontSize(10).FontColor("#666");
+                        });
+                    });
+
+                    page.Content().PaddingVertical(10).Column(mainCol =>
+                    {
+                        for (int i = 0; i < data.Count; i++)
+                        {
+                            var item = data[i];
+                            var stok = item.Stok;
+                            var orderedHareketler = item.Hareketler.OrderBy(h => h.Tarih).ToList();
+                            decimal runningBalance = 0;
+
+                            if (i > 0)
+                            {
+                                mainCol.Item().PaddingVertical(12).LineHorizontal(1).LineColor(QuestPDF.Helpers.Colors.Grey.Lighten1);
+                            }
+
+                            // Stok Kartı Başlık Kartı
+                            mainCol.Item().Background("#f1f5f9").Padding(8).Row(r =>
+                            {
+                                r.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text($"{stok.StokKodu} - {stok.StokAdi}").Bold().FontSize(12).FontColor("#1e3a8a");
+                                    if (!string.IsNullOrWhiteSpace(stok.Kategori) || !string.IsNullOrWhiteSpace(stok.Grup))
+                                    {
+                                        c.Item().Text($"Grup: {stok.Kategori ?? stok.Grup} | Birim: {stok.Birim ?? "Adet"}").FontSize(9).FontColor("#64748b");
+                                    }
+                                });
+                            });
+
+                            if (orderedHareketler.Count == 0)
+                            {
+                                mainCol.Item().PaddingVertical(8).Text("Bu stok kartına ait henüz bir hareket kaydı bulunmamaktadır.").Italic().FontColor("#94a3b8");
+                            }
+                            else
+                            {
+                                mainCol.Item().PaddingTop(6).Table(table =>
+                                {
+                                    table.ColumnsDefinition(columns =>
+                                    {
+                                        columns.RelativeColumn(3); // Tarih
+                                        columns.RelativeColumn(2); // Tür
+                                        columns.RelativeColumn(4); // Açıklama
+                                        columns.RelativeColumn(2); // Giren
+                                        columns.RelativeColumn(2); // Çıkan
+                                        columns.RelativeColumn(2); // Kalan
+                                    });
+
+                                    table.Header(header =>
+                                    {
+                                        header.Cell().Element(CellStyle).Text("Tarih");
+                                        header.Cell().Element(CellStyle).Text("İşlem Türü");
+                                        header.Cell().Element(CellStyle).Text("Açıklama");
+                                        header.Cell().Element(CellStyle).AlignRight().Text("Giren");
+                                        header.Cell().Element(CellStyle).AlignRight().Text("Çıkan");
+                                        header.Cell().Element(CellStyle).AlignRight().Text("Kalan");
+
+                                        static IContainer CellStyle(IContainer c) => c.DefaultTextStyle(x => x.Bold()).PaddingVertical(4).BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Black);
+                                    });
+
+                                    foreach (var h in orderedHareketler)
+                                    {
+                                        bool isGiris = (h.Giren > 0) || (h.IslemTuru != null && (
+                                            h.IslemTuru.Equals("GİRİŞ", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Equals("Giris", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Equals("GİREN", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Contains("Alış", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Contains("Alis", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Contains("Açılış", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Contains("Acilis", StringComparison.OrdinalIgnoreCase) ||
+                                            h.IslemTuru.Contains("Devir", StringComparison.OrdinalIgnoreCase)
+                                        ));
+
+                                        decimal girenVal = h.Giren > 0 ? h.Giren : (isGiris ? h.Miktar : 0);
+                                        decimal cikanVal = h.Cikan > 0 ? h.Cikan : (!isGiris ? h.Miktar : 0);
+
+                                        if (girenVal == 0 && cikanVal == 0 && h.Miktar > 0)
+                                        {
+                                            if (isGiris) girenVal = h.Miktar;
+                                            else cikanVal = h.Miktar;
+                                        }
+
+                                        runningBalance += (girenVal - cikanVal);
+
+                                        string rawTuru = isGiris ? "GİRİŞ" : "ÇIKIŞ";
+                                        string badgeText = string.IsNullOrWhiteSpace(h.IslemTuru) ? rawTuru : h.IslemTuru;
+
+                                        table.Cell().Element(RowStyle).Text(h.Tarih.ToString("dd.MM.yyyy HH:mm"));
+                                        table.Cell().Element(RowStyle).AlignMiddle()
+                                            .Element(e => ComposeBadge(e, rawTuru, badgeText));
+                                        table.Cell().Element(RowStyle).Text(h.Aciklama ?? "-");
+                                        table.Cell().Element(RowStyle).AlignRight().Text(girenVal > 0 ? girenVal.ToString("N2") : "-");
+                                        table.Cell().Element(RowStyle).AlignRight().Text(cikanVal > 0 ? cikanVal.ToString("N2") : "-");
+                                        table.Cell().Element(RowStyle).AlignRight().Text(runningBalance.ToString("N2")).Bold();
+
+                                        static IContainer RowStyle(IContainer c) => c.PaddingVertical(3).BorderBottom(0.5f).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2);
+                                    }
+                                });
+
+                                mainCol.Item().PaddingTop(4).AlignRight().Text(x =>
+                                {
+                                    x.Span("Bakiye: ").Bold().FontSize(10);
+                                    x.Span(runningBalance.ToString("N2")).Bold().FontSize(10).FontColor("#1e3a8a");
+                                    x.Span($" {stok.Birim ?? "Adet"}").Bold().FontSize(10);
+                                });
+                            }
+                        }
+                    });
+
+                    page.Footer().AlignCenter().Text(x =>
+                    {
                         x.Span("Sayfa ");
                         x.CurrentPageNumber();
                         x.Span(" / ");

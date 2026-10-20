@@ -30,6 +30,8 @@ public abstract partial class RaporListViewModel : ViewModelBase
     [ObservableProperty] private bool _isDateSelectionVisible;
     [ObservableProperty] private DateTime? _startDate = new DateTime(DateTime.Now.Year, 1, 1);
     [ObservableProperty] private DateTime? _endDate = new DateTime(DateTime.Now.Year, 12, 31);
+    [ObservableProperty] private string _selectedDateFilter = "Yearly";
+    [ObservableProperty] private string _dateRangeText = $"{DateTime.Now.Year} Yılı";
 
     // Error Handling
     [ObservableProperty] private bool _isErrorVisible;
@@ -45,14 +47,64 @@ public abstract partial class RaporListViewModel : ViewModelBase
 
     [RelayCommand]
     public void ClearError() => ErrorMessage = "";
+
+    [RelayCommand]
+    public void SetDateFilter(string filter)
+    {
+        SelectedDateFilter = filter;
+        var today = DateTime.Today;
+
+        switch (filter)
+        {
+            case "Weekly":
+                int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+                StartDate = today.AddDays(-1 * diff).Date;
+                EndDate = StartDate.Value.AddDays(6).Date;
+                DateRangeText = $"{StartDate:dd.MM.yyyy} - {EndDate:dd.MM.yyyy} (Haftalık)";
+                break;
+
+            case "Monthly":
+                StartDate = new DateTime(today.Year, today.Month, 1);
+                EndDate = StartDate.Value.AddMonths(1).AddDays(-1);
+                DateRangeText = $"{today:MMMM yyyy} (Aylık)";
+                break;
+
+            case "Yearly":
+                StartDate = new DateTime(today.Year, 1, 1);
+                EndDate = new DateTime(today.Year, 12, 31);
+                DateRangeText = $"{today.Year} Yılı";
+                break;
+
+            case "All":
+                StartDate = new DateTime(2000, 1, 1);
+                EndDate = new DateTime(2099, 12, 31);
+                DateRangeText = "Tüm Zamanlar";
+                break;
+
+            case "Custom":
+                OpenDateSelection();
+                return;
+        }
+    }
+
+    [RelayCommand]
+    public void OpenDateSelection()
+    {
+        IsDateSelectionVisible = true;
+    }
     
     [RelayCommand]
     public async Task SelectDateRangeAsync()
     {
-        if (_pendingReportItem == null) return;
         IsDateSelectionVisible = false;
-        await GenerateReportInternal(_pendingReportItem, null, _isPendingPrint);
-        _pendingReportItem = null;
+        SelectedDateFilter = "Custom";
+        DateRangeText = $"{StartDate:dd.MM.yyyy} - {EndDate:dd.MM.yyyy}";
+
+        if (_pendingReportItem != null)
+        {
+            await GenerateReportInternal(_pendingReportItem, null, _isPendingPrint);
+            _pendingReportItem = null;
+        }
     }
 
     [RelayCommand]
@@ -176,15 +228,6 @@ public abstract partial class RaporListViewModel : ViewModelBase
             IsCariSelectionVisible = true;
             return;
         }
-        if (item.Title == "Gelir Tablosu" || item.Title == "Detaylı Gelir ve Maliyet Analizi")
-        {
-            _pendingReportItem = item;
-            _isPendingPrint = isPrint;
-            StartDate = new DateTime(DateTime.Now.Year, 1, 1);
-            EndDate = new DateTime(DateTime.Now.Year, 12, 31);
-            IsDateSelectionVisible = true;
-            return;
-        }
 
         await GenerateReportInternal(item, null, isPrint);
     }
@@ -207,6 +250,11 @@ public abstract partial class RaporListViewModel : ViewModelBase
         {
             IsGenerating = true;
             
+            var start = StartDate ?? new DateTime(2000, 1, 1);
+            var end = EndDate ?? new DateTime(2099, 12, 31);
+            var startDay = start.Date;
+            var endDay = end.Date;
+            string dateSuffix = SelectedDateFilter == "All" ? "" : $" ({startDay:dd.MM.yyyy} - {endDay:dd.MM.yyyy})";
 
             if (item.Title == "Genel Özet" && selectedCari == null) 
             {
@@ -219,12 +267,12 @@ public abstract partial class RaporListViewModel : ViewModelBase
                 }
 
                 sections.Add(new ReportSection { 
-                    Title = summaryData.Title, 
+                    Title = $"{summaryData.Title}{dateSuffix}", 
                     Headers = summaryData.Headers, 
                     Rows = summaryData.Rows,
                     KeyMetrics = summaryMetrics,
                     ChartData = summaryMetrics.Where(x => !x.Label.Contains("Miktar")).ToList(),
-                    LeftChartTitle = "VARLIK VE YÜKÜMLÜLÜK DAĞILIMI"
+                    LeftChartTitle = $"VARLIK VE YÜKÜMLÜLÜK DAĞILIMI{dateSuffix}"
                 });
 
                 var budgetReportItem = GetAllReports().FirstOrDefault(r => r.Title == "Bütçe / Hedef Takibi");
@@ -327,7 +375,8 @@ public abstract partial class RaporListViewModel : ViewModelBase
             else 
             {
                 var (rTitle, rHeaders, rRows) = await CalculateReportDataAsync(item, selectedCari);
-                var pdfBytes = await _pdfService.GenerateGenericTablePdfBytesAsync(rTitle, rHeaders, rRows);
+                string dateSubtitle = SelectedDateFilter == "All" ? "Tüm Zamanlar" : $"Tarih Aralığı: {startDay:dd.MM.yyyy} - {endDay:dd.MM.yyyy}";
+                var pdfBytes = await _pdfService.GenerateGenericTablePdfBytesAsync(rTitle, rHeaders, rRows, dateSubtitle);
             
             // Dosya adındaki '/' ve '\' gibi geçersiz karakterleri temizle
             string safeFileName = rTitle.Replace(" ", "_").Replace("/", "_").Replace("\\", "_") + ".pdf";
@@ -398,13 +447,18 @@ public abstract partial class RaporListViewModel : ViewModelBase
         string[] headers = Array.Empty<string>();
         string title = item.Title;
 
+        var start = StartDate ?? new DateTime(2000, 1, 1);
+        var end = EndDate ?? new DateTime(2099, 12, 31);
+        var startDay = start.Date;
+        var endDay = end.Date;
+
         // Implementation of calculations... (truncated for brevity but I will include the core logic from the original)
         if (item.Title == "Aylık Tahsilat ve Ödeme Analizi")
         {
-            var kk = await _uow.KrediKartlari.GetAllAsync();
-            var nakit = await _uow.Kasalar.GetAllHareketlerAsync();
-            var eft = await _uow.EftIslemleri.GetAllAsync();
-            var cekler = await _uow.Cekler.GetAllAsync();
+            var kk = (await _uow.KrediKartlari.GetAllAsync()).Where(x => x.Tarih.Date >= startDay && x.Tarih.Date <= endDay).ToList();
+            var nakit = (await _uow.Kasalar.GetAllHareketlerAsync()).Where(x => x.Tarih.Date >= startDay && x.Tarih.Date <= endDay).ToList();
+            var eft = (await _uow.EftIslemleri.GetAllAsync()).Where(x => x.Tarih.Date >= startDay && x.Tarih.Date <= endDay).ToList();
+            var cekler = (await _uow.Cekler.GetAllAsync()).Where(x => x.VadeTarihi.Date >= startDay && x.VadeTarihi.Date <= endDay).ToList();
 
             headers = new[] { "Ay/Yıl", "Nakit (Alınan)", "Nakit (Yönl.)", "K.Kartı (Alınan)", "K.Kartı (Yönl.)", "Havale (Alınan)", "Havale (Yönl.)", "Çek (Alınan)", "Çek (Yönl.)" };
             
@@ -449,7 +503,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
         }
         else if (item.Title == "Kredi Kartı Detay Raporu")
         {
-            var islemler = await _uow.KrediKartlari.GetAllAsync();
+            var islemler = (await _uow.KrediKartlari.GetAllAsync()).Where(x => x.Tarih.Date >= startDay && x.Tarih.Date <= endDay);
             headers = new[] { "Tarih", "Kimden Alındı", "Banka/Kart", "Kime Yönlendirildi", "Tutar", "Durum" };
             foreach (var k in islemler.OrderByDescending(x => x.Tarih))
             {
@@ -465,7 +519,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
         }
         else if (item.Title == "Nakit İşlem Detay Raporu")
         {
-            var hareketler = await _uow.Kasalar.GetAllHareketlerAsync();
+            var hareketler = (await _uow.Kasalar.GetAllHareketlerAsync()).Where(x => x.Tarih.Date >= startDay && x.Tarih.Date <= endDay);
             var nakitHareketler = hareketler.Where(h => string.IsNullOrEmpty(h.IslemTuru) || h.IslemTuru.Contains("Nakit", StringComparison.OrdinalIgnoreCase)).OrderByDescending(x => x.Tarih);
             headers = new[] { "Tarih", "Cari Ünvan", "İşlem", "Açıklama", "Giren", "Çıkan" };
             foreach (var h in nakitHareketler)
@@ -482,7 +536,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
         }
         else if (item.Title == "Çek Detay Raporu")
         {
-            var cekler = await _uow.Cekler.GetAllAsync();
+            var cekler = (await _uow.Cekler.GetAllAsync()).Where(x => x.VadeTarihi.Date >= startDay && x.VadeTarihi.Date <= endDay);
             headers = new[] { "Vade", "Çek No", "Cari Ünvan", "Banka/Şube", "Tutar", "Durum" };
             foreach (var c in cekler.OrderBy(x => x.VadeTarihi))
             {
@@ -498,7 +552,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
         }
         else if (item.Title == "Havale / EFT Detay Raporu")
         {
-            var islemler = await _uow.EftIslemleri.GetAllAsync();
+            var islemler = (await _uow.EftIslemleri.GetAllAsync()).Where(x => x.Tarih.Date >= startDay && x.Tarih.Date <= endDay);
             headers = new[] { "Tarih", "Müşteri", "Banka/Hesap", "Dekont No", "Tutar", "Durum" };
             foreach (var e in islemler.OrderByDescending(x => x.Tarih))
             {
@@ -515,8 +569,15 @@ public abstract partial class RaporListViewModel : ViewModelBase
         else if (item.Title == "Stok Mevcudu")
         {
             var list = await _uow.Stoklar.GetAllAsync();
+            var hareketler = await _uow.Stoklar.GetAllHareketlerAsync();
+            var donemHareketleri = SelectedDateFilter == "All" 
+                ? hareketler.ToList() 
+                : hareketler.Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).ToList();
+            var hareketGorenStokIdler = donemHareketleri.Select(h => h.StokId).ToHashSet();
+            var aktifStoklar = list.Where(s => hareketGorenStokIdler.Contains(s.Id)).ToList();
+
             headers = new[] { "Stok Kodu", "Stok Adı", "Kategori", "Miktar", "Ort. Alış F.", "Ort. Satış F.", "Satış F." };
-            foreach (var s in list)
+            foreach (var s in aktifStoklar)
                 data.Add(new[] { s.StokKodu ?? "", s.StokAdi ?? "", s.Kategori ?? "-", s.Miktar.ToString("N2"), s.OrtalamaAlisFiyati.ToString("C2"), s.OrtalamaSatisFiyati.ToString("C2"), s.SatisFiyati.ToString("C2") });
         }
 
@@ -525,39 +586,82 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var cariler = await _uow.Cariler.GetAllAsync();
             var stoklar = await _uow.Stoklar.GetAllAsync();
             var bankalar = await _uow.Bankalar.GetAllAsync();
+            var hareketler = await _uow.Stoklar.GetAllHareketlerAsync();
+            var cariHareketler = await _uow.Cariler.GetAllHareketlerAsync();
             
-            var recv = cariler.Where(c => (c.Borc - c.Alacak) > 0).Sum(c => c.Borc - c.Alacak);
-            var pay = cariler.Where(c => (c.Borc - c.Alacak) < 0).Sum(c => c.Alacak - c.Borc);
+            var donemStokHareketleri = SelectedDateFilter == "All"
+                ? hareketler.ToList()
+                : hareketler.Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).ToList();
+            var hareketGorenStokIdler = donemStokHareketleri.Select(h => h.StokId).ToHashSet();
+            var aktifStoklar = stoklar.Where(s => hareketGorenStokIdler.Contains(s.Id)).ToList();
+            
+            decimal recv;
+            decimal pay;
+            if (SelectedDateFilter == "All")
+            {
+                recv = cariler.Where(c => (c.Borc - c.Alacak) > 0).Sum(c => c.Borc - c.Alacak);
+                pay = cariler.Where(c => (c.Borc - c.Alacak) < 0).Sum(c => c.Alacak - c.Borc);
+            }
+            else
+            {
+                var donemCariHareketleri = cariHareketler.Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).ToList();
+                recv = donemCariHareketleri.Sum(h => h.Borc);
+                pay = donemCariHareketleri.Sum(h => h.Alacak);
+            }
+
             var totalCash = bankalar.Sum(b => b.GuncelBakiye);
 
+            string dateSuffix = SelectedDateFilter == "All" ? "" : $" ({startDay:dd.MM.yyyy} - {endDay:dd.MM.yyyy})";
             headers = new[] { "Rapor Kalemi", "Tutar" };
-            data.Add(new[] { "Toplam Alacaklar", recv.ToString("C2") });
-            data.Add(new[] { "Toplam Borçlar", pay.ToString("C2") });
+            data.Add(new[] { $"Toplam Alacaklar{dateSuffix}", recv.ToString("C2") });
+            data.Add(new[] { $"Toplam Borçlar{dateSuffix}", pay.ToString("C2") });
             data.Add(new[] { "Kasa / Banka Mevcudu", totalCash.ToString("C2") });
-            data.Add(new[] { "Toplam Stok Miktarı", stoklar.Sum(s => s.Miktar).ToString("N2") });
-            data.Add(new[] { "Stok Maliyet Değeri", stoklar.Sum(s => (decimal)s.Miktar * s.AlisFiyati).ToString("C2") });
+            data.Add(new[] { "Toplam Stok Miktarı", aktifStoklar.Sum(s => s.Miktar).ToString("N2") });
+            data.Add(new[] { "Stok Maliyet Değeri", aktifStoklar.Sum(s => (decimal)s.Miktar * s.AlisFiyati).ToString("C2") });
         }
         else if (item.Title == "Cari Bakiye Raporu")
         {
             var list = await _uow.Cariler.GetAllAsync();
+            var hareketler = await _uow.Cariler.GetAllHareketlerAsync();
             headers = new[] { "Ünvan", "Şehir", "Borç", "Alacak", "Bakiye", "Durum" };
+
+            var donemHareketleri = SelectedDateFilter == "All"
+                ? null
+                : hareketler.Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).GroupBy(h => h.CariId).ToDictionary(g => g.Key, g => new { Borc = g.Sum(x => x.Borc), Alacak = g.Sum(x => x.Alacak) });
+
             foreach (var c in list)
             {
-                var bakiye = c.Borc - c.Alacak;
+                decimal borc = c.Borc;
+                decimal alacak = c.Alacak;
+
+                if (donemHareketleri != null)
+                {
+                    if (donemHareketleri.TryGetValue(c.Id, out var g))
+                    {
+                        borc = g.Borc;
+                        alacak = g.Alacak;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                var bakiye = borc - alacak;
                 var durum = bakiye > 0 ? "Borçlu" : (bakiye < 0 ? "Alacaklı" : "Dengede");
-                data.Add(new[] { c.Unvan ?? "", c.Il ?? "", c.Borc.ToString("C2"), c.Alacak.ToString("C2"), bakiye.ToString("C2"), durum });
+                data.Add(new[] { c.Unvan ?? "", c.Il ?? "", borc.ToString("C2"), alacak.ToString("C2"), bakiye.ToString("C2"), durum });
             }
         }
         else if (item.Title == "Cari Hareket Dökümü")
         {
-            var list = await _uow.Cariler.GetAllHareketlerAsync();
+            var list = (await _uow.Cariler.GetAllHareketlerAsync()).Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).ToList();
             if (selectedCari != null)
             {
                 list = list.Where(h => h.CariId == selectedCari.Id).ToList();
                 title = $"{selectedCari.Unvan} - Hareket Dökümü";
             }
             headers = new[] { "Tarih", "Ünvan", "İşlem", "Borç", "Alacak" };
-            foreach (var h in list)
+            foreach (var h in list.OrderByDescending(x => x.Tarih))
                 data.Add(new[] { h.Tarih.ToString("dd.MM.yyyy"), h.CariUnvan ?? "-", h.IslemTuru ?? "", h.Borc.ToString("C2"), h.Alacak.ToString("C2") });
         }
         // ... (Adding few more core ones for demo, the real one has 30+)
@@ -566,7 +670,11 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var faturalar = await _uow.Faturalar.GetAllAsync();
             var hedefler = await _uow.GetSatisHedefleriAsync();
             headers = new[] { "Dönem", "Hedef", "Gerçekleşen", "Fark", "%" };
-            foreach(var h in hedefler.OrderByDescending(x => x.Yil).ThenByDescending(x => x.Ay))
+            var filteredHedefler = hedefler
+                .Where(h => (SelectedDateFilter == "All") || (new DateTime(h.Yil, h.Ay, 1) >= new DateTime(startDay.Year, startDay.Month, 1) && new DateTime(h.Yil, h.Ay, 1) <= new DateTime(endDay.Year, endDay.Month, 1)))
+                .OrderByDescending(x => x.Yil).ThenByDescending(x => x.Ay);
+
+            foreach(var h in filteredHedefler)
             {
                 var actual = faturalar.Where(f => f.Tarih.Year == h.Yil && f.Tarih.Month == h.Ay && (f.Tur == "Satış" || f.Tur == "Satis")).Sum(f => f.GenelToplam);
                 data.Add(new[] { $"{h.Ay}/{h.Yil}", h.HedefTutar.ToString("C2"), actual.ToString("C2"), (actual-h.HedefTutar).ToString("C2"), (h.HedefTutar>0 ? (actual/h.HedefTutar*100).ToString("N1") : "0") });
@@ -580,12 +688,12 @@ public abstract partial class RaporListViewModel : ViewModelBase
             
             foreach (var c in cariler.Where(x => (x.Borc - x.Alacak) > 0))
             {
-                var cHareketler = hareketler.Where(h => h.CariId == c.Id && (h.Borc - h.Alacak) > 0).ToList();
-                var now = DateTime.Now;
-                var d0_30 = cHareketler.Where(h => (now - h.Tarih).TotalDays <= 30).Sum(h => h.Borc - h.Alacak);
-                var d31_60 = cHareketler.Where(h => (now - h.Tarih).TotalDays > 30 && (now - h.Tarih).TotalDays <= 60).Sum(h => h.Borc - h.Alacak);
-                var d61_90 = cHareketler.Where(h => (now - h.Tarih).TotalDays > 60 && (now - h.Tarih).TotalDays <= 90).Sum(h => h.Borc - h.Alacak);
-                var d90plus = cHareketler.Where(h => (now - h.Tarih).TotalDays > 90).Sum(h => h.Borc - h.Alacak);
+                var cHareketler = hareketler.Where(h => h.CariId == c.Id && (h.Borc - h.Alacak) > 0 && h.Tarih.Date <= endDay).ToList();
+                var refDate = endDay < DateTime.Now.Date ? endDay : DateTime.Now.Date;
+                var d0_30 = cHareketler.Where(h => (refDate - h.Tarih.Date).TotalDays <= 30 && (refDate - h.Tarih.Date).TotalDays >= 0).Sum(h => h.Borc - h.Alacak);
+                var d31_60 = cHareketler.Where(h => (refDate - h.Tarih.Date).TotalDays > 30 && (refDate - h.Tarih.Date).TotalDays <= 60).Sum(h => h.Borc - h.Alacak);
+                var d61_90 = cHareketler.Where(h => (refDate - h.Tarih.Date).TotalDays > 60 && (refDate - h.Tarih.Date).TotalDays <= 90).Sum(h => h.Borc - h.Alacak);
+                var d90plus = cHareketler.Where(h => (refDate - h.Tarih.Date).TotalDays > 90).Sum(h => h.Borc - h.Alacak);
                 var total = d0_30 + d31_60 + d61_90 + d90plus;
                 if (total > 0)
                     data.Add(new[] { c.Unvan ?? "", d0_30.ToString("C2"), d31_60.ToString("C2"), d61_90.ToString("C2"), d90plus.ToString("C2"), total.ToString("C2") });
@@ -596,40 +704,38 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var cariler = await _uow.Cariler.GetAllAsync();
             var hareketler = await _uow.Cariler.GetAllHareketlerAsync();
             headers = new[] { "Ünvan", "Grup", "Telefon", "Son İşlem", "Gün" };
-            var cutoffDate = DateTime.Now.AddMonths(-6);
             
             foreach (var c in cariler)
             {
-                var lastTransaction = hareketler.Where(h => h.CariId == c.Id).OrderByDescending(h => h.Tarih).FirstOrDefault();
-                if (lastTransaction == null || lastTransaction.Tarih < cutoffDate)
+                bool hasMovementInPeriod = hareketler.Any(h => h.CariId == c.Id && h.Tarih.Date >= startDay && h.Tarih.Date <= endDay);
+                if (!hasMovementInPeriod)
                 {
-                    string daysSinceStr = "-";
-                    if (lastTransaction != null)
-                        daysSinceStr = (DateTime.Now - lastTransaction.Tarih).Days.ToString();
-                    else if (c.KayitTarihi.Year > 2000)
-                        daysSinceStr = (DateTime.Now - c.KayitTarihi).Days.ToString();
-                    else
-                        daysSinceStr = "İşlem Yok";
-
+                    var lastTransaction = hareketler.Where(h => h.CariId == c.Id).OrderByDescending(h => h.Tarih).FirstOrDefault();
+                    string daysSinceStr = lastTransaction != null ? (DateTime.Now - lastTransaction.Tarih).Days.ToString() : (c.KayitTarihi.Year > 2000 ? (DateTime.Now - c.KayitTarihi).Days.ToString() : "İşlem Yok");
                     data.Add(new[] { c.Unvan ?? "", c.Grup ?? "-", c.Telefon ?? "-", lastTransaction?.Tarih.ToString("dd.MM.yyyy") ?? "Hiç", daysSinceStr });
                 }
             }
         }
         else if (item.Title == "Stok Hareketleri")
         {
-            var hareketler = (await _uow.Stoklar.GetAllHareketlerAsync()).OrderBy(x => x.Tarih).ToList();
+            var allHareketler = (await _uow.Stoklar.GetAllHareketlerAsync()).OrderBy(x => x.Tarih).ToList();
             var balances = new Dictionary<int, decimal>();
             
             headers = new[] { "Tarih", "Stok Adı", "İşlem", "Giren", "Çıkan", "Birim Fiyat", "Kalan" };
             
-            foreach (var h in hareketler)
+            foreach (var h in allHareketler)
             {
                 if (!balances.ContainsKey(h.StokId)) balances[h.StokId] = 0;
                 balances[h.StokId] += (h.Giren - h.Cikan);
                 h.KalanMiktar = balances[h.StokId];
             }
 
-            foreach (var h in hareketler.OrderByDescending(x => x.Tarih).Take(1000))
+            var donemHareketleri = allHareketler
+                .Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay)
+                .OrderByDescending(x => x.Tarih)
+                .Take(1000);
+
+            foreach (var h in donemHareketleri)
             {
                 data.Add(new[] { 
                     h.Tarih.ToString("dd.MM.yyyy"), 
@@ -703,7 +809,6 @@ public abstract partial class RaporListViewModel : ViewModelBase
                 }
             }
 
-            // Eğer hiç çakışma yoksa bile bilgi satırı eklenebilir veya boş kalabilir.
             if (data.Count == 0)
             {
                  data.Add(new[] { "-", "-", "-", "-", "Çakışan kart bulunamadı" });
@@ -712,15 +817,22 @@ public abstract partial class RaporListViewModel : ViewModelBase
         else if (item.Title == "Stok Devir Hızı")
         {
             var stoklar = await _uow.Stoklar.GetAllAsync();
-            var hareketler = await _uow.Stoklar.GetAllHareketlerAsync();
+            var allHareketler = await _uow.Stoklar.GetAllHareketlerAsync();
+            var donemHareketleri = SelectedDateFilter == "All"
+                ? allHareketler.ToList()
+                : allHareketler.Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).ToList();
+
+            var hareketGorenStokIdler = donemHareketleri.Select(h => h.StokId).ToHashSet();
+            var aktifStoklar = stoklar.Where(s => hareketGorenStokIdler.Contains(s.Id)).ToList();
+
             headers = new[] { "Stok Adı", "Mevcut Stok", "Toplam Satış (Çıkan)", "Stok Devir Hızı", "Kategori" };
             
-            var satisMiktarlari = hareketler
+            var satisMiktarlari = donemHareketleri
                 .Where(h => h.Cikan > 0)
                 .GroupBy(h => h.StokId)
                 .ToDictionary(g => g.Key, g => g.Sum(h => h.Cikan));
 
-            foreach (var s in stoklar)
+            foreach (var s in aktifStoklar)
             {
                 satisMiktarlari.TryGetValue(s.Id, out var satisMiktari);
                 double devirHizi = 0;
@@ -741,7 +853,9 @@ public abstract partial class RaporListViewModel : ViewModelBase
         else if (item.Title == "Satış Faturası Dökümü")
         {
             var faturalar = await _uow.Faturalar.GetAllAsync();
-            var satisFaturalari = faturalar.Where(f => f.Tur == "Satış" || f.Tur == "Satis").OrderByDescending(f => f.Tarih).ToList();
+            var satisFaturalari = faturalar
+                .Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Date >= startDay && f.Tarih.Date <= endDay)
+                .OrderByDescending(f => f.Tarih).ToList();
             headers = new[] { "Fatura No", "Tarih", "Müşteri", "Ara Toplam", "KDV", "Genel Toplam" };
             foreach (var f in satisFaturalari.Take(500))
                 data.Add(new[] { f.FaturaNo ?? "", f.Tarih.ToString("dd.MM.yyyy"), f.CariUnvan ?? "-", f.AraToplam.ToString("C2"), f.ToplamKDV.ToString("C2"), f.GenelToplam.ToString("C2") });
@@ -767,7 +881,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
             
             headers = new[] { "Müşteri", "Toplam Satış", "Tahmini Maliyet", "Net Kar", "Kar Marjı (%)", "Fatura Sayısı" };
             
-            var satisFaturalari = faturalar.Where(f => f.Tur == "Satış" || f.Tur == "Satis").ToList();
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Date >= startDay && f.Tarih.Date <= endDay).ToList();
             var grouped = satisFaturalari.GroupBy(f => new { f.CariId, Unvan = f.CariUnvan ?? "Bilinmeyen" });
             
             foreach (var g in grouped.OrderByDescending(g => g.Sum(f => f.GenelToplam)).Take(100))
@@ -775,7 +889,6 @@ public abstract partial class RaporListViewModel : ViewModelBase
                 var totalSales = g.Sum(f => f.GenelToplam);
                 var count = g.Count();
                 
-                // Calculate actual cost from invoice details
                 decimal totalCost = 0;
                 foreach (var fatura in g)
                 {
@@ -810,7 +923,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var cariler = await _uow.Cariler.GetAllAsync();
             headers = new[] { "Şehir", "Müşteri Sayısı", "Toplam Satış", "Ortalama Satış" };
             
-            var satisFaturalari = faturalar.Where(f => f.Tur == "Satış" || f.Tur == "Satis").ToList();
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Date >= startDay && f.Tarih.Date <= endDay).ToList();
             var grouped = satisFaturalari.GroupBy(f => {
                 var cari = cariler.FirstOrDefault(c => c.Id == f.CariId);
                 return cari?.Il ?? "Bilinmiyor";
@@ -827,10 +940,28 @@ public abstract partial class RaporListViewModel : ViewModelBase
         else if (item.Title == "En Çok Satan Ürünler")
         {
             var stoklar = await _uow.Stoklar.GetAllAsync();
+            var allHareketler = await _uow.Stoklar.GetAllHareketlerAsync();
+            var donemHareketleri = SelectedDateFilter == "All"
+                ? allHareketler.ToList()
+                : allHareketler.Where(h => h.Tarih.Date >= startDay && h.Tarih.Date <= endDay).ToList();
+
+            var hareketGorenStokIdler = donemHareketleri.Select(h => h.StokId).ToHashSet();
+            var aktifStoklar = stoklar.Where(s => hareketGorenStokIdler.Contains(s.Id)).ToList();
+
+            var satisMiktarlari = donemHareketleri
+                .Where(h => h.Cikan > 0)
+                .GroupBy(h => h.StokId)
+                .ToDictionary(g => g.Key, g => g.Sum(h => h.Cikan));
+
             headers = new[] { "Sıra", "Ürün Adı", "Mevcut Stok", "Satış Fiyatı", "Kategori" };
             
             int rank = 1;
-            foreach (var s in stoklar.OrderByDescending(s => s.Miktar).Take(50))
+            var sortedStoklar = aktifStoklar
+                .OrderByDescending(s => satisMiktarlari.TryGetValue(s.Id, out var qty) ? qty : 0)
+                .ThenByDescending(s => s.Miktar)
+                .Take(50);
+
+            foreach (var s in sortedStoklar)
             {
                 data.Add(new[] { rank++.ToString(), s.StokAdi ?? "", s.Miktar.ToString("N2"), s.SatisFiyati.ToString("C2"), s.Kategori ?? "-" });
             }
@@ -842,13 +973,10 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var stoklar = await _uow.Stoklar.GetAllAsync();
             var stokDict = stoklar.ToDictionary(s => s.Id);
 
-            var start = StartDate ?? new DateTime(DateTime.Now.Year, 1, 1);
-            var end = EndDate ?? new DateTime(DateTime.Now.Year, 12, 31);
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).ToList();
+            var alisFaturalari = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).ToList();
             
-            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Date >= start.Date && f.Tarih.Date <= end.Date).ToList();
-            var alisFaturalari = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && f.Tarih.Date >= start.Date && f.Tarih.Date <= end.Date).ToList();
-            
-            title = $"Gelir Tablosu ({start:dd.MM.yyyy} - {end:dd.MM.yyyy})";
+            title = SelectedDateFilter == "All" ? "Gelir Tablosu (Tüm Zamanlar)" : $"Gelir Tablosu ({startDay:dd.MM.yyyy} - {endDay:dd.MM.yyyy})";
             headers = new[] { "Kalem", "Tutar" };
             
             decimal totalRevenue = satisFaturalari.Sum(f => f.GenelToplam);
@@ -886,13 +1014,10 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var stokDict = stoklar.ToDictionary(s => s.Id);
             var cariHareketler = await _uow.Cariler.GetAllHareketlerAsync();
             
-            var start = StartDate ?? new DateTime(DateTime.Now.Year, 1, 1);
-            var end = EndDate ?? new DateTime(DateTime.Now.Year, 12, 31);
-            
-            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Date >= start.Date && f.Tarih.Date <= end.Date).OrderBy(f => f.Tarih).ToList();
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).OrderBy(f => f.Tarih).ToList();
             var alisFaturalari = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis")).OrderByDescending(f => f.Tarih).ToList();
             
-            title = $"Detaylı Gelir ve Maliyet Analizi ({start:dd.MM.yyyy} - {end:dd.MM.yyyy})";
+            title = SelectedDateFilter == "All" ? "Detaylı Gelir ve Maliyet Analizi" : $"Detaylı Gelir ve Maliyet Analizi ({startDay:dd.MM.yyyy} - {endDay:dd.MM.yyyy})";
             headers = new[] { 
                 "Tarih", 
                 "Ürün Adı", 
@@ -1019,12 +1144,14 @@ public abstract partial class RaporListViewModel : ViewModelBase
         else if (item.Title == "Nakit Akış Tablosu")
         {
             var kasaHareketler = await _uow.Kasalar.GetAllHareketlerAsync();
-            var currentMonth = DateTime.Now.Month;
-            var currentYear = DateTime.Now.Year;
             headers = new[] { "Tarih", "Açıklama", "Giren", "Çıkan", "Bakiye" };
             
             decimal runningBalance = 0;
-            foreach (var h in kasaHareketler.Where(k => IsNakitMovement(k) && k.Tarih.Year == currentYear && k.Tarih.Month == currentMonth).OrderBy(k => k.Tarih))
+            var filteredMovements = kasaHareketler
+                .Where(k => IsNakitMovement(k) && (SelectedDateFilter == "All" || (k.Tarih.Date >= startDay && k.Tarih.Date <= endDay)))
+                .OrderBy(k => k.Tarih);
+
+            foreach (var h in filteredMovements)
             {
                 runningBalance += h.Giren - h.Cikan;
                 data.Add(new[] { h.Tarih.ToString("dd.MM.yyyy"), h.Aciklama ?? "-", h.Giren.ToString("C2"), h.Cikan.ToString("C2"), runningBalance.ToString("C2") });
@@ -1036,7 +1163,12 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var kasaHareketler = await _uow.Kasalar.GetAllHareketlerAsync();
             headers = new[] { "Tarih", "Kasa", "İşlem", "Giren", "Çıkan" };
             
-            foreach (var h in kasaHareketler.OrderByDescending(k => k.Tarih).Take(500))
+            var filtered = kasaHareketler
+                .Where(k => SelectedDateFilter == "All" || (k.Tarih.Date >= startDay && k.Tarih.Date <= endDay))
+                .OrderByDescending(k => k.Tarih)
+                .Take(500);
+
+            foreach (var h in filtered)
             {
                 var kasa = kasalar.FirstOrDefault(k => k.Id == h.KasaId);
                 data.Add(new[] { h.Tarih.ToString("dd.MM.yyyy HH:mm"), kasa?.BankaAdi ?? "-", h.IslemTuru ?? "", h.Giren.ToString("C2"), h.Cikan.ToString("C2") });
@@ -1053,8 +1185,8 @@ public abstract partial class RaporListViewModel : ViewModelBase
         }
         else if (item.Title == "Kapsamlı Gider Raporu")
         {
-            var alisFaturalari = (await _uow.Faturalar.GetAllAsync()).Where(f => f.Tur == "Alış" || f.Tur == "Alis").ToList();
-            var kasaHareketler = await _uow.Kasalar.GetAllHareketlerAsync();
+            var alisFaturalari = (await _uow.Faturalar.GetAllAsync()).Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).ToList();
+            var kasaHareketler = (await _uow.Kasalar.GetAllHareketlerAsync()).Where(k => SelectedDateFilter == "All" || (k.Tarih.Date >= startDay && k.Tarih.Date <= endDay)).ToList();
             headers = new[] { "Kategori", "Tutar", "Adet" };
             
             var faturaGiderleri = alisFaturalari.Sum(f => f.GenelToplam);
@@ -1077,7 +1209,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
         else if (item.Title == "Müşteri ABC Analizi")
         {
             var faturalar = await _uow.Faturalar.GetAllAsync();
-            var satisFaturalari = faturalar.Where(f => f.Tur == "Satış" || f.Tur == "Satis").ToList();
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).ToList();
             headers = new[] { "Müşteri", "Toplam Satış", "Yüzde", "Sınıf" };
             
             var grouped = satisFaturalari.GroupBy(f => f.CariUnvan ?? "Bilinmeyen")
@@ -1131,11 +1263,11 @@ public abstract partial class RaporListViewModel : ViewModelBase
             data.Add(new[] { "--- HAFTALIK ANALİZ (SON 4 HAFTA) ---", "", "", "" });
             for (int i = 3; i >= 0; i--)
             {
-                var start = DateTime.Now.AddDays(-((double)i * 7 + 7));
-                var end = DateTime.Now.AddDays(-((double)i * 7));
-                var s = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih >= start && f.Tarih < end).Sum(f => f.GenelToplam);
-                var a = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && f.Tarih >= start && f.Tarih < end).Sum(f => f.GenelToplam);
-                data.Add(new[] { $"{start:dd.MM} - {end:dd.MM}", s.ToString("C2"), a.ToString("C2"), (s - a).ToString("C2") });
+                var hStart = DateTime.Now.AddDays(-((double)i * 7 + 7));
+                var hEnd = DateTime.Now.AddDays(-((double)i * 7));
+                var s = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih >= hStart && f.Tarih < hEnd).Sum(f => f.GenelToplam);
+                var a = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && f.Tarih >= hStart && f.Tarih < hEnd).Sum(f => f.GenelToplam);
+                data.Add(new[] { $"{hStart:dd.MM} - {hEnd:dd.MM}", s.ToString("C2"), a.ToString("C2"), (s - a).ToString("C2") });
             }
         }
         else if (item.Title == "Vadesi Geçmiş Alacaklar")
@@ -1207,7 +1339,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var cariler = await _uow.Cariler.GetAllAsync();
             headers = new[] { "Bölge", "Satış Tutarı", "Fatura Sayısı", "Ort. Fatura" };
             
-            var satisFaturalari = faturalar.Where(f => f.Tur == "Satış" || f.Tur == "Satis").ToList();
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).ToList();
             var grouped = satisFaturalari.GroupBy(f => {
                 var cari = cariler.FirstOrDefault(c => c.Id == f.CariId);
                 return cari?.Il ?? "Bilinmiyor";
@@ -1253,8 +1385,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var stokHareketleri = await _uow.Stoklar.GetAllHareketlerAsync();
             headers = new[] { "Ürün", "Min Fiyat", "Max Fiyat", "Ort Fiyat", "Fark %" };
             
-            // User requested: Base it on Stock Movements originating from Invoices (Alış Faturası)
-            var pulseData = stokHareketleri.Where(h => h.Fiyat > 0 && (h.IslemTuru == "Alış Faturası" || h.IslemTuru == "GİRİŞ"));
+            var pulseData = stokHareketleri.Where(h => h.Fiyat > 0 && (h.IslemTuru == "Alış Faturası" || h.IslemTuru == "GİRİŞ") && (SelectedDateFilter == "All" || (h.Tarih.Date >= startDay && h.Tarih.Date <= endDay)));
             
             var grouped = pulseData.GroupBy(h => h.StokAdi);
             foreach (var g in grouped)
@@ -1273,7 +1404,7 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var cariler = await _uow.Cariler.GetAllAsync();
             headers = new[] { "Müşteri", "İlk Alışveriş", "Son Alışveriş", "Toplam Harcama", "Ortalama Sepet" };
             
-            var satisFaturalari = faturalar.Where(f => f.Tur == "Satış" || f.Tur == "Satis").ToList();
+            var satisFaturalari = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && (SelectedDateFilter == "All" || (f.Tarih.Date >= startDay && f.Tarih.Date <= endDay))).ToList();
             var grouped = satisFaturalari.GroupBy(f => f.CariId);
             
             foreach (var g in grouped.OrderByDescending(g => g.Sum(f => f.GenelToplam)).Take(100))
@@ -1292,8 +1423,14 @@ public abstract partial class RaporListViewModel : ViewModelBase
             var kasaHareketler = await _uow.Kasalar.GetAllHareketlerAsync();
             headers = new[] { "Tarih", "Satış", "Alış", "Kasa Giren", "Kasa Çıkan", "Net Akış" };
             
-            var last30Days = Enumerable.Range(0, 30).Select(i => DateTime.Now.AddDays(-i).Date).OrderBy(d => d).ToList();
-            foreach (var date in last30Days)
+            var heatStart = SelectedDateFilter == "All" ? DateTime.Now.AddDays(-30).Date : startDay;
+            var heatEnd = SelectedDateFilter == "All" ? DateTime.Now.Date : endDay;
+            var totalDays = (int)(heatEnd - heatStart).TotalDays;
+            if (totalDays > 90) totalDays = 90;
+            if (totalDays < 0) totalDays = 0;
+
+            var targetDays = Enumerable.Range(0, totalDays + 1).Select(i => heatStart.AddDays(i)).ToList();
+            foreach (var date in targetDays)
             {
                 var satis = faturalar.Where(f => (f.Tur == "Satış" || f.Tur == "Satis") && f.Tarih.Date == date).Sum(f => f.GenelToplam);
                 var alis = faturalar.Where(f => (f.Tur == "Alış" || f.Tur == "Alis") && f.Tarih.Date == date).Sum(f => f.GenelToplam);

@@ -56,7 +56,7 @@ namespace ErmayMuhasebe.Repositories
             {
                 if (_syncService != null && _syncService.IsConnected)
                 {
-                    await _syncService.SyncGenericAsync("MusteriTakipKlasorler", entity, entity.Id);
+                    await _syncService.SyncMusteriTakipKlasorAsync(entity);
                 }
             }
             catch (Exception ex)
@@ -83,7 +83,7 @@ namespace ErmayMuhasebe.Repositories
                 {
                     if (_syncService != null && _syncService.IsConnected)
                     {
-                        await _syncService.SyncGenericAsync("MusteriTakipDetaylar", d, d.Id);
+                        await _syncService.SyncMusteriTakipDetayAsync(d);
                     }
                 }
                 catch { }
@@ -93,7 +93,7 @@ namespace ErmayMuhasebe.Repositories
             {
                 if (_syncService != null && _syncService.IsConnected)
                 {
-                    await _syncService.SyncGenericAsync("MusteriTakipKlasorler", entity, entity.Id);
+                    await _syncService.DeleteMusteriTakipKlasorAsync(entity.Id);
                 }
             }
             catch (Exception ex)
@@ -164,7 +164,7 @@ namespace ErmayMuhasebe.Repositories
                 {
                     if (_syncService != null && _syncService.IsConnected)
                     {
-                        await _syncService.SyncGenericAsync("MusteriTakipKlasorler", klasor, klasor.Id);
+                        await _syncService.SyncMusteriTakipKlasorAsync(klasor);
                     }
                 }
                 catch { }
@@ -174,7 +174,7 @@ namespace ErmayMuhasebe.Repositories
             {
                 if (_syncService != null && _syncService.IsConnected)
                 {
-                    await _syncService.SyncGenericAsync("MusteriTakipDetaylar", detay, detay.Id);
+                    await _syncService.SyncMusteriTakipDetayAsync(detay);
                 }
             }
             catch (Exception ex)
@@ -198,7 +198,7 @@ namespace ErmayMuhasebe.Repositories
                 {
                     if (_syncService != null && _syncService.IsConnected)
                     {
-                        await _syncService.SyncGenericAsync("MusteriTakipDetaylar", item, item.Id);
+                        await _syncService.DeleteMusteriTakipDetayAsync(item.Id);
                     }
                 }
                 catch (Exception ex)

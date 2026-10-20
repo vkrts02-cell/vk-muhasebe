@@ -17,9 +17,13 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Media;
 using SVM = ErmayMuhasebe.Shared.ViewModels;
 using AVM = ErmayMuhasebe.Avalonia.ViewModels;
+
+using LiveChartsCore.Defaults;
+using LiveChartsCore.SkiaSharpView.Extensions;
 
 namespace ErmayMuhasebe.Avalonia.ViewModels;
 
@@ -35,6 +39,34 @@ public partial class DashboardViewModel : ViewModelBase
     private static readonly IBrush NegativeBrush = new SolidColorBrush(Color.Parse("#EF4444"));
     private static readonly IBrush NegativeBgBrush = new SolidColorBrush(Color.Parse("#2AEF4444"));
     private static readonly BoxShadows NegativeShadow = BoxShadows.Parse("0 4 15 0 #20EF4444");
+
+    private static readonly IBrush GoalGreenGradient = new LinearGradientBrush
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+        GradientStops = new GradientStops
+        {
+            new GradientStop(Color.Parse("#34D399"), 0),
+            new GradientStop(Color.Parse("#10B981"), 1)
+        }
+    };
+
+    private static readonly IBrush GoalRedGradient = new LinearGradientBrush
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+        GradientStops = new GradientStops
+        {
+            new GradientStop(Color.Parse("#F87171"), 0),
+            new GradientStop(Color.Parse("#EF4444"), 1)
+        }
+    };
+
+    private static readonly IBrush GoalGreenSolid = new SolidColorBrush(Color.Parse("#10B981"));
+    private static readonly IBrush GoalRedSolid = new SolidColorBrush(Color.Parse("#EF4444"));
+
+    private static readonly BoxShadows GoalGreenShadow = BoxShadows.Parse("0 0 18 3 #4010B981");
+    private static readonly BoxShadows GoalRedShadow = BoxShadows.Parse("0 0 18 3 #40EF4444");
 
     private readonly IUnitOfWork _uow;
     private readonly ThemeService _themeService;
@@ -82,6 +114,20 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private ISeries[] _targetVsActualSeries;
     [ObservableProperty] private ICartesianAxis[] _targetVsActualXAxis;
     [ObservableProperty] private ICartesianAxis[] _targetVsActualYAxis;
+
+    // Harman Model 2 Apple Radial Ring & Metrikler
+    private readonly ObservableValue _goalRadialObservableValue = new(0);
+    [ObservableProperty] private ISeries[] _goalRadialSeries = Array.Empty<ISeries>();
+    [ObservableProperty] private double _goalSweepAngle = 0;
+    [ObservableProperty] private IBrush _goalProgressBrush = GoalRedGradient;
+    [ObservableProperty] private IBrush _goalProgressColor = GoalRedSolid;
+    [ObservableProperty] private BoxShadows _goalPulseShadow = GoalRedShadow;
+    [ObservableProperty] private decimal _totalGoalTarget;
+    [ObservableProperty] private decimal _totalGoalActual;
+    [ObservableProperty] private int _goalCompletionRate;
+    [ObservableProperty] private string _goalCompletionRateText = "0%";
+    [ObservableProperty] private string _totalGoalTargetText = "₺ 0";
+    [ObservableProperty] private string _totalGoalActualText = "₺ 0";
 
     // Legacy Chart (Keeping for compatibility)
     [ObservableProperty] private ISeries[] _gelirDaigilimSeries;
@@ -172,11 +218,34 @@ public partial class DashboardViewModel : ViewModelBase
         IncomeExpenseSeries = Array.Empty<ISeries>();
         IncomeExpenseXAxis = new Axis[] { new Axis { Labels = Array.Empty<string>() } };
         TargetVsActualSeries = Array.Empty<ISeries>();
-        TargetVsActualXAxis = Array.Empty<ICartesianAxis>();
-        TargetVsActualYAxis = new ICartesianAxis[] { new Axis { MinLimit = 0 } };
+        TargetVsActualXAxis = new ICartesianAxis[]
+        {
+            new Axis
+            {
+                Labels = Array.Empty<string>(),
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 11,
+                SeparatorsPaint = null,
+                Padding = new LiveChartsCore.Drawing.Padding(0, 12, 0, 0)
+            }
+        };
+        TargetVsActualYAxis = new ICartesianAxis[]
+        {
+            new Axis
+            {
+                MinLimit = 0,
+                MinStep = 1,
+                Labeler = val => val >= 1_000_000 ? $"{val / 1_000_000:0.#}M ₺" : (val >= 1_000 ? $"{val / 1_000:0}K ₺" : $"{val:0} ₺"),
+                SeparatorsPaint = new SolidColorPaint(new SKColor(0, 122, 204, 130)) { StrokeThickness = 1 },
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 11,
+                Padding = new LiveChartsCore.Drawing.Padding(0, 0, 14, 0)
+            }
+        };
         GelirDaigilimSeries = Array.Empty<ISeries>();
         SatisGrafigiSeries = Array.Empty<ISeries>();
         XAxis = Array.Empty<Axis>();
+        InitGoalRadialSeries();
         
         // Initial data
         RecentTransactions = new ObservableCollection<RecentTransactionItem>();
@@ -288,6 +357,36 @@ public partial class DashboardViewModel : ViewModelBase
         UpdateGoalChart();
     }
 
+    private void InitGoalRadialSeries()
+    {
+        var ringProgressColor = new SKColor(239, 68, 68); // #EF4444 Rose Red
+        var ringProgressGlow = new SKColor(248, 113, 113); // #F87171
+        var ringBgColor = new SKColor(255, 255, 255, 18);
+
+        GoalRadialSeries = GaugeGenerator.BuildSolidGauge(
+            new GaugeItem(_goalRadialObservableValue, series =>
+            {
+                series.Name = "Gerçekleşen";
+                series.Fill = new LinearGradientPaint(
+                    new SKColor[] { ringProgressGlow, ringProgressColor },
+                    new SKPoint(0, 0), new SKPoint(1, 1));
+                series.InnerRadius = 45;
+                series.MaxRadialColumnWidth = 12;
+                series.Pushout = 0;
+                series.AnimationsSpeed = TimeSpan.FromMilliseconds(800);
+                series.EasingFunction = LiveChartsCore.EasingFunctions.CubicOut;
+            }),
+            new GaugeItem(GaugeItem.Background, series =>
+            {
+                series.InnerRadius = 45;
+                series.MaxRadialColumnWidth = 12;
+                series.Fill = new SolidColorPaint(ringBgColor);
+                series.Pushout = 0;
+                series.AnimationsSpeed = TimeSpan.Zero;
+            })
+        ).ToArray();
+    }
+
     private decimal[] _lastRenderedTargets = Array.Empty<decimal>();
     private decimal[] _lastRenderedActuals = Array.Empty<decimal>();
     private string[] _lastRenderedLabels = Array.Empty<string>();
@@ -298,6 +397,61 @@ public partial class DashboardViewModel : ViewModelBase
         var targets = IsWeeklyGoal ? _chartWeeklyTargets : _chartMonthlyTargets;
         var actuals = IsWeeklyGoal ? _chartWeeklyActuals : _chartMonthlyActuals;
         var labels = IsWeeklyGoal ? _chartWeeklyLabels : _chartMonthlyLabels;
+
+        // Toplamları ve Apple radyal halkasını hesapla
+        var totalTarget = targets.Sum();
+        var totalActual = actuals.Sum();
+        TotalGoalTarget = totalTarget;
+        TotalGoalActual = totalActual;
+        TotalGoalTargetText = $"₺ {totalTarget:N0}";
+        TotalGoalActualText = $"₺ {totalActual:N0}";
+
+        var completionRate = totalTarget > 0 ? (int)Math.Min(999, Math.Round((totalActual / totalTarget) * 100m)) : 0;
+        GoalCompletionRate = completionRate;
+        GoalCompletionRateText = $"{completionRate}%";
+
+        var ringProgressColor = completionRate >= 100 
+            ? new SKColor(16, 185, 129) // #10B981 Emerald Green
+            : new SKColor(239, 68, 68); // #EF4444 Rose Red
+        var ringProgressGlow = completionRate >= 100 
+            ? new SKColor(52, 211, 153) // #34D399
+            : new SKColor(248, 113, 113); // #F87171
+
+        if (GoalRadialSeries == null || GoalRadialSeries.Length == 0)
+        {
+            InitGoalRadialSeries();
+        }
+        else if (GoalRadialSeries[0] is PieSeries<ObservableValue> activeSeries)
+        {
+            activeSeries.Fill = new LinearGradientPaint(
+                new SKColor[] { ringProgressGlow, ringProgressColor },
+                new SKPoint(0, 0), new SKPoint(1, 1));
+        }
+
+        if (completionRate >= 100)
+        {
+            GoalProgressBrush = GoalGreenGradient;
+            GoalProgressColor = GoalGreenSolid;
+            GoalPulseShadow = GoalGreenShadow;
+        }
+        else
+        {
+            GoalProgressBrush = GoalRedGradient;
+            GoalProgressColor = GoalRedSolid;
+            GoalPulseShadow = GoalRedShadow;
+        }
+
+        double targetAngle = completionRate >= 100 
+            ? 360.0 
+            : (completionRate > 0 ? Math.Min(360.0, (completionRate / 100.0) * 360.0) : 0.0);
+
+        // Otomatik veya arka plan güncellemelerinde animasyonu çalıştırma; sadece hover durumunda çalışacak
+        if (!_isRingAnimating)
+        {
+            GoalSweepAngle = targetAngle;
+        }
+
+        _goalRadialObservableValue.Value = (double)Math.Min(100, Math.Max(0, completionRate));
 
         // Veriler tamamen aynıysa ve seri zaten ekrandaysa yeniden çizim yapıp animasyonu sıfırlama
         if (_lastRenderedIsWeekly == IsWeeklyGoal &&
@@ -313,8 +467,8 @@ public partial class DashboardViewModel : ViewModelBase
         // seriyi sıfırdan oluşturmak yerine sadece Values ve Eksen güncellemesi yap
         if (_lastRenderedIsWeekly == IsWeeklyGoal &&
             TargetVsActualSeries != null && TargetVsActualSeries.Length == 2 &&
-            TargetVsActualSeries[0] is LineSeries<decimal> sTarget &&
-            TargetVsActualSeries[1] is LineSeries<decimal> sActual)
+            TargetVsActualSeries[0] is ColumnSeries<decimal> sTarget &&
+            TargetVsActualSeries[1] is ColumnSeries<decimal> sActual)
         {
             sTarget.Values = targets;
             sActual.Values = actuals;
@@ -341,34 +495,37 @@ public partial class DashboardViewModel : ViewModelBase
             return;
         }
 
-        var targetColor = new SKColor(255, 107, 0); // Vivid Orange
-        var realizedColor = new SKColor(0, 230, 118); // Vivid Green
+        // Yeşil (Hedef) & Kırmızı (Gerçekleşen) Çift Kolon Barları + #007ACC Mavi Izgara Çizgileri
+        var targetGreen = new SKColor(16, 185, 129); // #10B981 Emerald Green
+        var targetGreenGlow = new SKColor(52, 211, 153); // #34D399 Light Green Glow
+        var realizedRed = new SKColor(239, 68, 68); // #EF4444 Rose Red
+        var realizedRedGlow = new SKColor(248, 113, 113); // #F87171 Light Red Glow
 
         TargetVsActualSeries = new ISeries[]
         {
-            new LineSeries<decimal>
+            new ColumnSeries<decimal>
             {
                 Name = "Hedef",
                 Values = targets,
-                Stroke = new SolidColorPaint(targetColor, 3),
                 Fill = new LinearGradientPaint(
-                    new SKColor[] { targetColor.WithAlpha(60), targetColor.WithAlpha(0) },
+                    new SKColor[] { targetGreenGlow, targetGreen },
                     new SKPoint(0.5f, 0), new SKPoint(0.5f, 1)),
-                GeometrySize = 0,
-                LineSmoothness = 0.6
+                MaxBarWidth = 16,
+                Rx = 4,
+                Ry = 4,
+                Padding = 3
             },
-            new LineSeries<decimal>
+            new ColumnSeries<decimal>
             {
                 Name = "Gerçekleşen",
                 Values = actuals,
-                Stroke = new SolidColorPaint(realizedColor, 3),
                 Fill = new LinearGradientPaint(
-                    new SKColor[] { realizedColor.WithAlpha(80), realizedColor.WithAlpha(0) },
+                    new SKColor[] { realizedRedGlow, realizedRed },
                     new SKPoint(0.5f, 0), new SKPoint(0.5f, 1)),
-                GeometrySize = 8,
-                GeometryFill = new SolidColorPaint(SKColors.White),
-                GeometryStroke = new SolidColorPaint(realizedColor, 3),
-                LineSmoothness = 0.6
+                MaxBarWidth = 16,
+                Rx = 4,
+                Ry = 4,
+                Padding = 3
             }
         };
 
@@ -384,9 +541,11 @@ public partial class DashboardViewModel : ViewModelBase
                 MinLimit = 0,
                 MaxLimit = (double?)maxYVal,
                 MinStep = 1,
-                SeparatorsPaint = new SolidColorPaint(SKColors.Gray.WithAlpha(20)) { StrokeThickness = 1 },
-                LabelsPaint = new SolidColorPaint(SKColors.Gray),
-                TextSize = 14
+                Labeler = val => val >= 1_000_000 ? $"{val / 1_000_000:0.#}M ₺" : (val >= 1_000 ? $"{val / 1_000:0}K ₺" : $"{val:0} ₺"),
+                SeparatorsPaint = new SolidColorPaint(new SKColor(0, 122, 204, 130)) { StrokeThickness = 1 },
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 11,
+                Padding = new LiveChartsCore.Drawing.Padding(0, 0, 14, 0)
             }
         };
 
@@ -395,8 +554,10 @@ public partial class DashboardViewModel : ViewModelBase
             new Axis
             {
                 Labels = labels,
-                LabelsPaint = new SolidColorPaint(SKColors.Gray),
-                TextSize = 14
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 11,
+                SeparatorsPaint = null,
+                Padding = new LiveChartsCore.Drawing.Padding(0, 12, 0, 0)
             }
         };
 
@@ -404,6 +565,55 @@ public partial class DashboardViewModel : ViewModelBase
         _lastRenderedActuals = (decimal[])actuals.Clone();
         _lastRenderedLabels = (string[])labels.Clone();
         _lastRenderedIsWeekly = IsWeeklyGoal;
+    }
+
+    private bool _isRingAnimating = false;
+
+    /// <summary>
+    /// Mouse üzerine geldiğinde veya veri yüklendiğinde dairesel hedef halkası animasyonunu oynatır
+    /// </summary>
+    [RelayCommand]
+    public async Task PlayGoalRingAnimationAsync()
+    {
+        if (_isRingAnimating) return;
+        _isRingAnimating = true;
+
+        try
+        {
+            double targetAngle = GoalCompletionRate >= 100 
+                ? 360.0 
+                : (GoalCompletionRate > 0 ? Math.Min(360.0, (GoalCompletionRate / 100.0) * 360.0) : 0.0);
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                GoalSweepAngle = 0;
+                await Task.Delay(40);
+
+                if (targetAngle <= 0)
+                {
+                    // %0 tamamlanma durumunda etkileyici bir tam tur radar taraması yapıp sıfıra dönsün
+                    GoalSweepAngle = 360;
+                    await Task.Delay(850);
+                    GoalSweepAngle = 0;
+                    await Task.Delay(850);
+                }
+                else
+                {
+                    GoalSweepAngle = targetAngle;
+                    await Task.Delay(850);
+                }
+            });
+        }
+        catch
+        {
+            GoalSweepAngle = GoalCompletionRate >= 100 
+                ? 360.0 
+                : (GoalCompletionRate > 0 ? Math.Min(360.0, (GoalCompletionRate / 100.0) * 360.0) : 0.0);
+        }
+        finally
+        {
+            _isRingAnimating = false;
+        }
     }
 
     public async Task LoadStatsAsync()

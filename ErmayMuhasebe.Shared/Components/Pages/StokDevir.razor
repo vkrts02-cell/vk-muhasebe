@@ -60,18 +60,20 @@
         private async Task LoadData()
         {
             var stoklar = await DbService.GetStoklarAsync();
-            var faturalar = await DbService.GetFaturalarAsync();
-            var satislar = faturalar.Where(f => f.Tur == "Satis" || f.Tur == "Satış").ToList();
+            var hareketler = await DbService.GetStokHareketleriAsync();
+            var hareketliIdler = hareketler.Select(h => h.StokId).ToHashSet();
+            var aktifStoklar = stoklar.Where(s => hareketliIdler.Contains(s.Id)).ToList();
             
             analizListesi = new List<DevirAnaliz>();
+            var hareketlerByStok = hareketler.GroupBy(h => h.StokId).ToDictionary(g => g.Key, g => g.ToList());
 
-            foreach(var s in stoklar)
+            foreach(var s in aktifStoklar)
             {
                 decimal toplamSatis = 0;
-                // Bu stok için tüm fatura detaylarını tara (biraz maliyetli ama doğru sonuç)
-                // Daha iyi performans için DatabaseService'e özel metod eklenebilir
-                var detaylar = await DbService.GetStokHareketleriByStokIdAsync(s.Id);
-                toplamSatis = detaylar.Where(h => h.IslemTuru == "ÇIKIŞ").Sum(h => h.Miktar);
+                if (hareketlerByStok.TryGetValue(s.Id, out var detaylar))
+                {
+                    toplamSatis = detaylar.Where(h => h.IslemTuru == "ÇIKIŞ" || h.Cikan > 0).Sum(h => h.Miktar > 0 ? h.Miktar : h.Cikan);
+                }
 
                 analizListesi.Add(new DevirAnaliz {
                     StokAdi = s.StokAdi ?? "",

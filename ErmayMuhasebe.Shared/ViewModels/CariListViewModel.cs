@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using System.Linq.Expressions;
 using ErmayMuhasebe.Helpers;
 using ErmayMuhasebe.Shared.Helpers;
+using System.IO;
+using System.Text.Json;
 
 namespace ErmayMuhasebe.Shared.ViewModels;
 
@@ -151,6 +153,151 @@ public abstract partial class CariListViewModel : ViewModelBase
     [ObservableProperty] private string _grupSortIcon = "ArrowSort";
     [ObservableProperty] private string _selectedGrupFilter = "Tüm Gruplar";
 
+    // Persistent Filter & Sorting State across navigation & application restarts
+    public class CariFilterSettings
+    {
+        public bool IsOnlyWithBalance { get; set; }
+        public bool IsBakiyeSortActive { get; set; }
+        public bool IsBakiyeDescending { get; set; } = true;
+        public string BakiyeSortIcon { get; set; } = "ArrowSort";
+        public int GrupSortState { get; set; }
+        public string GrupSortIcon { get; set; } = "ArrowSort";
+        public string SelectedGrupFilter { get; set; } = "Tüm Gruplar";
+    }
+
+    private static readonly object s_fileLock = new();
+    private static bool s_isOnlyWithBalance;
+    private static bool s_isBakiyeSortActive;
+    private static bool s_isBakiyeDescending = true;
+    private static string s_bakiyeSortIcon = "ArrowSort";
+    private static int s_grupSortState;
+    private static string s_grupSortIcon = "ArrowSort";
+    private static string s_selectedGrupFilter = "Tüm Gruplar";
+    private static bool s_hasStateBeenSaved;
+
+    static CariListViewModel()
+    {
+        LoadPersistentSettings();
+    }
+
+    public static string GetSettingsFilePath()
+    {
+        string baseDir;
+        try
+        {
+            var dbPath = ErmayMuhasebe.Data.Constants.DatabasePath;
+            if (!string.IsNullOrEmpty(dbPath))
+            {
+                baseDir = Path.GetDirectoryName(dbPath) ?? "";
+            }
+            else
+            {
+                baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+            }
+        }
+        catch
+        {
+            baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+        }
+
+        if (string.IsNullOrEmpty(baseDir))
+        {
+            baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMuhasebe");
+        }
+
+        return Path.Combine(baseDir, "cari_filter_settings.json");
+    }
+
+    public static void LoadPersistentSettings()
+    {
+        lock (s_fileLock)
+        {
+            try
+            {
+                var filePath = GetSettingsFilePath();
+                if (File.Exists(filePath))
+                {
+                    var json = File.ReadAllText(filePath);
+                    var settings = JsonSerializer.Deserialize<CariFilterSettings>(json);
+                    if (settings != null)
+                    {
+                        s_isOnlyWithBalance = settings.IsOnlyWithBalance;
+                        s_isBakiyeSortActive = settings.IsBakiyeSortActive;
+                        s_isBakiyeDescending = settings.IsBakiyeDescending;
+                        s_bakiyeSortIcon = !string.IsNullOrEmpty(settings.BakiyeSortIcon) ? settings.BakiyeSortIcon : "ArrowSort";
+                        s_grupSortState = settings.GrupSortState;
+                        s_grupSortIcon = !string.IsNullOrEmpty(settings.GrupSortIcon) ? settings.GrupSortIcon : "ArrowSort";
+                        s_selectedGrupFilter = !string.IsNullOrEmpty(settings.SelectedGrupFilter) ? settings.SelectedGrupFilter : "Tüm Gruplar";
+                        s_hasStateBeenSaved = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CariListViewModel] LoadPersistentSettings error: {ex.Message}");
+            }
+        }
+    }
+
+    public static void SavePersistentSettings()
+    {
+        lock (s_fileLock)
+        {
+            try
+            {
+                var filePath = GetSettingsFilePath();
+                var settings = new CariFilterSettings
+                {
+                    IsOnlyWithBalance = s_isOnlyWithBalance,
+                    IsBakiyeSortActive = s_isBakiyeSortActive,
+                    IsBakiyeDescending = s_isBakiyeDescending,
+                    BakiyeSortIcon = s_bakiyeSortIcon,
+                    GrupSortState = s_grupSortState,
+                    GrupSortIcon = s_grupSortIcon,
+                    SelectedGrupFilter = s_selectedGrupFilter
+                };
+                var dir = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(filePath, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CariListViewModel] SavePersistentSettings error: {ex.Message}");
+            }
+        }
+    }
+
+    private void RestoreFilterAndSortingState()
+    {
+        if (!s_hasStateBeenSaved)
+        {
+            LoadPersistentSettings();
+        }
+
+        if (s_hasStateBeenSaved)
+        {
+            _isOnlyWithBalance = s_isOnlyWithBalance;
+            _isBakiyeSortActive = s_isBakiyeSortActive;
+            _isBakiyeDescending = s_isBakiyeDescending;
+            _bakiyeSortIcon = s_bakiyeSortIcon;
+            _grupSortState = s_grupSortState;
+            _grupSortIcon = s_grupSortIcon;
+            _selectedGrupFilter = s_selectedGrupFilter;
+
+            OnPropertyChanged(nameof(IsOnlyWithBalance));
+            OnPropertyChanged(nameof(IsBakiyeSortActive));
+            OnPropertyChanged(nameof(IsBakiyeDescending));
+            OnPropertyChanged(nameof(BakiyeSortIcon));
+            OnPropertyChanged(nameof(GrupSortState));
+            OnPropertyChanged(nameof(GrupSortIcon));
+            OnPropertyChanged(nameof(SelectedGrupFilter));
+        }
+    }
+
     public static bool IsMusteri(string? grup)
     {
         if (string.IsNullOrWhiteSpace(grup)) return false;
@@ -201,6 +348,14 @@ public abstract partial class CariListViewModel : ViewModelBase
             Cariler = new ObservableCollection<CariKart>(inMemorySorted);
         }
 
+        s_isBakiyeSortActive = IsBakiyeSortActive;
+        s_isBakiyeDescending = IsBakiyeDescending;
+        s_bakiyeSortIcon = BakiyeSortIcon;
+        s_grupSortState = GrupSortState;
+        s_grupSortIcon = GrupSortIcon;
+        s_hasStateBeenSaved = true;
+        SavePersistentSettings();
+
         await LoadCarilerAsync(isSilent: true);
     }
 
@@ -247,6 +402,13 @@ public abstract partial class CariListViewModel : ViewModelBase
             Cariler = new ObservableCollection<CariKart>(sorted);
         }
 
+        s_grupSortState = GrupSortState;
+        s_grupSortIcon = GrupSortIcon;
+        s_isBakiyeSortActive = IsBakiyeSortActive;
+        s_bakiyeSortIcon = BakiyeSortIcon;
+        s_hasStateBeenSaved = true;
+        SavePersistentSettings();
+
         await LoadCarilerAsync(isSilent: true);
     }
 
@@ -264,6 +426,13 @@ public abstract partial class CariListViewModel : ViewModelBase
         GrupSortState = 0;
         GrupSortIcon = "ArrowSort";
         CurrentPageIndex = 0;
+
+        s_selectedGrupFilter = SelectedGrupFilter;
+        s_grupSortState = GrupSortState;
+        s_grupSortIcon = GrupSortIcon;
+        s_hasStateBeenSaved = true;
+        SavePersistentSettings();
+
         await LoadCarilerAsync();
     }
 
@@ -292,6 +461,15 @@ public abstract partial class CariListViewModel : ViewModelBase
             BakiyeSortIcon = "ArrowSort";
         }
         CurrentPageIndex = 0;
+
+        s_selectedGrupFilter = SelectedGrupFilter;
+        s_grupSortState = GrupSortState;
+        s_grupSortIcon = GrupSortIcon;
+        s_isBakiyeSortActive = IsBakiyeSortActive;
+        s_bakiyeSortIcon = BakiyeSortIcon;
+        s_hasStateBeenSaved = true;
+        SavePersistentSettings();
+
         await LoadCarilerAsync();
     }
 
@@ -303,6 +481,9 @@ public abstract partial class CariListViewModel : ViewModelBase
         _externalApi = externalApi;
         _finansService = finansService;
         CheckHelper = checkHelper;
+
+        // Restore previous filter and sorting state across navigation & application restarts
+        RestoreFilterAndSortingState();
         
         WeakReferenceMessenger.Default.Register<CekSenetListViewModel.TransactionMethodChangedMessage>(this, (r, m) =>
         {
@@ -341,6 +522,8 @@ public abstract partial class CariListViewModel : ViewModelBase
 
     public override void OnNavigatedTo()
     {
+        RestoreFilterAndSortingState();
+
         _ = LoadCarilerAsync();
         if (SelectedCari != null)
              _ = LoadHareketlerAsync(SelectedCari.Id);
@@ -500,6 +683,8 @@ public abstract partial class CariListViewModel : ViewModelBase
                 {
                     if (target.Borc != src.Borc) target.Borc = src.Borc;
                     if (target.Alacak != src.Alacak) target.Alacak = src.Alacak;
+                    if (target.DevirBorc != src.DevirBorc) target.DevirBorc = src.DevirBorc;
+                    if (target.DevirAlacak != src.DevirAlacak) target.DevirAlacak = src.DevirAlacak;
                     if (target.Unvan != src.Unvan) target.Unvan = src.Unvan;
                     if (target.CariKod != src.CariKod) target.CariKod = src.CariKod;
                     if (target.Telefon != src.Telefon) target.Telefon = src.Telefon;
@@ -851,6 +1036,9 @@ public abstract partial class CariListViewModel : ViewModelBase
 
     partial void OnIsOnlyWithBalanceChanged(bool value)
     {
+        s_isOnlyWithBalance = value;
+        s_hasStateBeenSaved = true;
+        SavePersistentSettings();
         _ = LoadCarilerAsync();
     }
 

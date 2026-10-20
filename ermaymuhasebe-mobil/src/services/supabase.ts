@@ -208,9 +208,6 @@ export const parsePath = (path: string): { table: string; id?: string; field?: s
   if (table === 'stok_sayim_detaylari' && id) {
     return { table, id, isDetail: true, foreignKey: 'fisi_id' };
   }
-  if (table === 'musteri_takip_detaylar' && id) {
-    return { table, id, isDetail: true, foreignKey: 'klasor_id' };
-  }
 
   return { table, id, field };
 };
@@ -750,6 +747,8 @@ const sanitizePayloadForTableInternal = (table: string, data: any): any => {
     p.alacak_tutari = Number(data.alacakTutari ?? data.alacak ?? data.alacak_tutari) || 0;
     p.borc = p.borc_tutari;
     p.alacak = p.alacak_tutari;
+    p.devir_borc = Number(data.devirBorc ?? data.devir_borc) || 0;
+    p.devir_alacak = Number(data.devirAlacak ?? data.devir_alacak) || 0;
     if (data.krediLimiti !== undefined || data.riskLimiti !== undefined || data.risk_limiti !== undefined || data.kredi_limiti !== undefined) {
       p.kredi_limiti = Number(data.riskLimiti ?? data.krediLimiti ?? data.risk_limiti ?? data.kredi_limiti) || 0;
     }
@@ -1123,10 +1122,14 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
     const riskTakibiYapilsin = !!(row.risk_takibi_yapilsin ?? row.riskTakibiYapilsin ?? r.riskTakibiYapilsin);
     const vadeGecmisteEngelle = !!(row.vade_gecmiste_engelle ?? row.vadeGecmisteEngelle ?? r.vadeGecmisteEngelle);
     const faturadaRiskKontrolu = (row.faturada_risk_kontrolu ?? row.faturadaRiskKontrolu ?? r.faturadaRiskKontrolu) !== false;
-    const aktifMi = (row.is_active ?? row.aktif_mi ?? row.aktifMi ?? r.aktifMi) !== false;
+    const devirBorc = Number(row.devir_borc ?? row.devirBorc ?? r.devirBorc ?? r.devir_borc) || 0;
+    const devirAlacak = Number(row.devir_alacak ?? row.devirAlacak ?? r.devirAlacak ?? r.devir_alacak) || 0;
     const borc = Number(row.borc_tutari ?? row.borc ?? r.borcTutari ?? r.borc) || 0;
     const alacak = Number(row.alacak_tutari ?? row.alacak ?? r.alacakTutari ?? r.alacak) || 0;
-    const bakiye = Number(row.bakiye ?? r.bakiye ?? (borc - alacak)) || 0;
+    const calculatedBakiye = (borc + devirBorc) - (alacak + devirAlacak);
+    const bakiye = (row.bakiye !== undefined && row.bakiye !== null && Number(row.bakiye) !== 0) 
+      ? Number(row.bakiye) 
+      : calculatedBakiye;
 
     return {
       ...r,
@@ -1173,6 +1176,10 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
       vadeGecmisteEngelle,
       faturadaRiskKontrolu,
       aktifMi,
+      devirBorc,
+      devir_borc: devirBorc,
+      devirAlacak,
+      devir_alacak: devirAlacak,
       borc,
       borcTutari: borc,
       alacak,
@@ -1557,9 +1564,9 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
 
     // For detail tables when queried without specific ID, group by parent foreign key
     // so that screens can access them via detailsMap[parentId]
-    if (table === 'fatura_detaylar' || table === 'siparis_detaylar' || table === 'teklif_detaylar' || table === 'stok_sayim_detaylari' || table === 'musteri_takip_detaylar') {
-      const parentFk = table === 'fatura_detaylar' ? 'faturaId' : (table === 'siparis_detaylar' ? 'siparisId' : (table === 'teklif_detaylar' ? 'teklifId' : (table === 'stok_sayim_detaylari' ? 'fisiId' : 'klasorId')));
-      const snakeFk = table === 'fatura_detaylar' ? 'fatura_id' : (table === 'siparis_detaylar' ? 'siparis_id' : (table === 'teklif_detaylar' ? 'teklif_id' : (table === 'stok_sayim_detaylari' ? 'fisi_id' : 'klasor_id')));
+    if (table === 'fatura_detaylar' || table === 'siparis_detaylar' || table === 'teklif_detaylar' || table === 'stok_sayim_detaylari') {
+      const parentFk = table === 'fatura_detaylar' ? 'faturaId' : (table === 'siparis_detaylar' ? 'siparisId' : (table === 'teklif_detaylar' ? 'teklifId' : 'fisiId'));
+      const snakeFk = table === 'fatura_detaylar' ? 'fatura_id' : (table === 'siparis_detaylar' ? 'siparis_id' : (table === 'teklif_detaylar' ? 'teklif_id' : 'fisi_id'));
       const groupedMap: Record<string, any[]> = {};
       for (const item of normList) {
         if (!item) continue;

@@ -54,26 +54,40 @@ public partial class StokListViewModel : ErmayMuhasebe.Shared.ViewModels.StokLis
 
     public override async Task GenerateStokHareketleriReportAsync()
     {
-        if (SelectedStok == null) return;
+        var selectedList = Stoklar.Where(s => s.IsSelected).ToList();
+        if (selectedList.Count == 0 && SelectedStok != null)
+        {
+            selectedList.Add(SelectedStok);
+        }
+
+        if (selectedList.Count == 0)
+        {
+            ErrorMessage = "Lütfen önce hareket raporunu almak istediğiniz stok kartını seçiniz.";
+            return;
+        }
+
         try
         {
-            var list = await _uow.Stoklar.GetHareketlerAsync(SelectedStok.Id);
             var headers = new string[] { "Tarih", "İşlem Türü", "Açıklama", "Giren", "Çıkan", "Kalan" };
-            decimal running = 0;
-            var rows = list.OrderBy(h => h.Tarih).Select(h => {
-                if (h.IslemTuru == "GİRİŞ") running += h.Miktar;
-                else if (h.IslemTuru == "ÇIKIŞ") running -= h.Miktar;
-                return new string[] {
-                    h.Tarih.ToString("dd.MM.yyyy HH:mm"),
-                    h.IslemTuru ?? "-",
-                    h.Aciklama ?? "-",
-                    h.IslemTuru == "GİRİŞ" ? h.Miktar.ToString("N2") : "-",
-                    h.IslemTuru == "ÇIKIŞ" ? h.Miktar.ToString("N2") : "-",
-                    running.ToString("N2")
-                };
-            }).ToList();
+            foreach (var stok in selectedList)
+            {
+                var list = await _uow.Stoklar.GetHareketlerAsync(stok.Id);
+                decimal running = 0;
+                var rows = list.OrderBy(h => h.Tarih).Select(h => {
+                    if (h.IslemTuru == "GİRİŞ") running += h.Miktar;
+                    else if (h.IslemTuru == "ÇIKIŞ") running -= h.Miktar;
+                    return new string[] {
+                        h.Tarih.ToString("dd.MM.yyyy HH:mm"),
+                        h.IslemTuru ?? "-",
+                        h.Aciklama ?? "-",
+                        h.IslemTuru == "GİRİŞ" ? h.Miktar.ToString("N2") : "-",
+                        h.IslemTuru == "ÇIKIŞ" ? h.Miktar.ToString("N2") : "-",
+                        running.ToString("N2")
+                    };
+                }).ToList();
 
-            await _jsRuntime.InvokeVoidAsync("generateGenericTablePdf", $"STOK HAREKETLERİ: {SelectedStok.StokAdi}", headers, rows, true);
+                await _jsRuntime.InvokeVoidAsync("generateGenericTablePdf", $"STOK HAREKETLERİ: {stok.StokAdi}", headers, rows, true);
+            }
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
     }
