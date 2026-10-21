@@ -64,6 +64,45 @@ const getSafeIsoDateStr = (val: any): string => {
   return `${y}-${m}-${day}`;
 };
 
+// Dashboard listesinde uzun cari unvanlarını sadeleştirme (tasarım hatasını önler)
+const formatDashboardCariName = (rawName: string): string => {
+  if (!rawName) return '';
+  let name = String(rawName).trim();
+
+  // Şirket türleri ve resmi uzun kalıpları kompakt yap
+  name = name
+    .replace(/\bSANAY[İI]\s+VE\s+T[İI]CARET\s+L[İI]M[İI]TED\s+[ŞS][İI]RKET[İI]\b/gi, 'LTD.')
+    .replace(/\bSANAY[İI]\s+VE\s+T[İI]CARET\s+ANON[İI]M\s+[ŞS][İI]RKET[İI]\b/gi, 'A.Ş.')
+    .replace(/\bSAN\.?\s*VE\s*T[İI]C\.?\s*LTD\.?\s*[ŞS]T[İI]\.?\b/gi, 'LTD.')
+    .replace(/\bSAN\.?\s*VE\s*T[İI]C\.?\s*A\.?[ŞS]\.?\b/gi, 'A.Ş.')
+    .replace(/\bSANAY[İI]\s+VE\s+T[İI]CARET\b/gi, '')
+    .replace(/\bSAN\.?\s*VE\s*T[İI]C\.?\b/gi, '')
+    .replace(/\bL[İI]M[İI]TED\s+[ŞS][İI]RKET[İI]\b/gi, 'LTD.')
+    .replace(/\bL[İI]\s+[ŞS][İI]RKET[İI]\b/gi, 'LTD.')
+    .replace(/\bANON[İI]M\s+[ŞS][İI]RKET[İI]\b/gi, 'A.Ş.')
+    .replace(/\bLTD\.?\s*[ŞS]T[İI]\.?\b/gi, 'LTD.')
+    .replace(/\b[ŞS][İI]RKET[İI]\b/gi, 'ŞTİ.')
+    .replace(/\b[İI]THALAT\s+[İI]HRACAT\b/gi, 'İTH.')
+    .replace(/\b[İI]TH\.?\s*[İI]HR\.?\b/gi, 'İTH.')
+    .replace(/\bPAZARLAMA\b/gi, 'PAZ.')
+    .replace(/\bMAK[İI]NE\s+SAN\.?\b/gi, '')
+    .replace(/\bMAK[İI]NA\s+SAN\.?\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return name;
+};
+
+// İsim uzadıkça dinamik olarak font boyutunu küçültme
+const getCariTitleFontSize = (text: string): number => {
+  if (!text) return 13;
+  const len = text.length;
+  if (len > 34) return 10.5;
+  if (len > 26) return 11.5;
+  if (len > 18) return 12.5;
+  return 13;
+};
+
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'recents' | 'receivables' | 'payables'>('recents');
@@ -622,24 +661,41 @@ export default function DashboardScreen() {
                 {listData.length === 0 ? (
                   <Text style={{ color: '#64748B', textAlign: 'center', padding: 20 }}>Kayıt bulunamadı.</Text>
                 ) : (
-                  listData.map((tx, idx) => (
-                    <View key={idx} style={[styles.listItem, idx === listData.length - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={styles.listItemLeft}>
-                        <View style={[styles.listIcon, { backgroundColor: tx.type === 'In' ? '#00FF8715' : '#FF416C15' }]}>
-                          <Text style={{ color: tx.type === 'In' ? '#00FF87' : '#FF416C', fontWeight: 'bold' }}>
-                            {tx.type === 'In' ? 'G' : 'Ç'}
-                          </Text>
+                  listData.map((tx, idx) => {
+                    const displayTitle = formatDashboardCariName(tx.title);
+                    const titleFontSize = getCariTitleFontSize(displayTitle);
+                    return (
+                      <View key={idx} style={[styles.listItem, idx === listData.length - 1 && { borderBottomWidth: 0 }]}>
+                        <View style={styles.listItemLeft}>
+                          <View style={[styles.listIcon, { backgroundColor: tx.type === 'In' ? '#00FF8715' : '#FF416C15' }]}>
+                            <Text style={{ color: tx.type === 'In' ? '#00FF87' : '#FF416C', fontWeight: 'bold' }}>
+                              {tx.type === 'In' ? 'G' : 'Ç'}
+                            </Text>
+                          </View>
+                          <View style={styles.listItemTextGroup}>
+                            <Text 
+                              style={[styles.listItemTitle, { fontSize: titleFontSize }]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.8}
+                            >
+                              {displayTitle}
+                            </Text>
+                            <Text style={styles.listItemSubtitle} numberOfLines={1}>
+                              {tx.description} • {tx.date}{tx.vade !== undefined ? ` • ${tx.vade} G` : ''}
+                            </Text>
+                          </View>
                         </View>
-                        <View>
-                          <Text style={styles.listItemTitle}>{tx.title}</Text>
-                          <Text style={styles.listItemSubtitle}>{tx.description} • {tx.date}{tx.vade !== undefined ? ` • ${tx.vade} G` : ''}</Text>
-                        </View>
+                        <Text 
+                          style={[styles.listItemAmount, { color: tx.type === 'In' ? '#00FF87' : '#FF416C' }]}
+                          numberOfLines={1}
+                        >
+                          {tx.type === 'In' ? '+' : '-'}{formatMoney(tx.amount)}
+                        </Text>
                       </View>
-                      <Text style={[styles.listItemAmount, { color: tx.type === 'In' ? '#00FF87' : '#FF416C' }]}>
-                        {tx.type === 'In' ? '+' : '-'}{formatMoney(tx.amount)}
-                      </Text>
-                    </View>
-                  ))
+                    );
+                  })
                 )}
               </View>
             </View>
@@ -863,8 +919,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   listItemLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 10,
+  },
+  listItemTextGroup: {
+    flex: 1,
+    justifyContent: 'center',
   },
   listIcon: {
     width: 36,
@@ -872,21 +934,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
+    flexShrink: 0,
   },
   listItemTitle: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   listItemSubtitle: {
     fontSize: 10,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 3,
+    fontWeight: '500',
   },
   listItemAmount: {
     fontSize: 13,
     fontWeight: '900',
+    textAlign: 'right',
+    flexShrink: 0,
   },
   harmanTopRow: {
     flexDirection: 'row',
