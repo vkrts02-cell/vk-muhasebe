@@ -9,6 +9,7 @@ using SVM = ErmayMuhasebe.Shared.ViewModels;
 using AVM = ErmayMuhasebe.Avalonia.ViewModels;
 using ErmayMuhasebe.Avalonia.Services;
 using Avalonia.Threading;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.Input;
 
 namespace ErmayMuhasebe.Avalonia.ViewModels;
@@ -74,13 +75,18 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty] private string _syncStatusText = "Bulut Eşitlenemedi";
     [ObservableProperty] private bool _isOnline = true;
 
+    private static readonly IBrush OnlineGreenBrush = new SolidColorBrush(Color.Parse("#10B981"));
+    private static readonly IBrush OfflineRedBrush = new SolidColorBrush(Color.Parse("#EF4444"));
+
     public string ConnectionStatusText => IsOnline ? "Çevrimiçi" : "Çevrimdışı";
     public string ConnectionStatusIcon => IsOnline ? "Wifi" : "WifiWarning";
+    public IBrush ConnectionStatusBrush => IsOnline ? OnlineGreenBrush : OfflineRedBrush;
 
     partial void OnIsOnlineChanged(bool value)
     {
         OnPropertyChanged(nameof(ConnectionStatusText));
         OnPropertyChanged(nameof(ConnectionStatusIcon));
+        OnPropertyChanged(nameof(ConnectionStatusBrush));
         RefreshStatusBarItems();
 
         if (!IsAuthenticated || _yearContext == null || _yearContext.CurrentYear <= 0) return;

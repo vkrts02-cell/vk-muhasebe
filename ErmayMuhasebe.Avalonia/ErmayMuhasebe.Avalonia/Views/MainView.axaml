@@ -336,7 +336,7 @@
                                              </StackPanel>
                                              <TextBlock Text="|" FontSize="11" Opacity="0.3" VerticalAlignment="Center"/>
                                              <StackPanel Orientation="Horizontal" Spacing="5" Opacity="0.8">
-                                                 <ic:SymbolIcon Symbol="{Binding ConnectionStatusIcon, Converter={StaticResource SymbolIconConverter}}" FontSize="14" VerticalAlignment="Center"/>
+                                                 <Border Width="8" Height="8" CornerRadius="4" Background="{Binding ConnectionStatusBrush}" VerticalAlignment="Center" Margin="0,0,2,0"/>
                                                  <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" VerticalAlignment="Center"/>
                                              </StackPanel>
                                              <TextBlock Text="|" FontSize="11" Opacity="0.3" VerticalAlignment="Center"/>
@@ -593,7 +593,7 @@
                                             </StackPanel>
                                             <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.5" VerticalAlignment="Center"/>
                                             <StackPanel Orientation="Horizontal" Spacing="7" Opacity="0.95">
-                                                <ic:SymbolIcon Symbol="{Binding ConnectionStatusIcon, Converter={StaticResource SymbolIconConverter}}" FontSize="16.5" Foreground="White" VerticalAlignment="Center"/>
+                                                <Border Width="9" Height="9" CornerRadius="4.5" Background="{Binding ConnectionStatusBrush}" VerticalAlignment="Center" Margin="0,0,2,0"/>
                                                 <TextBlock Text="{Binding ConnectionStatusText}" FontSize="13.5" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <TextBlock Text="|" FontSize="13" Foreground="White" Opacity="0.5" VerticalAlignment="Center"/>
