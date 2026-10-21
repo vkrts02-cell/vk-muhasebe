@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Platform, ActivityIndicator, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { subscribeToPath } from '../services/firebase';
 import { useNavigation } from '@react-navigation/native';
@@ -17,7 +17,8 @@ import {
   PlusCircle,
   FilePlus,
   ShoppingBag,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Wallet
 } from 'lucide-react-native';
 import { getUiScale, scaleFont, UiScale } from '../services/themeService';
 import { ShimmerItem } from '../components/Shimmer';
@@ -76,6 +77,29 @@ export default function DashboardScreen() {
   const [kasaHareketler, setKasaHareketler] = useState<any[]>([]);
   const [bankaHareketler, setBankaHareketler] = useState<any[]>([]);
   const [aylikHedefler, setAylikHedefler] = useState<any[]>([]);
+
+  // Chart Animation State (0 -> 1)
+  const animValue = useRef(new Animated.Value(0)).current;
+  const [chartAnim, setChartAnim] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      animValue.setValue(0);
+      const listenerId = animValue.addListener(({ value }) => {
+        setChartAnim(value);
+      });
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+
+      return () => {
+        animValue.removeListener(listenerId);
+      };
+    }
+  }, [loading, aylikHedefler.length, faturalar.length]);
 
   useEffect(() => {
     const listHelper = (path: string, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
@@ -184,11 +208,18 @@ export default function DashboardScreen() {
 
   const stats = getStats();
 
+  // Masaüstü (DashboardView.axaml) ile birebir aynı: Net Bakiye Durumu (ToplamAlacak - ToplamBorc)
+  const netBakiye = stats.toplamAlacak - stats.toplamBorc;
+  const isNetPozitif = netBakiye >= 0;
+  const netColor = isNetPozitif ? '#30D158' : '#FF453A';
+  const netFormatted = `${isNetPozitif ? '+' : '-'}${formatMoney(Math.abs(netBakiye))}`;
+  const netSubtitle = isNetPozitif ? 'Alacak Fazlası' : 'Borç Fazlası';
+
   const mainStats = [
-    { title: 'GÜNLÜK CİRO', value: formatMoney(stats.gunlukCiro), icon: <Banknote color="#FF9F0A" size={18} />, color: '#FF9F0A' },
-    { title: 'TOPLAM ALACAK', value: formatMoney(stats.toplamAlacak), icon: <TrendingUp color="#30D158" size={18} />, color: '#30D158' },
-    { title: 'TOPLAM BORÇ', value: formatMoney(stats.toplamBorc), icon: <TrendingDown color="#FF453A" size={18} />, color: '#FF453A' },
-    { title: 'MALİYET', value: formatMoney(stats.toplamMaliyet), icon: <Package color="#64D2FF" size={18} />, color: '#64D2FF' }
+    { title: 'GÜNLÜK CİRO', value: formatMoney(stats.gunlukCiro), subtitle: 'Güncel Toplam', icon: <Banknote color="#FF9F0A" size={18} />, color: '#FF9F0A', valueColor: '#FFFFFF' },
+    { title: 'TOPLAM ALACAK', value: formatMoney(stats.toplamAlacak), subtitle: 'Güncel Toplam', icon: <TrendingUp color="#30D158" size={18} />, color: '#30D158', valueColor: '#FFFFFF' },
+    { title: 'TOPLAM BORÇ', value: formatMoney(stats.toplamBorc), subtitle: 'Güncel Toplam', icon: <TrendingDown color="#FF453A" size={18} />, color: '#FF453A', valueColor: '#FFFFFF' },
+    { title: 'NET', value: netFormatted, subtitle: netSubtitle, icon: <Wallet color={netColor} size={18} />, color: netColor, valueColor: netColor }
   ];
 
   const advancedStats = [
@@ -311,11 +342,12 @@ export default function DashboardScreen() {
     const annualRate = annualTarget > 0 ? Math.min(100, Math.round((annualActual / annualTarget) * 100)) : 0;
     const remainingTarget = Math.max(0, annualTarget - annualActual);
 
-    // Apple Radial Ring ölçüleri
+    // Apple Radial Ring ölçüleri (animasyonlu)
     const ringRadius = 38;
     const ringStroke = 8;
     const ringCircumference = 2 * Math.PI * ringRadius;
-    const ringOffset = ringCircumference - (ringCircumference * (annualRate / 100));
+    const currentRate = annualRate * chartAnim;
+    const ringOffset = ringCircumference - (ringCircumference * (Math.min(100, Math.max(0, currentRate)) / 100));
 
     // 12 Aylık Çift Kolon Bar Grafiği ölçüleri
     const maxVal = Math.max(...chartData.map(d => Math.max(d.target, d.actual)), 100000);
@@ -333,13 +365,13 @@ export default function DashboardScreen() {
 
     return (
       <View style={styles.chartCard}>
-        {/* Üst Başlık & Harman Model 2 Etiketi */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <View>
-            <Text style={styles.chartTitle}>HEDEF & GERÇEKLEŞME (HARMAN MODEL 2)</Text>
-            <Text style={{ color: '#64748B', fontSize: 10, marginTop: -4 }}>Apple Radyal Başarı + 12 Aylık Çift Kolon</Text>
+        {/* Üst Başlık & Lejant (Taşmayan, Mobil Uyumlu Düzen) */}
+        <View style={styles.chartHeaderWrapper}>
+          <View style={{ flex: 1, paddingRight: 6 }}>
+            <Text style={styles.chartTitle} numberOfLines={1}>HEDEF & GERÇEKLEŞME</Text>
+            <Text style={styles.chartSubtitle}>12 Aylık Satış ve Hedef Performansı</Text>
           </View>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={styles.chartLegendRow}>
             <View style={styles.legendItem}>
               <View style={[styles.legendIndicator, { backgroundColor: '#6366F1' }]} />
               <Text style={styles.legendText}>Hedef</Text>
@@ -353,7 +385,7 @@ export default function DashboardScreen() {
 
         {/* Üst Kısım: Apple Tarzı Radyal Halka + 3'lü İstatistik Kutusu */}
         <View style={styles.harmanTopRow}>
-          {/* Sol: Apple Dairesel Progress Ring */}
+          {/* Sol: Apple Dairesel Progress Ring (Animasyonlu) */}
           <View style={styles.radialRingContainer}>
             <Svg width={96} height={96} viewBox="0 0 96 96">
               <Defs>
@@ -387,7 +419,7 @@ export default function DashboardScreen() {
               </G>
             </Svg>
             <View style={styles.ringCenterTextContainer}>
-              <Text style={styles.ringPercentText}>%{annualRate}</Text>
+              <Text style={styles.ringPercentText}>%{Math.round(currentRate)}</Text>
               <Text style={styles.ringLabelText}>BAŞARI</Text>
             </View>
           </View>
@@ -409,7 +441,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Alt Kısım: Türkiye Muhasebe Standardı 12 Aylık Çift Kolon Barları */}
+        {/* Alt Kısım: Türkiye Muhasebe Standardı 12 Aylık Çift Kolon Barları (Tabandan Yukarı Animasyonlu) */}
         <View style={{ height: chartHeight, width: '100%', marginTop: 14 }} pointerEvents="none">
           <Svg height="100%" width="100%" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
             <Defs>
@@ -439,8 +471,8 @@ export default function DashboardScreen() {
             {/* 12 Ay Çift Kolon Barları ve X Etiketleri */}
             {chartData.map((d, i) => {
               const groupX = paddingLeft + i * colGroupWidth;
-              const targetH = Math.max(3, (d.target / maxVal) * availableHeight);
-              const actualH = Math.max(3, (d.actual / maxVal) * availableHeight);
+              const targetH = Math.max(2, (d.target / maxVal) * availableHeight * chartAnim);
+              const actualH = Math.max(2, (d.actual / maxVal) * availableHeight * chartAnim);
               const targetY = chartHeight - paddingBottom - targetH;
               const actualY = chartHeight - paddingBottom - actualH;
               const targetBarX = groupX + 1;
@@ -487,73 +519,6 @@ export default function DashboardScreen() {
       </View>
     );
   };
-
-  const renderHeatmap = () => {
-    const days = [];
-    for(let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d);
-    }
-    
-    const activeFaturalar = faturalar.filter(f => !f.isDeleted);
-    const activeKasa = kasaHareketler.filter(k => !k.isDeleted);
-    
-    let maxAbs = 1;
-    const dayValues = days.map(d => {
-      const dk = getSafeIsoDateStr(d);
-      const satis = activeFaturalar.filter(f => (f.tur === 'Satış' || f.tur === 'Satis' || f.Tur === 'Satış') && getSafeIsoDateStr(f.tarih || f.Tarih) === dk).reduce((s, f) => s + (f.genelToplam || f.GenelToplam || 0), 0);
-      const alis = activeFaturalar.filter(f => (f.tur === 'Alış' || f.tur === 'Alis' || f.Tur === 'Alış') && getSafeIsoDateStr(f.tarih || f.Tarih) === dk).reduce((s, f) => s + (f.genelToplam || f.GenelToplam || 0), 0);
-      const kasaIn = activeKasa.filter(k => getSafeIsoDateStr(k.tarih || k.Tarih) === dk).reduce((s, k) => s + (k.giren || k.gelir || k.Giren || 0), 0);
-      const kasaOut = activeKasa.filter(k => getSafeIsoDateStr(k.tarih || k.Tarih) === dk).reduce((s, k) => s + (k.cikan || k.gider || k.Cikan || 0), 0);
-      
-      const net = satis - alis + kasaIn - kasaOut;
-      if (Math.abs(net) > maxAbs) maxAbs = Math.abs(net);
-      return { date: d, net };
-    });
-
-    const boxSize = 14;
-    
-    return (
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Finansal Isı Haritası (Nakit Akışı)</Text>
-        <Text style={{color: '#64748B', fontSize: 10, marginBottom: 12}}>Son 30 günün net nakit durumu</Text>
-        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignSelf: 'center', width: (boxSize + 4) * 10 }}>
-          {dayValues.map((dv, i) => {
-            let color = '#2A2A2A';
-            if (dv.net > 0) {
-              const intensity = Math.min(1, 0.3 + (dv.net / maxAbs) * 0.7);
-              color = `rgba(0, 255, 135, ${intensity})`;
-            } else if (dv.net < 0) {
-              const intensity = Math.min(1, 0.3 + (Math.abs(dv.net) / maxAbs) * 0.7);
-              color = `rgba(255, 65, 108, ${intensity})`;
-            }
-            
-            return (
-              <View key={i} style={{
-                width: boxSize, height: boxSize, borderRadius: 3,
-                backgroundColor: color, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)'
-              }} />
-            )
-          })}
-        </View>
-        <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendIndicator, { backgroundColor: '#FF416C' }]} />
-            <Text style={styles.legendText}>Gider</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendIndicator, { backgroundColor: '#2A2A2A' }]} />
-            <Text style={styles.legendText}>Durağan</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendIndicator, { backgroundColor: '#00FF87' }]} />
-            <Text style={styles.legendText}>Gelir</Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -581,16 +546,16 @@ export default function DashboardScreen() {
             {/* Masaüstü ile Birebir 4'lü Dashboard Kartları */}
             <View style={styles.gridContainer}>
               {mainStats.map((stat, idx) => (
-                <View key={idx} style={styles.card}>
+                <View key={idx} style={[styles.card, stat.title === 'NET' && { borderColor: `${stat.color}40`, backgroundColor: '#131419' }]}>
                   <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{stat.title}</Text>
+                    <Text style={[styles.cardTitle, stat.title === 'NET' && { color: stat.color }]}>{stat.title}</Text>
                     <View style={[styles.iconContainer, { backgroundColor: `${stat.color}15` }]}>
                       {stat.icon}
                     </View>
                   </View>
                   <View style={styles.cardBody}>
-                    <Text style={styles.cardValue}>{stat.value}</Text>
-                    <Text style={styles.cardValueLabel}>Güncel Toplam</Text>
+                    <Text style={[styles.cardValue, stat.valueColor ? { color: stat.valueColor } : {}]}>{stat.value}</Text>
+                    <Text style={[styles.cardValueLabel, stat.title === 'NET' && { color: stat.color, opacity: 0.85 }]}>{stat.subtitle}</Text>
                   </View>
                 </View>
               ))}
@@ -629,9 +594,6 @@ export default function DashboardScreen() {
 
             {/* SVG Ciro Hedef Grafiği */}
             {renderGoalChart()}
-
-            {/* Finansal Isı Haritası */}
-            {renderHeatmap()}
 
             {/* Dynamic Lists */}
             <View style={styles.sectionCard}>
@@ -820,12 +782,28 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
   },
+  chartHeaderWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
   chartTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#94A3B8',
-    letterSpacing: 1,
-    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    letterSpacing: 0.5,
+  },
+  chartSubtitle: {
+    color: '#64748B',
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  chartLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   chartLegend: {
     flexDirection: 'row',
@@ -835,13 +813,12 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
   },
   legendIndicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 6,
+    marginRight: 5,
   },
   legendText: {
     color: '#CBD5E1',
