@@ -999,6 +999,11 @@ export default function StoklarScreen() {
             {/* Header */}
             <View style={styles.panelHeader}>
               <View style={styles.headerTitleGroup}>
+                {navigation?.canGoBack && navigation.canGoBack() && (
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 6, padding: 2 }}>
+                    <ChevronLeft color="#60A5FA" size={22} />
+                  </TouchableOpacity>
+                )}
                 <Box color="#60A5FA" size={18} />
                 <Text style={styles.panelTitle}>Stok Listesi</Text>
               </View>

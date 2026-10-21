@@ -12,7 +12,7 @@ import {
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Home, Users, FileText, Package, LayoutGrid } from 'lucide-react-native';
+import { Home, Users, FileText, Package, LayoutGrid, ShoppingBag, FileSignature } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 
 export default function FloatingTabBar({
@@ -243,6 +243,10 @@ export default function FloatingTabBar({
         );
       case 'Cariler':
         return <Users size={size} color={iconColor} strokeWidth={strokeWidth} />;
+      case 'Siparisler':
+        return <ShoppingBag size={size} color={iconColor} strokeWidth={strokeWidth} />;
+      case 'Teklifler':
+        return <FileSignature size={size} color={iconColor} strokeWidth={strokeWidth} />;
       case 'Faturalar':
         return <FileText size={size} color={iconColor} strokeWidth={strokeWidth} />;
       case 'Stoklar':

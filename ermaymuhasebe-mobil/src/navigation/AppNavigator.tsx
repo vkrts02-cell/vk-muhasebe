@@ -46,6 +46,8 @@ function MoreStack() {
         name="DahaFazlaMain" 
         component={DahaFazlaScreen} 
       />
+      <Stack.Screen name="Faturalar" component={FaturalarScreen} />
+      <Stack.Screen name="Stoklar" component={StoklarScreen} />
       <Stack.Screen name="MusteriTakip" component={MusteriTakipScreen} />
       <Stack.Screen name="MusteriTakipDetay" component={MusteriTakipDetayScreen} />
       <Stack.Screen name="Kanban" component={KanbanScreen} />
@@ -84,14 +86,14 @@ function MainTabs() {
         options={{ tabBarLabel: 'Cariler' }}
       />
       <Tab.Screen 
-        name="Faturalar" 
-        component={FaturalarScreen} 
-        options={{ tabBarLabel: 'Faturalar' }}
+        name="Siparisler" 
+        component={SiparislerScreen} 
+        options={{ tabBarLabel: 'Siparişler' }}
       />
       <Tab.Screen 
-        name="Stoklar" 
-        component={StoklarScreen} 
-        options={{ tabBarLabel: 'Stoklar' }}
+        name="Teklifler" 
+        component={TekliflerScreen} 
+        options={{ tabBarLabel: 'Teklifler' }}
       />
       <Tab.Screen 
         name="DahaFazla" 

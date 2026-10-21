@@ -7,14 +7,14 @@ import {
   Box, 
   PieChart, 
   Info, 
-  FileSignature, 
-  FileKey2, 
   CalendarDays, 
   LayoutGrid, 
   Calculator, 
   Wrench, 
   Folder, 
-  ChevronRight 
+  ChevronRight,
+  FileText,
+  Package
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -22,12 +22,12 @@ export default function DahaFazlaScreen() {
   const navigation = useNavigation<any>();
 
   const menuItems = [
+    { title: 'Faturalar', route: 'Faturalar', icon: FileText, color: '#30D158' },
+    { title: 'Stoklar', route: 'Stoklar', icon: Package, color: '#0A84FF' },
     { title: 'Müşteri Takip', route: 'MusteriTakip', icon: Folder, color: '#3B82F6' },
     { title: 'Finans', route: 'Finans', icon: CreditCard, color: '#FF416C' },
     { title: 'Vade Takibi', route: 'VadeTakip', icon: CalendarDays, color: '#8B5CF6' },
     { title: 'Raporlar', route: 'Raporlar', icon: PieChart, color: '#0061FF' },
-    { title: 'Siparişler', route: 'Siparisler', icon: FileSignature, color: '#6366F1' },
-    { title: 'Teklifler', route: 'Teklifler', icon: FileKey2, color: '#F59E0B' },
     { title: 'Görev Panosu', route: 'Kanban', icon: LayoutGrid, color: '#00FF87' },
     { title: 'Hesap Makinası', route: 'MaliyetHesaplama', icon: Calculator, color: '#0D9488' },
     { title: 'Araçlar', route: 'Araclar', icon: Wrench, color: '#F59E0B' },

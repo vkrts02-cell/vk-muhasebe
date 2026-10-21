@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, SafeAreaView, FlatList, TextInput, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Alert, Share, Switch, Keyboard } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Search, FileText, Plus, X, Save, Edit3, Trash2, Calendar, User, ShoppingBag, Share2, RefreshCw, Grid3X3, FileDown, Package } from 'lucide-react-native';
+import { Search, FileText, Plus, X, Save, Edit3, Trash2, Calendar, User, ShoppingBag, Share2, RefreshCw, Grid3X3, FileDown, Package, ChevronLeft } from 'lucide-react-native';
 import { subscribeToPath, writeData, readData, deleteData, mapAppToDatabase, splitAccounts, mergeKasalar } from '../services/firebase';
 import { generateReportPdf } from '../services/pdfService';
 import { exportToExcel } from '../services/excelService';
@@ -1047,6 +1047,11 @@ export default function FaturalarScreen({ route, navigation }: any) {
       {/* Header (DESKTOP 1:1 TASARIM) */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
+          {navigation?.canGoBack && navigation.canGoBack() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 10, padding: 2 }}>
+              <ChevronLeft color="#FFF" size={24} />
+            </TouchableOpacity>
+          )}
           <Text style={styles.headerTitle}>Faturalar</Text>
         </View>
 
