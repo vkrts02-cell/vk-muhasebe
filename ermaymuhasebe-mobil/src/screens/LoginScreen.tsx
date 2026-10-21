@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Key, Link, Calendar, ShieldAlert, LogIn, Settings, CheckCircle2, User, History, ChevronRight, Send, Mail, Globe, Shield, Smartphone } from 'lucide-react-native';
 import AsyncStorage from '../services/storage';
-import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, reconcileTenantAsync, getSupabaseClient, cleanSupabaseUrl, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY } from '../services/firebase';
+import { saveFirebaseConfig, saveActiveYear, readData, writeData, loginUser, logoutUser, fetchAvailableYears, loadConfigFromStorage, registerInitialUser, createNewMaliYil, deriveTenantIdFromEmail, setActiveTenantId, reconcileTenantAsync, getSupabaseClient, cleanSupabaseUrl, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, DEFAULT_ENTERPRISE_TENANT } from '../services/firebase';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -145,7 +145,7 @@ export default function LoginScreen({ onLoginSuccess, mode: initialMode = 'confi
     try {
       const cleanedUrl = cleanSupabaseUrl(url) || DEFAULT_SUPABASE_URL;
       const cleanSecret = secret.trim() || DEFAULT_SUPABASE_KEY;
-      await saveFirebaseConfig(cleanedUrl, cleanSecret, 'default');
+      await saveFirebaseConfig(cleanedUrl, cleanSecret, DEFAULT_ENTERPRISE_TENANT);
       await AsyncStorage.setItem('ermay_supabase_url', cleanedUrl);
       await AsyncStorage.setItem('ermay_supabase_key', cleanSecret);
       await AsyncStorage.setItem('ermay_firebase_url', cleanedUrl);

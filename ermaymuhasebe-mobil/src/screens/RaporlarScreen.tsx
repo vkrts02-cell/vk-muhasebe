@@ -661,6 +661,7 @@ export default function RaporlarScreen() {
   };
 
   const calculateReport = (reportTitle: string, selectedCari?: any) => {
+    const range = getDateRange();
     const { headers, rows } = getReportData(reportTitle, selectedCari);
     
     let pdfConfig: any = null;
@@ -746,7 +747,32 @@ export default function RaporlarScreen() {
     }
 
     if (headers.length > 0) {
-      navigation.navigate('RaporDetay', { reportResult: { headers, rows, title: reportTitle }, pdfConfig });
+      const dateSubtitle = range 
+        ? `${range.start.toLocaleDateString('tr-TR')} - ${range.end.toLocaleDateString('tr-TR')}`
+        : 'Tüm Zamanlar';
+
+      pdfConfig = {
+        endpoint: pdfConfig?.endpoint || 'generic',
+        payload: {
+          ...(pdfConfig?.payload || {}),
+          title: reportTitle,
+          subtitle: dateSubtitle,
+          periodText: dateSubtitle,
+          donem: dateSubtitle,
+          headers,
+          rows
+        }
+      };
+
+      navigation.navigate('RaporDetay', { 
+        reportResult: { 
+          headers, 
+          rows, 
+          title: reportTitle,
+          subtitle: dateSubtitle 
+        }, 
+        pdfConfig 
+      });
     } else {
       Alert.alert('Bilgi', 'Bu rapor henüz uygulanmadı.');
     }

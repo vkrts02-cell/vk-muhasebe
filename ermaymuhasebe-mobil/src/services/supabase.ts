@@ -258,20 +258,34 @@ export const getIsExplicitlyConfigured = () => isExplicitlyConfigured;
 export const deriveTenantIdFromEmail = (emailOrUsername?: string): string => {
   if (!emailOrUsername) return DEFAULT_ENTERPRISE_TENANT;
   const clean = emailOrUsername.trim().toLowerCase();
-  if (clean === 'vkrts' || clean === 'vkrts@ermay.local' || clean === 'vkrts1992@gmail.com') {
-    return 'tenant_vkrts1992_gmail_com';
+  
+  // Masaüstü ile birebir senkron: Tüm kullanıcı hesapları ve varyasyonları ana kurumsal tenant'a bağlanır
+  if (
+    clean === 'vkrts' || 
+    clean === 'vkrts@ermay.local' || 
+    clean === 'vkrts1992@gmail.com' ||
+    clean === 'vkrts02@gmail.com' ||
+    clean === 'volkan' ||
+    clean === 'v.karatas3458@gmail.com' ||
+    clean === 'admin'
+  ) {
+    return DEFAULT_ENTERPRISE_TENANT;
   }
+  
   if (clean.includes('@')) {
     const cleanTenant = clean.replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
     return `tenant_${cleanTenant}`;
   }
-  return clean === 'admin' ? DEFAULT_ENTERPRISE_TENANT : `tenant_${clean.replace(/[^a-z0-9]/g, '_')}`;
+  return `tenant_${clean.replace(/[^a-z0-9]/g, '_')}`;
 };
 
 export const getActiveTenantId = (): string => cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
 
 export const setActiveTenantId = async (tenantId: string) => {
-  const finalTenant = tenantId || DEFAULT_ENTERPRISE_TENANT;
+  // 'default' veya geçersiz tenant gelirse ana kurumsal tenant'a sabitle
+  const finalTenant = (!tenantId || tenantId === 'default' || tenantId.endsWith('_ermay_local')) 
+    ? DEFAULT_ENTERPRISE_TENANT 
+    : tenantId;
   cachedConfig.tenantId = finalTenant;
   cachedExtendedConfig.tenantId = finalTenant;
   await AsyncStorage.setItem('ermay_active_tenant_id', finalTenant);
@@ -290,6 +304,27 @@ export const reconcileTenantAsync = async (hintUsername?: string): Promise<strin
 
     if (username) {
       const clean = username.trim().toLowerCase();
+      // Bilinen masaüstü yöneticisi hesapları doğrudan ana tenant'a bağlanır
+      if (
+        clean === 'vkrts' ||
+        clean === 'vkrts1992@gmail.com' ||
+        clean === 'vkrts02@gmail.com' ||
+        clean === 'volkan' ||
+        clean === 'v.karatas3458@gmail.com' ||
+        clean === 'admin'
+      ) {
+        if (cachedConfig.tenantId !== DEFAULT_ENTERPRISE_TENANT) {
+          console.log(`[reconcileTenantAsync] Direct match for '${clean}', aligning to '${DEFAULT_ENTERPRISE_TENANT}'`);
+          await setActiveTenantId(DEFAULT_ENTERPRISE_TENANT);
+          if (cachedSessionUser) {
+            cachedSessionUser.tenantId = DEFAULT_ENTERPRISE_TENANT;
+            if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = DEFAULT_ENTERPRISE_TENANT;
+            await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
+          }
+        }
+        return DEFAULT_ENTERPRISE_TENANT;
+      }
+
       const { data: dbUsers, error } = await supabase.from('kullanicilar').select('*');
       if (!error && dbUsers && dbUsers.length > 0) {
         const match = dbUsers.find((u: any) =>
@@ -298,39 +333,35 @@ export const reconcileTenantAsync = async (hintUsername?: string): Promise<strin
           (u.email && u.email.toLowerCase() === clean) ||
           (u.id && String(u.id).toLowerCase() === clean)
         );
-        if (match && match.tenant_id) {
-          if (cachedConfig.tenantId !== match.tenant_id) {
-            console.log(`[reconcileTenantAsync] Aligning tenant from '${cachedConfig.tenantId}' to '${match.tenant_id}'`);
-            await setActiveTenantId(match.tenant_id);
+        if (match) {
+          const resolvedTenant = (match.tenant_id && match.tenant_id !== 'default') 
+            ? match.tenant_id 
+            : DEFAULT_ENTERPRISE_TENANT;
+          if (cachedConfig.tenantId !== resolvedTenant) {
+            console.log(`[reconcileTenantAsync] Aligning tenant from '${cachedConfig.tenantId}' to '${resolvedTenant}'`);
+            await setActiveTenantId(resolvedTenant);
             if (cachedSessionUser) {
-              cachedSessionUser.tenantId = match.tenant_id;
-              if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = match.tenant_id;
+              cachedSessionUser.tenantId = resolvedTenant;
+              if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = resolvedTenant;
               await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
             }
           }
-          return match.tenant_id;
+          return resolvedTenant;
         }
       }
     }
 
-    // Default or synthetic tenant auto-repair
+    // Default or synthetic tenant auto-repair: Öncelik DEFAULT_ENTERPRISE_TENANT'a verilir
     const currentTenant = cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
     if (currentTenant === 'default' || currentTenant.endsWith('_ermay_local') || currentTenant === 'tenant_vkrts') {
-      const { data: dbUsers } = await supabase.from('kullanicilar').select('tenant_id').not('tenant_id', 'is', null).neq('tenant_id', 'default').limit(10);
-      if (dbUsers && dbUsers.length > 0) {
-        const validTenants = dbUsers.map(u => u.tenant_id).filter(t => t && t.startsWith('tenant_') && !t.endsWith('_ermay_local'));
-        if (validTenants.length > 0) {
-          const targetTenant = validTenants[0];
-          console.log(`[reconcileTenantAsync] Auto-repairing synthetic/default tenant '${currentTenant}' to '${targetTenant}'`);
-          await setActiveTenantId(targetTenant);
-          if (cachedSessionUser) {
-            cachedSessionUser.tenantId = targetTenant;
-            if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = targetTenant;
-            await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
-          }
-          return targetTenant;
-        }
+      console.log(`[reconcileTenantAsync] Auto-repairing synthetic/default tenant '${currentTenant}' to '${DEFAULT_ENTERPRISE_TENANT}'`);
+      await setActiveTenantId(DEFAULT_ENTERPRISE_TENANT);
+      if (cachedSessionUser) {
+        cachedSessionUser.tenantId = DEFAULT_ENTERPRISE_TENANT;
+        if (cachedSessionUser.user_metadata) cachedSessionUser.user_metadata.tenantId = DEFAULT_ENTERPRISE_TENANT;
+        await AsyncStorage.setItem('ermay_active_session_user', JSON.stringify(cachedSessionUser));
       }
+      return DEFAULT_ENTERPRISE_TENANT;
     }
 
     return cachedConfig.tenantId || DEFAULT_ENTERPRISE_TENANT;
@@ -348,12 +379,10 @@ export const loadConfigFromStorage = async (): Promise<boolean> => {
     const storedTenant = await AsyncStorage.getItem('ermay_active_tenant_id');
     let tenantId = storedTenant || DEFAULT_ENTERPRISE_TENANT;
 
-    if (tenantId === 'default' || tenantId.endsWith('_ermay_local') || tenantId === 'tenant_vkrts') {
-      const savedUser = await AsyncStorage.getItem('ermay_saved_username');
-      if (savedUser && savedUser.toLowerCase() === 'vkrts') {
-        tenantId = 'tenant_vkrts1992_gmail_com';
-        await AsyncStorage.setItem('ermay_active_tenant_id', tenantId);
-      }
+    // 'default' veya geçersiz tenant varsa doğrudan kurumsal tenant'a düzelt
+    if (!tenantId || tenantId === 'default' || tenantId.endsWith('_ermay_local') || tenantId === 'tenant_vkrts') {
+      tenantId = DEFAULT_ENTERPRISE_TENANT;
+      await AsyncStorage.setItem('ermay_active_tenant_id', tenantId);
     }
 
     if (rawUrl && key && rawUrl.trim() && key.trim()) {
@@ -541,14 +570,14 @@ export const fetchAvailableYears = async (): Promise<string[]> => {
       } catch {}
     }
 
-    if (distinctYears.size > 0) {
-      return Array.from(distinctYears).sort();
-    }
+    // Masaüstü ile uyumlu garantili çalışma yılı (2026)
+    distinctYears.add('2026');
+    distinctYears.add(new Date().getFullYear().toString());
 
-    return [];
+    return Array.from(distinctYears).sort();
   } catch (err) {
     console.warn('[Supabase] fetchAvailableYears error:', err);
-    return [];
+    return ['2026'];
   }
 };
 
@@ -1122,6 +1151,7 @@ export const normalizeRowFromSupabase = (table: string, row: any): any => {
     const riskTakibiYapilsin = !!(row.risk_takibi_yapilsin ?? row.riskTakibiYapilsin ?? r.riskTakibiYapilsin);
     const vadeGecmisteEngelle = !!(row.vade_gecmiste_engelle ?? row.vadeGecmisteEngelle ?? r.vadeGecmisteEngelle);
     const faturadaRiskKontrolu = (row.faturada_risk_kontrolu ?? row.faturadaRiskKontrolu ?? r.faturadaRiskKontrolu) !== false;
+    const aktifMi = (row.aktif_mi ?? row.aktifMi ?? row.is_active ?? row.isActive ?? r.aktifMi) !== false;
     const devirBorc = Number(row.devir_borc ?? row.devirBorc ?? r.devirBorc ?? r.devir_borc) || 0;
     const devirAlacak = Number(row.devir_alacak ?? row.devirAlacak ?? r.devirAlacak ?? r.devir_alacak) || 0;
     const borc = Number(row.borc_tutari ?? row.borc ?? r.borcTutari ?? r.borc) || 0;
@@ -1490,6 +1520,16 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
 
       let { data, error } = await q;
 
+      // Fallback 1: Eğer veri bulunamadıysa ve currentTenant ana kurumsal tenant değilse
+      if ((!data || data.length === 0) && isTenantTable && currentTenant !== DEFAULT_ENTERPRISE_TENANT) {
+        const entRes = await supabase.from(table).select('*').eq(foreignKey, id).eq('tenant_id', DEFAULT_ENTERPRISE_TENANT);
+        if (entRes.data && entRes.data.length > 0) {
+          data = entRes.data;
+          error = entRes.error;
+          setActiveTenantId(DEFAULT_ENTERPRISE_TENANT).catch(() => {});
+        }
+      }
+
       if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
         const fbRes = await supabase.from(table).select('*').eq(foreignKey, id);
         data = fbRes.data;
@@ -1514,6 +1554,16 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
       }
 
       let { data, error } = await q.maybeSingle();
+
+      // Fallback 1: Eğer veri bulunamadıysa ve currentTenant ana kurumsal tenant değilse
+      if (!data && isTenantTable && currentTenant !== DEFAULT_ENTERPRISE_TENANT) {
+        const entRes = await supabase.from(table).select('*').eq('id', id).eq('tenant_id', DEFAULT_ENTERPRISE_TENANT).maybeSingle();
+        if (entRes.data) {
+          data = entRes.data;
+          error = entRes.error;
+          setActiveTenantId(DEFAULT_ENTERPRISE_TENANT).catch(() => {});
+        }
+      }
 
       if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
         const fbRes = await supabase.from(table).select('*').eq('id', id).maybeSingle();
@@ -1542,6 +1592,22 @@ export const readData = async (path: string, timeoutMs = 7000): Promise<any> => 
     }
 
     let { data, error } = await query;
+
+    // Fallback 1: Eğer veri boş geldiyse (0 kayıt) ve currentTenant kurumsal tenant değilse, kurumsal tenant ile dene
+    if ((!data || data.length === 0) && isTenantTable && currentTenant !== DEFAULT_ENTERPRISE_TENANT) {
+      let entQuery = supabase.from(table).select('*');
+      if (['cariler', 'stoklar', 'faturalar', 'kasalar', 'bankalar', 'siparisler', 'teklifler', 'notlar', 'cari_hareketler', 'stok_hareketler', 'kasa_hareketler', 'banka_hareketler', 'mali_yillar', 'cekler', 'senetler', 'kredi_karti_islemler', 'eft_islemler', 'belge_arsiv', 'doviz_kurlari', 'portfoy_kartlar', 'musteri_takip_klasorler', 'musteri_takip_detaylar', 'gorevler', 'personeller', 'stok_sayim_fisileri', 'stok_sayim_detaylari'].includes(table)) {
+        entQuery = entQuery.or('is_deleted.is.null,is_deleted.eq.false');
+      }
+      entQuery = entQuery.eq('tenant_id', DEFAULT_ENTERPRISE_TENANT);
+      const entRes = await entQuery;
+      if (entRes.data && entRes.data.length > 0) {
+        data = entRes.data;
+        error = entRes.error;
+        console.log(`[Supabase] Auto-healed tenant to '${DEFAULT_ENTERPRISE_TENANT}' because ${table} had ${entRes.data.length} records`);
+        setActiveTenantId(DEFAULT_ENTERPRISE_TENANT).catch(() => {});
+      }
+    }
 
     if (error && (error.code === 'PGRST204' || error.message?.includes('tenant_id'))) {
       let fbQuery = supabase.from(table).select('*');

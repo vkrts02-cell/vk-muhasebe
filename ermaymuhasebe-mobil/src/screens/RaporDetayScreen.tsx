@@ -76,8 +76,13 @@ export default function RaporDetayScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.modalContent}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle} numberOfLines={1}>{reportResult.title}</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.modalTitle} numberOfLines={1}>{reportResult.title}</Text>
+            {reportResult.subtitle ? (
+              <Text style={styles.modalSubtitle} numberOfLines={1}>📅 {reportResult.subtitle}</Text>
+            ) : null}
+          </View>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <X color="#FFF" size={24} />
           </TouchableOpacity>
         </View>
@@ -202,10 +207,16 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: 10,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    color: '#38BDF8',
+    fontSize: 11.5,
+    fontWeight: '700',
+    marginTop: 3,
+    letterSpacing: 0.2,
   },
   tableHeaderRow: {
     flexDirection: 'row',

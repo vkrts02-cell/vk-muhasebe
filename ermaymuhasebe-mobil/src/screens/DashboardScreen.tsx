@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Platfo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { subscribeToPath } from '../services/firebase';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Line, Rect, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Line, Rect, Text as SvgText, Defs, LinearGradient, Stop, Circle, G } from 'react-native-svg';
 import { 
   ArrowUpRight, 
   Banknote, 
@@ -284,7 +284,7 @@ export default function DashboardScreen() {
   if (activeTab === 'receivables') listData = getReceivables();
   if (activeTab === 'payables') listData = getPayables();
 
-  // 12 Aylık Hedef vs Gerçekleşen Satış Grafiği (Masaüstü GoalTrackingChart Paritesi)
+  // Harman Model 2: Apple Tarzı Radyal Başarı Halkası + Türkiye Muhasebe Standardı 12 Aylık Çift Kolon Barları
   const renderGoalChart = () => {
     const currentYear = new Date().getFullYear();
     const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
@@ -306,108 +306,182 @@ export default function DashboardScreen() {
       return { label: mLabel, target, actual };
     });
 
+    const annualTarget = chartData.reduce((sum, d) => sum + d.target, 0);
+    const annualActual = chartData.reduce((sum, d) => sum + d.actual, 0);
+    const annualRate = annualTarget > 0 ? Math.min(100, Math.round((annualActual / annualTarget) * 100)) : 0;
+    const remainingTarget = Math.max(0, annualTarget - annualActual);
+
+    // Apple Radial Ring ölçüleri
+    const ringRadius = 38;
+    const ringStroke = 8;
+    const ringCircumference = 2 * Math.PI * ringRadius;
+    const ringOffset = ringCircumference - (ringCircumference * (annualRate / 100));
+
+    // 12 Aylık Çift Kolon Bar Grafiği ölçüleri
     const maxVal = Math.max(...chartData.map(d => Math.max(d.target, d.actual)), 100000);
-    const chartHeight = 160;
+    const chartHeight = 140;
     const chartWidth = 330;
-    const paddingLeft = 42;
-    const paddingRight = 12;
-    const paddingTop = 16;
-    const paddingBottom = 24;
-
-    const stepX = (chartWidth - paddingLeft - paddingRight) / 11;
-    const getCoords = (val: number, index: number) => {
-      const x = paddingLeft + index * stepX;
-      const activeHeight = chartHeight - paddingTop - paddingBottom;
-      const y = chartHeight - paddingBottom - (val / maxVal) * activeHeight;
-      return { x, y };
-    };
-
-    let targetPath = '';
-    let actualPath = '';
-    let targetArea = '';
-    let actualArea = '';
-
-    chartData.forEach((d, i) => {
-      const pT = getCoords(d.target, i);
-      const pA = getCoords(d.actual, i);
-
-      if (i === 0) {
-        targetPath = `M ${pT.x} ${pT.y}`;
-        actualPath = `M ${pA.x} ${pA.y}`;
-        targetArea = `M ${pT.x} ${chartHeight - paddingBottom} L ${pT.x} ${pT.y}`;
-        actualArea = `M ${pA.x} ${chartHeight - paddingBottom} L ${pA.x} ${pA.y}`;
-      } else {
-        targetPath += ` L ${pT.x} ${pT.y}`;
-        actualPath += ` L ${pA.x} ${pA.y}`;
-        targetArea += ` L ${pT.x} ${pT.y}`;
-        actualArea += ` L ${pA.x} ${pA.y}`;
-      }
-
-      if (i === 11) {
-        targetArea += ` L ${pT.x} ${chartHeight - paddingBottom} Z`;
-        actualArea += ` L ${pA.x} ${chartHeight - paddingBottom} Z`;
-      }
-    });
+    const paddingLeft = 38;
+    const paddingRight = 10;
+    const paddingTop = 12;
+    const paddingBottom = 22;
+    const availableHeight = chartHeight - paddingTop - paddingBottom;
+    const colGroupWidth = (chartWidth - paddingLeft - paddingRight) / 12;
+    const barW = Math.max(5, colGroupWidth * 0.35);
 
     const yTicks = [0, maxVal / 2, maxVal];
 
     return (
       <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Aylık Tahsilat Performansı</Text>
-        <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendIndicator, { backgroundColor: '#0061FF' }]} />
-            <Text style={styles.legendText}>Aylık Hedef</Text>
+        {/* Üst Başlık & Harman Model 2 Etiketi */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <View>
+            <Text style={styles.chartTitle}>HEDEF & GERÇEKLEŞME (HARMAN MODEL 2)</Text>
+            <Text style={{ color: '#64748B', fontSize: 10, marginTop: -4 }}>Apple Radyal Başarı + 12 Aylık Çift Kolon</Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendIndicator, { backgroundColor: '#00FF87' }]} />
-            <Text style={styles.legendText}>Gerçekleşen Satış</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendIndicator, { backgroundColor: '#6366F1' }]} />
+              <Text style={styles.legendText}>Hedef</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendIndicator, { backgroundColor: '#00FF87' }]} />
+              <Text style={styles.legendText}>Satış</Text>
+            </View>
           </View>
         </View>
 
-        <View style={{ height: chartHeight, width: '100%', marginTop: 12 }} pointerEvents="none">
+        {/* Üst Kısım: Apple Tarzı Radyal Halka + 3'lü İstatistik Kutusu */}
+        <View style={styles.harmanTopRow}>
+          {/* Sol: Apple Dairesel Progress Ring */}
+          <View style={styles.radialRingContainer}>
+            <Svg width={96} height={96} viewBox="0 0 96 96">
+              <Defs>
+                <LinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0%" stopColor="#00FF87" stopOpacity="1" />
+                  <Stop offset="100%" stopColor="#06B6D4" stopOpacity="1" />
+                </LinearGradient>
+              </Defs>
+              <G rotation="-90" origin="48, 48">
+                {/* Arka plan çemberi */}
+                <Circle
+                  cx="48"
+                  cy="48"
+                  r={ringRadius}
+                  stroke="rgba(255, 255, 255, 0.08)"
+                  strokeWidth={ringStroke}
+                  fill="none"
+                />
+                {/* İlerleme çemberi */}
+                <Circle
+                  cx="48"
+                  cy="48"
+                  r={ringRadius}
+                  stroke="url(#ringGrad)"
+                  strokeWidth={ringStroke}
+                  strokeDasharray={`${ringCircumference}`}
+                  strokeDashoffset={ringOffset}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </G>
+            </Svg>
+            <View style={styles.ringCenterTextContainer}>
+              <Text style={styles.ringPercentText}>%{annualRate}</Text>
+              <Text style={styles.ringLabelText}>BAŞARI</Text>
+            </View>
+          </View>
+
+          {/* Sağ: 3 Mini İstatistik Kartı */}
+          <View style={styles.harmanStatsColumn}>
+            <View style={[styles.harmanStatBadge, { borderLeftColor: '#6366F1' }]}>
+              <Text style={styles.harmanStatLabel}>🎯 Yıllık Hedef</Text>
+              <Text style={styles.harmanStatValue}>{formatMoney(annualTarget)}</Text>
+            </View>
+            <View style={[styles.harmanStatBadge, { borderLeftColor: '#00FF87' }]}>
+              <Text style={styles.harmanStatLabel}>🚀 Gerçekleşen Satış</Text>
+              <Text style={[styles.harmanStatValue, { color: '#00FF87' }]}>{formatMoney(annualActual)}</Text>
+            </View>
+            <View style={[styles.harmanStatBadge, { borderLeftColor: '#F59E0B' }]}>
+              <Text style={styles.harmanStatLabel}>⏳ Kalan Hedef</Text>
+              <Text style={[styles.harmanStatValue, { color: '#FCD34D' }]}>{formatMoney(remainingTarget)}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Alt Kısım: Türkiye Muhasebe Standardı 12 Aylık Çift Kolon Barları */}
+        <View style={{ height: chartHeight, width: '100%', marginTop: 14 }} pointerEvents="none">
           <Svg height="100%" width="100%" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
             <Defs>
-              <LinearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor="#0061FF" stopOpacity="0.2" />
-                <Stop offset="100%" stopColor="#0061FF" stopOpacity="0" />
+              <LinearGradient id="barTargetGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor="#818CF8" stopOpacity="0.9" />
+                <Stop offset="100%" stopColor="#4F46E5" stopOpacity="0.6" />
               </LinearGradient>
-              <LinearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor="#00FF87" stopOpacity="0.2" />
-                <Stop offset="100%" stopColor="#00FF87" stopOpacity="0" />
+              <LinearGradient id="barActualGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor="#00FF87" stopOpacity="1" />
+                <Stop offset="100%" stopColor="#06B6D4" stopOpacity="0.75" />
               </LinearGradient>
             </Defs>
 
-            {/* Grid lines */}
+            {/* Yatay Grid ve Sol Değer Etiketleri */}
             {yTicks.map((t, idx) => {
-              const { y } = getCoords(t, 0);
+              const y = chartHeight - paddingBottom - (t / maxVal) * availableHeight;
               return (
                 <React.Fragment key={idx}>
                   <Line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth={1} strokeDasharray="3,3" />
-                  <SvgText x={paddingLeft - 8} y={y + 3} fill="#94A3B8" fontSize={9} fontWeight="600" textAnchor="end">
-                    {t >= 1000 ? `${(t / 1000).toFixed(0)}k` : t.toFixed(0)}
+                  <SvgText x={paddingLeft - 6} y={y + 3} fill="#64748B" fontSize={8} fontWeight="600" textAnchor="end">
+                    {t >= 1000000 ? `${(t / 1000000).toFixed(1)}M` : t >= 1000 ? `${(t / 1000).toFixed(0)}k` : t.toFixed(0)}
                   </SvgText>
                 </React.Fragment>
               );
             })}
 
-            {/* X Labels */}
+            {/* 12 Ay Çift Kolon Barları ve X Etiketleri */}
             {chartData.map((d, i) => {
-              const { x } = getCoords(0, i);
+              const groupX = paddingLeft + i * colGroupWidth;
+              const targetH = Math.max(3, (d.target / maxVal) * availableHeight);
+              const actualH = Math.max(3, (d.actual / maxVal) * availableHeight);
+              const targetY = chartHeight - paddingBottom - targetH;
+              const actualY = chartHeight - paddingBottom - actualH;
+              const targetBarX = groupX + 1;
+              const actualBarX = groupX + barW + 2;
+
               return (
-                <SvgText key={i} x={x} y={chartHeight - 6} fill="#94A3B8" fontSize={9} fontWeight="600" textAnchor="middle">
-                  {d.label}
-                </SvgText>
+                <React.Fragment key={i}>
+                  {/* Hedef Barı (Sol kolon) */}
+                  <Rect
+                    x={targetBarX}
+                    y={targetY}
+                    width={barW}
+                    height={targetH}
+                    rx={2.5}
+                    ry={2.5}
+                    fill="url(#barTargetGrad)"
+                  />
+                  {/* Gerçekleşen Barı (Sağ kolon) */}
+                  <Rect
+                    x={actualBarX}
+                    y={actualY}
+                    width={barW}
+                    height={actualH}
+                    rx={2.5}
+                    ry={2.5}
+                    fill="url(#barActualGrad)"
+                  />
+                  {/* Ay Etiketi */}
+                  <SvgText
+                    x={groupX + barW + 1}
+                    y={chartHeight - 6}
+                    fill="#94A3B8"
+                    fontSize={8.5}
+                    fontWeight="600"
+                    textAnchor="middle"
+                  >
+                    {d.label}
+                  </SvgText>
+                </React.Fragment>
               );
             })}
-
-            {/* Areas */}
-            <Path d={targetArea} fill="url(#targetGrad)" />
-            <Path d={actualArea} fill="url(#actualGrad)" />
-
-            {/* Lines */}
-            <Path d={targetPath} fill="none" stroke="#0061FF" strokeWidth={2} />
-            <Path d={actualPath} fill="none" stroke="#00FF87" strokeWidth={2} />
           </Svg>
         </View>
       </View>
@@ -836,5 +910,62 @@ const styles = StyleSheet.create({
   listItemAmount: {
     fontSize: 13,
     fontWeight: '900',
+  },
+  harmanTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.025)',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 4,
+  },
+  radialRingContainer: {
+    width: 96,
+    height: 96,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringCenterTextContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringPercentText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  ringLabelText: {
+    color: '#00FF87',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginTop: 1,
+  },
+  harmanStatsColumn: {
+    flex: 1,
+    marginLeft: 14,
+    gap: 6,
+  },
+  harmanStatBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  harmanStatLabel: {
+    color: '#94A3B8',
+    fontSize: 9.5,
+    fontWeight: '600',
+  },
+  harmanStatValue: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '800',
+    marginTop: 1,
   }
 });
