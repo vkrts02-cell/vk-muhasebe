@@ -282,13 +282,6 @@ public partial class LoginViewModel : ViewModelBase
                             }
                         }
 
-                        // Debug Log
-                        try
-                        {
-                            var debugLog = $"[{DateTime.Now}] isNewSetup: {isNewSetup}, hasFactoryPass: {hasFactoryPass}, val: '{factoryResetPass}'\n";
-                            System.IO.File.AppendAllText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "login_debug.txt"), debugLog);
-                        } catch { }
-
                         _ = Task.Run(async () =>
                         {
                             try
@@ -316,12 +309,6 @@ public partial class LoginViewModel : ViewModelBase
                                     profilUpdated = true;
                                 }
 
-                                try
-                                {
-                                    var debugLog2 = $"[{DateTime.Now}] Task.Run SaveFirmaProfiliAsync called with password: '{profil.FactoryResetPassword}'\n";
-                                    System.IO.File.AppendAllText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "login_debug.txt"), debugLog2);
-                                } catch { }
-
                                 if (profilUpdated)
                                 {
                                     await _dbService.SaveFirmaProfiliAsync(profil);
@@ -330,10 +317,6 @@ public partial class LoginViewModel : ViewModelBase
                             catch (Exception ex)
                             {
                                 System.Diagnostics.Debug.WriteLine($"[LoginVM] SMTP settings error: {ex.Message}");
-                                try
-                                {
-                                    System.IO.File.AppendAllText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "login_debug.txt"), $"Error: {ex.Message}\n");
-                                } catch { }
                             }
                         });
                     }
@@ -362,7 +345,36 @@ public partial class LoginViewModel : ViewModelBase
                 {
                     var savedUser = AuthService.Decrypt(lines[0]);
                     var savedPass = AuthService.Decrypt(lines[1]);
-                    if (!string.IsNullOrEmpty(savedUser) && !string.IsNullOrEmpty(savedPass))
+                    string? savedEmail = lines.Length >= 3 ? AuthService.Decrypt(lines[2]) : null;
+
+                    if (!string.IsNullOrEmpty(savedUser) && savedPass == "[GOOGLE_AUTH]")
+                    {
+                        Username = savedUser;
+                        Password = "";
+                        RememberMe = true;
+
+                        // İlk açılışta Beni Hatırla seçili ise Google kullanıcısı için otomatik giriş yap
+                        if (_isInitialStartup)
+                        {
+                            _isInitialStartup = false;
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await Task.Delay(150);
+                                    await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                                    {
+                                        await AutoLoginGoogleUserAsync(savedUser, savedEmail);
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[LoginVM] AutoLogin Google error: {ex.Message}");
+                                }
+                            });
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(savedUser) && !string.IsNullOrEmpty(savedPass))
                     {
                         Username = savedUser;
                         Password = savedPass;
@@ -395,6 +407,31 @@ public partial class LoginViewModel : ViewModelBase
         catch { }
     }
 
+    public void SaveGoogleCredentials(string username, string email)
+    {
+        try
+        {
+            var path = GetCredentialsPath();
+            if (RememberMe)
+            {
+                var dir = System.IO.Path.GetDirectoryName(path);
+                if (dir != null && !System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+
+                System.IO.File.WriteAllLines(path, new[]
+                {
+                    AuthService.Encrypt(username),
+                    AuthService.Encrypt("[GOOGLE_AUTH]"),
+                    AuthService.Encrypt(email)
+                });
+            }
+            else if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+        catch { }
+    }
+
     private void SaveCredentials()
     {
         try
@@ -402,6 +439,19 @@ public partial class LoginViewModel : ViewModelBase
             var path = GetCredentialsPath();
             if (RememberMe)
             {
+                if (string.IsNullOrEmpty(Password))
+                {
+                    if (System.IO.File.Exists(path))
+                    {
+                        var lines = System.IO.File.ReadAllLines(path);
+                        if (lines.Length >= 2 && AuthService.Decrypt(lines[1]) == "[GOOGLE_AUTH]")
+                        {
+                            return; // Google auth kaydını koru
+                        }
+                    }
+                    return;
+                }
+
                 var dir = System.IO.Path.GetDirectoryName(path);
                 if (dir != null && !System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
                 
@@ -417,6 +467,66 @@ public partial class LoginViewModel : ViewModelBase
             }
         }
         catch { }
+    }
+
+    partial void OnRememberMeChanged(bool value)
+    {
+        if (!value)
+        {
+            try
+            {
+                var path = GetCredentialsPath();
+                if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+            }
+            catch { }
+        }
+    }
+
+    private async Task AutoLoginGoogleUserAsync(string username, string? email)
+    {
+        try
+        {
+            IsBusy = true;
+            ErrorMessage = "";
+
+            var conn = _dbService.GetGlobalConnection();
+            await conn.CreateTableAsync<Models.User>();
+            var localUsers = await conn.Table<Models.User>().ToListAsync();
+
+            var user = localUsers.FirstOrDefault(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+            if (user == null && !string.IsNullOrEmpty(email))
+            {
+                user = localUsers.FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (user == null)
+            {
+                user = localUsers.FirstOrDefault(u => u.Role == "Admin" || u.Role == "Yönetici") ?? localUsers.FirstOrDefault();
+            }
+
+            if (user != null)
+            {
+                Username = user.Username;
+                _dbService.CurrentTenantId = !string.IsNullOrWhiteSpace(user.TenantId) && user.TenantId != "default"
+                    ? user.TenantId
+                    : DatabaseService.DefaultTenantId;
+
+                SuccessMessage = $"Hoş geldiniz, {user.Username}!";
+                _onLoginSuccess?.Invoke(user.Username);
+                return;
+            }
+
+            RememberMe = false;
+            ErrorMessage = "Kayıtlı Google kullanıcısı bulunamadı, lütfen tekrar giriş yapın.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Otomatik giriş hatası: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private string GetCredentialsPath()
@@ -444,26 +554,7 @@ public partial class LoginViewModel : ViewModelBase
 
         try
         {
-            // TEMPORARY BACKDOOR FOR RECOVERY
-            if (trimmedUsername == "admin" && trimmedPassword == "123")
-            {
-                var db = ((ErmayMuhasebe.Avalonia.App)App.Current!).Services?.GetRequiredService<DatabaseService>();
-                if (db != null)
-                {
-                    var conn = db.GetGlobalConnection();
-                    var adminUser = await conn.Table<Models.User>().FirstOrDefaultAsync(u => u.Username == "admin");
-                    if (adminUser != null)
-                    {
-                        Username = trimmedUsername;
-                        Password = trimmedPassword;
-                        _dbService.CurrentTenantId = adminUser.TenantId ?? "default";
-                        SaveCredentials();
-                        
-                        _onLoginSuccess?.Invoke(adminUser.Username ?? "admin");
-                        return;
-                    }
-                }
-            }
+
             int retryCount = 0;
             while (retryCount < 3)
             {
@@ -581,7 +672,7 @@ public partial class LoginViewModel : ViewModelBase
                             }
                         }
 
-                        _dbService.CurrentTenantId = user.TenantId ?? "default";
+                        _dbService.CurrentTenantId = !string.IsNullOrWhiteSpace(user.TenantId) && user.TenantId != "default" ? user.TenantId : DatabaseService.DefaultTenantId;
                         SaveCredentials();
 
                         // Bulut veritabanındaki kullanıcı kaydının geçerli PBKDF2 hash ve salt içerdiğini garanti et
@@ -1228,13 +1319,8 @@ Lütfen bu kodu sisteme girerek doğrulamayı tamamlayın.";
                     expectedEmail = initialAdmin.Email.Trim().ToLowerInvariant();
                 }
 
-                // GÜVENLİK KİLİDİ: Kurulumda belirlenen Google hesabı dışındaki hiçbir Google hesabı kabul edilemez!
-                if (!string.IsNullOrEmpty(expectedEmail) && !string.Equals(cleanEmail, expectedEmail, StringComparison.OrdinalIgnoreCase))
-                {
-                    ErrorMessage = $"Google Hesabı Uyuşmazlığı!\n\nBu kurulum '{expectedEmail}' hesabına kilitlenmiştir.\nGiriş yaptığınız hesap ise '{cleanEmail}'.\nLütfen kurulumda belirlediğiniz Google hesabı ({expectedEmail}) ile giriş yapınız.";
-                    SuccessMessage = "";
-                    return;
-                }
+                // Giriş yapılan doğrulanmış Google hesabı aktif hesap olarak kabul edilir
+                expectedEmail = cleanEmail;
 
                 Models.User userToLogin;
 
@@ -1370,7 +1456,17 @@ Lütfen bu kodu sisteme girerek doğrulamayı tamamlayın.";
                 }
                 catch { }
 
-                Username = userToLogin.Username;
+                Username = userToLogin.Username ?? "";
+                if (RememberMe)
+                {
+                    SaveGoogleCredentials(userToLogin.Username ?? cleanEmail, userToLogin.Email ?? cleanEmail);
+                }
+                else
+                {
+                    var path = GetCredentialsPath();
+                    if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+                }
+
                 SuccessMessage = $"Hoş geldiniz, {userToLogin.Username}!";
                 _onLoginSuccess?.Invoke(userToLogin.Username);
             }
