@@ -30,10 +30,13 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "cleandatabase"; Description: "Temiz Kurulum: Mevcut yerel veritabanını sıfırla (Bütün eski test verilerini temizle)"; GroupDescription: "Veritabanı Seçenekleri:"; Flags: unchecked
+Name: "cleandatabase"; Description: "Temiz Kurulum: Hem yerel veritabanını hem de buluttaki (Supabase) tüm işlenmiş verileri tamamen temizle (Sıfır başlangıç)"; GroupDescription: "Veritabanı Seçenekleri:"; Flags: unchecked
 
 [Files]
 Source: "Publish_Output\Desktop\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "SUPABASE_SIFIRDAN_MASTER_KURULUM.sql"; DestDir: "{app}"; Flags: ignoreversion
+Source: "supabase_sifirdan_kurulum.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "supabase_sifirdan_kurulum.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Assets\vk_app.ico"
@@ -47,6 +50,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 var
   InfoPage: TOutputMsgWizardPage;
   SupabasePage: TInputQueryWizardPage;
+  SupabaseLoginBtn: TNewButton;
   SetupModePage: TInputOptionWizardPage;
   User1Page: TInputQueryWizardPage;
   User2Page: TInputQueryWizardPage;
@@ -65,6 +69,106 @@ begin
     P3 := Pos('"', Copy(Json, P2, Length(Json)));
     if P3 > 0 then
       Result := Copy(Json, P2, P3 - 1);
+  end;
+end;
+
+function ResolveSupabaseFromToken(const TokenVal: String; var OutUrl, OutKey: String): Boolean;
+var
+  ScriptPath, OutPath, ScriptBody: String;
+  RawOut: AnsiString;
+  ResCode: Integer;
+begin
+  Result := False;
+  OutUrl := '';
+  OutKey := '';
+  if Trim(TokenVal) = '' then Exit;
+
+  ScriptPath := ExpandConstant('{tmp}\resolve_sb.ps1');
+  OutPath := ExpandConstant('{tmp}\resolved_sb.json');
+  DeleteFile(OutPath);
+
+  ScriptBody :=
+    '$ErrorActionPreference = ''Stop''' + #13#10 +
+    '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12' + #13#10 +
+    '$token = ''' + Trim(TokenVal) + '''' + #13#10 +
+    '$headers = @{ Authorization = "Bearer $token"; ''Content-Type'' = ''application/json'' }' + #13#10 +
+    'try {' + #13#10 +
+    '  $projects = Invoke-RestMethod -Uri ''https://api.supabase.com/v1/projects'' -Method Get -Headers $headers -TimeoutSec 20' + #13#10 +
+    '  $ref = ''''' + #13#10 +
+    '  if ($projects -and $projects.Count -gt 0) {' + #13#10 +
+    '    $ref = $projects[0].id' + #13#10 +
+    '  } else {' + #13#10 +
+    '    $orgs = Invoke-RestMethod -Uri ''https://api.supabase.com/v1/organizations'' -Method Get -Headers $headers -TimeoutSec 20' + #13#10 +
+    '    if ($orgs -and $orgs.Count -gt 0) {' + #13#10 +
+    '      $orgId = $orgs[0].id' + #13#10 +
+    '      $dbPass = ''Vk'' + [Guid]::NewGuid().ToString(''N'').Substring(0, 14) + ''!9''' + #13#10 +
+    '      $body = @{ name = ''vk-on-muhasebe''; organization_id = $orgId; db_pass = $dbPass; region = ''eu-central-1''; plan = ''free'' } | ConvertTo-Json -Compress' + #13#10 +
+    '      $created = Invoke-RestMethod -Uri ''https://api.supabase.com/v1/projects'' -Method Post -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30' + #13#10 +
+    '      $ref = $created.id' + #13#10 +
+    '      for ($w = 0; $w -lt 24; $w++) {' + #13#10 +
+    '        Start-Sleep -Seconds 5' + #13#10 +
+    '        try {' + #13#10 +
+    '          $chk = Invoke-RestMethod -Uri "https://api.supabase.com/v1/projects/$ref/api-keys" -Method Get -Headers $headers -TimeoutSec 10' + #13#10 +
+    '          if ($chk -and $chk.Count -gt 0) { break }' + #13#10 +
+    '        } catch {}' + #13#10 +
+    '      }' + #13#10 +
+    '    }' + #13#10 +
+    '  }' + #13#10 +
+    '  if ($ref -ne '''') {' + #13#10 +
+    '    $keys = Invoke-RestMethod -Uri "https://api.supabase.com/v1/projects/$ref/api-keys" -Method Get -Headers $headers -TimeoutSec 20' + #13#10 +
+    '    $anon = ''''' + #13#10 +
+    '    foreach ($k in $keys) { if ($k.name -eq ''anon'' -and $k.api_key) { $anon = $k.api_key; break } }' + #13#10 +
+    '    if ($anon -ne '''') {' + #13#10 +
+    '      $outObj = @{ BaseUrl = "https://$ref.supabase.co"; AuthSecret = $anon } | ConvertTo-Json -Compress' + #13#10 +
+    '      Set-Content -Path ''' + OutPath + ''' -Value $outObj -Encoding ASCII' + #13#10 +
+    '    }' + #13#10 +
+    '  }' + #13#10 +
+    '} catch {}' + #13#10;
+
+  SaveStringToFile(ScriptPath, ScriptBody, False);
+  Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptPath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResCode);
+  DeleteFile(ScriptPath);
+
+  if FileExists(OutPath) and LoadStringFromFile(OutPath, RawOut) then
+  begin
+    OutUrl := ExtractJsonValue(String(RawOut), 'BaseUrl');
+    OutKey := ExtractJsonValue(String(RawOut), 'AuthSecret');
+    DeleteFile(OutPath);
+    if (OutUrl <> '') and (OutKey <> '') then
+      Result := True;
+  end;
+end;
+
+procedure OnSupabaseLoginClick(Sender: TObject);
+var
+  TokenVal, AutoUrl, AutoKey: String;
+  ErrCode: Integer;
+begin
+  TokenVal := Trim(SupabasePage.Values[2]);
+  if TokenVal = '' then
+  begin
+    ShellExec('open', 'https://supabase.com/dashboard/account/tokens', '', '', SW_SHOWNORMAL, ewNoWait, ErrCode);
+    MsgBox(
+      'Tarayıcınızda Supabase Giriş ve Erişim Anahtarı (Access Token) sayfası açıldı.' + #13#10 + #13#10 +
+      '1. Supabase hesabınıza giriş yapıp "Generate new token" butonuna tıklayın.' + #13#10 +
+      '2. Verilen "sbp_..." ile başlayan kodu kopyalayıp 3. kutucuğa (Supabase Access Token) yapıştırın.' + #13#10 +
+      '3. Tekrar bu butona veya "İleri" butonuna bastığınızda Proje URL, Anon Key ve 40 tabloluk veritabanı otomatik oluşturulacaktır!',
+      mbInformation, MB_OK);
+  end
+  else
+  begin
+    if ResolveSupabaseFromToken(TokenVal, AutoUrl, AutoKey) then
+    begin
+      SupabasePage.Values[0] := AutoUrl;
+      SupabasePage.Values[1] := AutoKey;
+      MsgBox('Supabase hesabınıza başarıyla bağlanıldı!' + #13#10 + #13#10 +
+             'Proje URL: ' + AutoUrl + #13#10 +
+             'Anon Key otomatik olarak alındı ve dolduruldu.', mbInformation, MB_OK);
+    end
+    else
+    begin
+      MsgBox('Girilen Supabase Access Token (sbp_...) ile proje bilgileri alınamadı. Lütfen token kodunu kontrol edin veya tarayıcıdan yeni bir token üretin.', mbError, MB_OK);
+    end;
   end;
 end;
 
@@ -92,13 +196,24 @@ begin
   // 2. Supabase Bulut Veritabanı Yapılandırma Sayfası
   SupabasePage := CreateInputQueryPage(InfoPage.ID,
     'Supabase Bulut Veritabanı Yapılandırması',
-    'Sistemin masaüstü ve mobil ile senkron çalışması için Supabase bilgilerinizi giriniz.',
-    'Supabase Proje Bilgileri:');
+    'Tarayıcıdan kendi Supabase hesabınıza giriş yaparak URL ve Anon Key''i otomatik oluşturabilir veya mevcut bilgilerinizi girebilirsiniz.',
+    'Supabase Proje Bilgileri (Otomatik kurulum için aşağıdaki butona tıklayınız):');
 
-  SupabasePage.Add('Supabase Proje URL (Örn: https://xxxx.supabase.co):', False);
-  SupabasePage.Add('Supabase Anon / API Anahtarı (anon public key):', False);
+  SupabasePage.Add('Supabase Proje URL (Otomatik doldurulur veya https://xxxx.supabase.co):', False);
+  SupabasePage.Add('Supabase Anon / API Anahtarı (Otomatik doldurulur veya anon public key):', False);
+  SupabasePage.Add('Supabase Access Token (sbp_... - Otomatik URL, Anon Key ve Tablo Kurulumu için):', False);
   SupabasePage.Values[0] := '';
   SupabasePage.Values[1] := '';
+  SupabasePage.Values[2] := '';
+
+  SupabaseLoginBtn := TNewButton.Create(WizardForm);
+  SupabaseLoginBtn.Parent := SupabasePage.Surface;
+  SupabaseLoginBtn.Left := 0;
+  SupabaseLoginBtn.Top := SupabasePage.Edits[2].Top + SupabasePage.Edits[2].Height + ScaleY(10);
+  SupabaseLoginBtn.Width := SupabasePage.SurfaceWidth;
+  SupabaseLoginBtn.Height := ScaleY(28);
+  SupabaseLoginBtn.Caption := 'Tarayıcıdan Supabase Hesabıma Giriş Yap && Otomatik URL/Key Oluştur';
+  SupabaseLoginBtn.OnClick := @OnSupabaseLoginClick;
 
   // Sistemde kayıtlı mevcut Supabase yapılandırması varsa otomatik doldur
   ExistingCloudConfig := '';
@@ -131,7 +246,7 @@ begin
 
   User1Page.Add('Yönetici Kullanıcı Adı (Zorunlu):', False);
   User1Page.Add('Yönetici Giriş Şifresi (Zorunlu):', True);
-  User1Page.Add('Yönetici Google Hesabı / E-Posta Adresi (Google ile Giriş için):', False);
+  User1Page.Add('Yönetici E-Posta Adresi (İsteğe Bağlı):', False);
   User1Page.Add('Fabrika Ayarları Sıfırlama Onay Şifresi (Zorunlu):', True);
   User1Page.Values[0] := '';
   User1Page.Values[1] := '';
@@ -177,8 +292,23 @@ begin
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  AutoUrl, AutoKey: String;
 begin
   Result := True;
+
+  if (SupabasePage <> nil) and (CurPageID = SupabasePage.ID) then
+  begin
+    if ((Trim(SupabasePage.Values[0]) = '') or (Trim(SupabasePage.Values[1]) = '')) and (Trim(SupabasePage.Values[2]) <> '') then
+    begin
+      if ResolveSupabaseFromToken(Trim(SupabasePage.Values[2]), AutoUrl, AutoKey) then
+      begin
+        SupabasePage.Values[0] := AutoUrl;
+        SupabasePage.Values[1] := AutoKey;
+      end;
+    end;
+  end;
+
   // Sadece ilk kurulum modundaysa zorunlu kullanıcı adı/şifre kontrolü yap
   if (SetupModePage <> nil) and (SetupModePage.SelectedValueIndex = 0) and (CurPageID = User1Page.ID) then
   begin
@@ -197,7 +327,7 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  SupabaseUrlVal, SupabaseKeyVal, SmtpHostVal, SmtpPortVal, SmtpEmailVal, SmtpPassVal, User1Name, User1Pass, User1Email, User2Name, User2Pass, User2Email, FactoryResetPass, AppDataDir, ConfigPath, UserConfigPath, JsonContent, UserJsonContent, ScriptFile, ScriptContent: String;
+  SupabaseUrlVal, SupabaseKeyVal, SupabaseTokenVal, SmtpHostVal, SmtpPortVal, SmtpEmailVal, SmtpPassVal, User1Name, User1Pass, User1Email, User2Name, User2Pass, User2Email, FactoryResetPass, AppDataDir, ConfigPath, UserConfigPath, JsonContent, UserJsonContent, ScriptFile, ScriptContent, SetupModeStr, CleanArgs: String;
   ExistingCloudConfig: AnsiString;
   ResultCode: Integer;
 begin
@@ -205,6 +335,7 @@ begin
   begin
     SupabaseUrlVal := Trim(SupabasePage.Values[0]);
     SupabaseKeyVal := Trim(SupabasePage.Values[1]);
+    SupabaseTokenVal := Trim(SupabasePage.Values[2]);
     
     User1Name := Trim(User1Page.Values[0]);
     User1Pass := Trim(User1Page.Values[1]);
@@ -217,76 +348,29 @@ begin
     FactoryResetPass := Trim(User1Page.Values[3]);
 
     AppDataDir := ExpandConstant('{localappdata}');
-    
-    // 0. Temiz Kurulum: Veritabanı ve Bütün Eski Yapılandırmayı Sıfırla
-    if WizardIsTaskSelected('cleandatabase') then
+
+    // Form kutucukları boş bırakılmışsa mevcut dosyadan oku
+    if (SupabaseUrlVal = '') or (SupabaseKeyVal = '') then
     begin
-      // Temiz kurulum bayrağını hem ErmayMuhasebe hem de localappdata köküne kaydet
-      ForceDirectories(AppDataDir + '\ErmayMuhasebe');
-      SaveStringToFile(AppDataDir + '\ErmayMuhasebe\clean_install_pending.flag', 'PENDING', False);
-      SaveStringToFile(AppDataDir + '\clean_install_pending.flag', 'PENDING', False);
+      if FileExists(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json') then
+        LoadStringFromFile(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json', ExistingCloudConfig)
+      else if FileExists(AppDataDir + '\ermay_cloud_config.json') then
+        LoadStringFromFile(AppDataDir + '\ermay_cloud_config.json', ExistingCloudConfig);
 
-      // Form kutucukları boş bırakılmışsa mevcut dosyadan oku
-      if (SupabaseUrlVal = '') or (SupabaseKeyVal = '') then
+      if ExistingCloudConfig <> '' then
       begin
-        if FileExists(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json') then
-          LoadStringFromFile(AppDataDir + '\ErmayMuhasebe\ermay_cloud_config.json', ExistingCloudConfig)
-        else if FileExists(AppDataDir + '\ermay_cloud_config.json') then
-          LoadStringFromFile(AppDataDir + '\ermay_cloud_config.json', ExistingCloudConfig);
-
-        if ExistingCloudConfig <> '' then
-        begin
-          if SupabaseUrlVal = '' then SupabaseUrlVal := ExtractJsonValue(String(ExistingCloudConfig), 'BaseUrl');
-          if SupabaseKeyVal = '' then SupabaseKeyVal := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
-        end;
+        if SupabaseUrlVal = '' then SupabaseUrlVal := ExtractJsonValue(String(ExistingCloudConfig), 'BaseUrl');
+        if SupabaseKeyVal = '' then SupabaseKeyVal := ExtractJsonValue(String(ExistingCloudConfig), 'AuthSecret');
       end;
-
-      ScriptFile := ExpandConstant('{tmp}\clean_install.ps1');
-      ScriptContent :=
-        '$ErrorActionPreference = ''SilentlyContinue''' + #13#10 +
-        'Get-Process -Name ''VK'',''ErmayMuhasebe*'',''ErmayMuhasebe.Desktop'',''ErmayMuhasebe.Avalonia.Desktop'' -ErrorAction SilentlyContinue | Stop-Process -Force' + #13#10 +
-        'Start-Sleep -Milliseconds 1000' + #13#10 +
-        '$appDir = ''' + AppDataDir + '\ErmayMuhasebe''' + #13#10 +
-        'if (Test-Path $appDir) {' + #13#10 +
-        '  Get-ChildItem -Path $appDir -File -ErrorAction SilentlyContinue | ForEach-Object {' + #13#10 +
-        '    if ($_.Name -like ''*.db*'' -or $_.Name -like ''*.db3*'' -or $_.Name -like ''*.wal'' -or $_.Name -like ''*.shm'' -or $_.Name -like ''*.json'' -or $_.Name -eq ''login_settings.txt'' -or $_.Name -eq ''company_logo.png'') {' + #13#10 +
-        '      Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue' + #13#10 +
-        '    }' + #13#10 +
-        '  }' + #13#10 +
-        '}' + #13#10 +
-        'Remove-Item -Path ''' + AppDataDir + '\ermay_cloud_config.json'' -Force -ErrorAction SilentlyContinue' + #13#10;
-
-      // Supabase bulut veritabanını da temizle (Düz anon key girildiyse)
-      if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') and (not (Pos('ENC::AES::', SupabaseKeyVal) > 0)) then
-      begin
-        ScriptContent := ScriptContent +
-          '$rawUrl = ''' + SupabaseUrlVal + '''.Trim().TrimEnd(''/'')' + #13#10 +
-          'if ($rawUrl.EndsWith(''/rest/v1'')) { $apiUrl = $rawUrl } else { $apiUrl = $rawUrl + ''/rest/v1'' }' + #13#10 +
-          '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; Prefer = ''return=minimal'' }' + #13#10 +
-          '$tables = @(' + #13#10 +
-          '  ''fatura_detaylar'',''siparis_detaylar'',''teklif_detaylar'',''stok_sayim_detaylari'',''musteri_takip_detaylar'',' + #13#10 +
-          '  ''kredi_karti_islemler'',''eft_islemler'',''cekler'',''senetler'',''cari_hareketler'',''stok_hareketler'',' + #13#10 +
-          '  ''banka_hareketler'',''kasa_hareketler'',''stok_sayim_fisileri'',''musteri_takip_klasorler'',''gorevler'',' + #13#10 +
-          '  ''personeller'',''satis_hedefleri'',''haftalik_satis_hedefleri'',''yillik_satis_hedefleri'',''portfoy_kartlar'',' + #13#10 +
-          '  ''belge_arsiv'',''doviz_kurlari'',''faturalar'',''siparisler'',''teklifler'',''stoklar'',''cariler'',' + #13#10 +
-          '  ''bankalar'',''kasalar'',''notlar'',''mobil_gelen_kutusu'',''security_requests'',''user_security_states'',''mali_yillar''' + #13#10 +
-          ')' + #13#10 +
-          'for ($pass = 1; $pass -le 3; $pass++) {' + #13#10 +
-          '  foreach ($t in $tables) {' + #13#10 +
-          '    try {' + #13#10 +
-          '      $filter = if ($t -eq ''mali_yillar'') { ''?yil=gte.0'' } else { ''?id=not.is.null'' }' + #13#10 +
-          '      Invoke-RestMethod -Uri ($apiUrl + ''/'' + $t + $filter) -Method Delete -Headers $headers' + #13#10 +
-          '    } catch {}' + #13#10 +
-          '  }' + #13#10 +
-          '}' + #13#10;
-      end;
-
-      SaveStringToFile(ScriptFile, ScriptContent, False);
-      Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      DeleteFile(ScriptFile);
     end;
-    
-    // 1. Supabase Bulut Yapılandırma Dosyasını Kaydet (Hem AppData köküne hem ErmayMuhasebe alt klasörüne hem app dizinine)
+
+    // Kurulum modunu belirle (0: İlk Kurulum / Yeni Şirket, 1: Mevcut Şirkete / Buluta Bağlan)
+    if SetupModePage.SelectedValueIndex = 0 then
+      SetupModeStr := 'first_install'
+    else
+      SetupModeStr := 'existing_company';
+
+    // 1. Supabase Bulut Yapılandırma Dosyasını Kaydet (Önce yapılandırma yazılmalı ki temiz kurulum parametreleri veya CLI okuyabilsin)
     ForceDirectories(AppDataDir + '\ErmayMuhasebe');
     ConfigPath := AppDataDir + '\ermay_cloud_config.json';
     if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') then
@@ -339,46 +423,150 @@ begin
       SaveStringToFile(AppDataDir + '\ErmayMuhasebe\setup_config.json', UserJsonContent, False);
     end;
 
-    // 3. Kullanıcı Bilgilerini Doğrudan Supabase Bulutuna Kaydet (Sadece kullanıcı Supabase'de yoksa ekle, mevcut şifreyi ASLA bozma)
-    if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') and (User1Name <> '') then
+    // 3. Temiz Kurulum: Hem Yerel SQLite Veritabanını Hem de Supabase Bulut Veritabanını Tamamen Sıfırla
+    if WizardIsTaskSelected('cleandatabase') then
+    begin
+      // Temiz kurulum bayrağını hem ErmayMuhasebe hem de localappdata köküne kaydet
+      SaveStringToFile(AppDataDir + '\ErmayMuhasebe\clean_install_pending.flag', 'PENDING', False);
+      SaveStringToFile(AppDataDir + '\clean_install_pending.flag', 'PENDING', False);
+
+      ScriptFile := ExpandConstant('{tmp}\clean_install.ps1');
+      ScriptContent :=
+        '$ErrorActionPreference = ''SilentlyContinue''' + #13#10 +
+        '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12' + #13#10 +
+        'Get-Process -Name ''VK'',''ErmayMuhasebe*'',''ErmayMuhasebe.Desktop'',''ErmayMuhasebe.Avalonia.Desktop'' -ErrorAction SilentlyContinue | Stop-Process -Force' + #13#10 +
+        'Start-Sleep -Milliseconds 1000' + #13#10 +
+        '$appDir = ''' + AppDataDir + '\ErmayMuhasebe''' + #13#10 +
+        'if (Test-Path $appDir) {' + #13#10 +
+        '  Get-ChildItem -Path $appDir -File -ErrorAction SilentlyContinue | ForEach-Object {' + #13#10 +
+        '    if ($_.Name -like ''*.db*'' -or $_.Name -like ''*.db3*'' -or $_.Name -like ''*.wal'' -or $_.Name -like ''*.shm'' -or $_.Name -eq ''login_settings.txt'' -or $_.Name -eq ''company_logo.png'' -or $_.Name -like ''notifications_*.json'' -or $_.Name -like ''dismissed_alerts_*.json'') {' + #13#10 +
+        '      Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue' + #13#10 +
+        '    }' + #13#10 +
+        '  }' + #13#10 +
+        '}' + #13#10;
+
+      if (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') then
+      begin
+        ScriptContent := ScriptContent +
+          '$sbUrl = ''' + SupabaseUrlVal + '''.Trim().TrimEnd(''/'')' + #13#10 +
+          '$sbKey = ''' + SupabaseKeyVal + '''.Trim()' + #13#10 +
+          '$sbHeaders = @{ apikey = $sbKey; Authorization = "Bearer $sbKey"; ''Content-Type'' = ''application/json''; Prefer = ''return=minimal'' }' + #13#10 +
+          'try { Invoke-RestMethod -Uri "$sbUrl/rest/v1/rpc/factory_reset_all_tables" -Method Post -Headers $sbHeaders -Body ''{"p_tenant_id":null}'' -TimeoutSec 15 | Out-Null } catch {}' + #13#10 +
+          '$w1 = @(''fatura_detaylar'',''fatura_kalemleri'',''fatura_kalem_sablonlari'',''siparis_detaylar'',''teklif_detaylar'',''stok_sayim_detaylari'',''stok_sayim_fisileri'',''musteri_takip_detaylar'',''musteri_takip_detay'',''kredi_karti_islemler'',''eft_islemler'',''cekler'',''senetler'',''cari_hareketler'',''stok_hareketler'',''banka_hareketler'',''kasa_hareketler'',''belge_arsiv'',''gorevler'',''personeller'',''portfoy_kartlar'',''doviz_kurlari'',''silinen_kayitlar'',''senkron_catismalari'',''idempotent_transactions'')' + #13#10 +
+          '$w2 = @(''musteri_takip_klasorler'',''musteri_takip'',''faturalar'',''siparisler'',''teklifler'',''notlar?id=neq.999999'',''mobil_gelen_kutusu'')' + #13#10 +
+          '$w3 = @(''cariler'',''stoklar'',''bankalar'',''kasalar'')' + #13#10 +
+          'foreach ($tbl in $w1) { try { Invoke-RestMethod -Uri "$sbUrl/rest/v1/$tbl?id=not.is.null" -Method Delete -Headers $sbHeaders -TimeoutSec 10 | Out-Null } catch {} }' + #13#10 +
+          'foreach ($tbl in $w2) { try { $u = if ($tbl.Contains(''?'')) { "$sbUrl/rest/v1/$tbl" } else { "$sbUrl/rest/v1/$tbl?id=not.is.null" }; Invoke-RestMethod -Uri $u -Method Delete -Headers $sbHeaders -TimeoutSec 10 | Out-Null } catch {} }' + #13#10 +
+          'foreach ($tbl in $w3) { try { Invoke-RestMethod -Uri "$sbUrl/rest/v1/$tbl?id=not.is.null" -Method Delete -Headers $sbHeaders -TimeoutSec 10 | Out-Null } catch {} }' + #13#10;
+      end;
+
+      SaveStringToFile(ScriptFile, ScriptContent, False);
+      Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      DeleteFile(ScriptFile);
+
+      // Temiz Kurulum CLI işlemini çalıştır:
+      // Hem yerel SQLite hem Supabase'i fabrika ayarlarına sıfırlar.
+      // Mevcut şirkete bağlan modunda kullanıcı hesaplarını korur; ilk kurulumda kullanıcıları da temizler.
+      CleanArgs := '--clean-install --mode "' + SetupModeStr + '"';
+      if SupabaseUrlVal <> '' then
+        CleanArgs := CleanArgs + ' --url "' + SupabaseUrlVal + '"';
+      if SupabaseKeyVal <> '' then
+        CleanArgs := CleanArgs + ' --key "' + SupabaseKeyVal + '"';
+
+      Exec(ExpandConstant('{app}\{#MyAppExeName}'), CleanArgs, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      
+      // Temiz kurulum bayrağını koru - İlk açılışta DatabaseService.SyncFromCloudAsync eski verileri çekmesin!
+      SaveStringToFile(AppDataDir + '\ErmayMuhasebe\clean_install_pending.flag', 'PENDING', False);
+      SaveStringToFile(AppDataDir + '\clean_install_pending.flag', 'PENDING', False);
+    end;
+
+    // 3. Sıfırdan Supabase Şema Kurulumu + Kullanıcı Bilgilerini PBKDF2-SHA256 Hash ve Salt ile Supabase Bulutuna Kaydet
+    if (SetupModePage.SelectedValueIndex = 0) and (SupabaseUrlVal <> '') and (SupabaseKeyVal <> '') and (User1Name <> '') and (User1Pass <> '') then
     begin
       ScriptFile := ExpandConstant('{tmp}\sync_user_supabase.ps1');
       ScriptContent :=
         '$ErrorActionPreference = ''SilentlyContinue''' + #13#10 +
-        '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; ''Content-Type'' = ''application/json'' }' + #13#10 +
+        '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12' + #13#10 +
+        'function Get-Pbkdf2([string]$p) {' + #13#10 +
+        '  $s = New-Object byte[] 16; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($s)' + #13#10 +
+        '  $d = New-Object System.Security.Cryptography.Rfc2898DeriveBytes($p, $s, 100000, [System.Security.Cryptography.HashAlgorithmName]::SHA256)' + #13#10 +
+        '  $h = "PBKDF2$" + [Convert]::ToBase64String($d.GetBytes(32)); $d.Dispose()' + #13#10 +
+        '  return @{ Hash = $h; Salt = [Convert]::ToBase64String($s) }' + #13#10 +
+        '}' + #13#10 +
+        '$baseUrl = ''' + SupabaseUrlVal + '''.Trim().TrimEnd(''/'')' + #13#10 +
+        '$accessToken = ''' + SupabaseTokenVal + '''.Trim()' + #13#10 +
+        '$sqlFile = ''' + ExpandConstant('{app}\SUPABASE_SIFIRDAN_MASTER_KURULUM.sql') + '''' + #13#10 +
+        '$projectRef = ''''' + #13#10 +
+        'if ($baseUrl -match ''https://([a-z0-9-]+)\.supabase\.co'') { $projectRef = $Matches[1] }' + #13#10 +
+        'if ($accessToken -ne '''' -and $projectRef -ne '''' -and (Test-Path $sqlFile)) {' + #13#10 +
+        '  try {' + #13#10 +
+        '    $sqlText = Get-Content -Path $sqlFile -Raw -Encoding UTF8' + #13#10 +
+        '    $mgmtHeaders = @{ Authorization = "Bearer $accessToken"; ''Content-Type'' = ''application/json'' }' + #13#10 +
+        '    $mgmtBody = @{ query = $sqlText } | ConvertTo-Json -Depth 4 -Compress' + #13#10 +
+        '    Invoke-RestMethod -Uri "https://api.supabase.com/v1/projects/$projectRef/database/query" -Method Post -Headers $mgmtHeaders -Body ([System.Text.Encoding]::UTF8.GetBytes($mgmtBody)) | Out-Null' + #13#10 +
+        '  } catch {}' + #13#10 +
+        '}' + #13#10 +
+        '$headers = @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; ''Content-Type'' = ''application/json''; Prefer = ''resolution=merge-duplicates,return=minimal'' }' + #13#10 +
+        '$schemaOk = $false' + #13#10 +
+        'try {' + #13#10 +
+        '  Invoke-RestMethod -Uri ($baseUrl + ''/rest/v1/kullanicilar?select=id&limit=1'') -Method Get -Headers @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + ''' } | Out-Null' + #13#10 +
+        '  $schemaOk = $true' + #13#10 +
+        '} catch {}' + #13#10 +
+        'if (-not $schemaOk -and (Test-Path $sqlFile)) {' + #13#10 +
+        '  try {' + #13#10 +
+        '    Get-Content -Path $sqlFile -Raw -Encoding UTF8 | Set-Clipboard' + #13#10 +
+        '    if ($projectRef -ne '''') { Start-Process "https://supabase.com/dashboard/project/$projectRef/sql/new" }' + #13#10 +
+        '    Add-Type -AssemblyName System.Windows.Forms' + #13#10 +
+        '    [System.Windows.Forms.MessageBox]::Show("Sıfır Supabase projesi tespit edildi!`r`n`r`nSUPABASE_SIFIRDAN_MASTER_KURULUM.sql panoya (Clipboard) kopyalandı ve tarayıcıda Supabase SQL Editor açıldı.`r`n`r`nLütfen açılan SQL Editor ekranına CTRL+V ile yapıştırıp RUN butonuna basın, işlem tamamlanınca bu penceredeki Tamam butonuna tıklayın.", "Supabase Sıfırdan Tablo Kurulumu", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null' + #13#10 +
+        '  } catch {}' + #13#10 +
+        '}' + #13#10 +
+        '$t1 = ''tenant_ermay_master''' + #13#10 +
         '$u1 = ''' + User1Name + '''.Trim().ToLower()' + #13#10 +
+        '$p1 = ''' + User1Pass + '''.Trim()' + #13#10 +
         '$em1 = ''' + User1Email + '''.Trim().ToLower()' + #13#10 +
-        '$cleanTenant1 = ($em1 -replace ''[^a-zA-Z0-9]'', ''_'').Trim(''_'')' + #13#10 +
-        '$t1 = if ($cleanTenant1) { ''tenant_'' + $cleanTenant1 } else { ''default'' }' + #13#10 +
-        '$existing1 = $null' + #13#10 +
-        'try { $existing1 = Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar?id=eq.'' + $u1 + ''&select=id'') -Method Get -Headers $headers } catch {}' + #13#10 +
-        'if (-not $existing1 -or $existing1.Count -eq 0) {' + #13#10 +
-        '  $payload1 = @{ id = $u1; username = $u1; kullanici_adi = $u1; email = $em1; role = ''Admin''; rol = ''Admin''; tenant_id = $t1; is_active = $true; aktif_mi = $true; password_hash = ''temporary''; sifre = ''temporary'' } | ConvertTo-Json' + #13#10 +
-        '  Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar'') -Method Post -Headers $headers -Body $payload1' + #13#10 +
-        '}' + #13#10;
+        '$frp = ''' + FactoryResetPass + '''.Trim()' + #13#10 +
+        'if ($frp -eq '''') { $frp = ''VK2026'' }' + #13#10 +
+        '$c1 = Get-Pbkdf2 $p1' + #13#10 +
+        '$sysList = @(@{ id = 1; username = $u1; password = $c1.Hash; password_hash = $c1.Hash; password_salt = $c1.Salt; role = ''Admin''; email = $em1; tenant_id = $t1 })' + #13#10;
         
-      if (User2Name <> '') then
+      if (User2Name <> '') and (User2Pass <> '') then
       begin
         ScriptContent := ScriptContent +
           '$u2 = ''' + User2Name + '''.Trim().ToLower()' + #13#10 +
+          '$p2 = ''' + User2Pass + '''.Trim()' + #13#10 +
           '$em2 = ''' + User2Email + '''.Trim().ToLower()' + #13#10 +
-          '$existing2 = $null' + #13#10 +
-          'try { $existing2 = Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar?id=eq.'' + $u2 + ''&select=id'') -Method Get -Headers $headers } catch {}' + #13#10 +
-          'if (-not $existing2 -or $existing2.Count -eq 0) {' + #13#10 +
-          '  $payload2 = @{ id = $u2; username = $u2; kullanici_adi = $u2; email = $em2; role = ''Operatör''; rol = ''Operatör''; tenant_id = $t1; is_active = $true; aktif_mi = $true; password_hash = ''temporary''; sifre = ''temporary'' } | ConvertTo-Json' + #13#10 +
-          '  Invoke-RestMethod -Uri (''' + SupabaseUrlVal + '/rest/v1/kullanicilar'') -Method Post -Headers $headers -Body $payload2' + #13#10 +
-          '}' + #13#10;
+          '$c2 = Get-Pbkdf2 $p2' + #13#10 +
+          '$sysList += @{ id = 2; username = $u2; password = $c2.Hash; password_hash = $c2.Hash; password_salt = $c2.Salt; role = ''Operatör''; email = $em2; tenant_id = $t1 }' + #13#10;
       end;
+
+      ScriptContent := ScriptContent +
+        '$sysJson = ConvertTo-Json -InputObject $sysList -Compress' + #13#10 +
+        'if (-not $sysJson.StartsWith(''['')) { $sysJson = ''['' + $sysJson + '']'' }' + #13#10 +
+        '$rpcPayload = @{ p_username = $u1; p_password_hash = $c1.Hash; p_password_salt = $c1.Salt; p_email = $em1; p_tenant_id = $t1; p_factory_reset_password = $frp; p_sys_users_json = $sysJson; p_clean_data = $false } | ConvertTo-Json -Compress' + #13#10 +
+        'try { Invoke-RestMethod -Uri ($baseUrl + ''/rest/v1/rpc/setup_initial_admin_user'') -Method Post -Headers @{ apikey = ''' + SupabaseKeyVal + '''; Authorization = ''Bearer ' + SupabaseKeyVal + '''; ''Content-Type'' = ''application/json'' } -Body ([System.Text.Encoding]::UTF8.GetBytes($rpcPayload)) | Out-Null } catch {}' + #13#10 +
+        '$payload1 = @{ id = "user_$u1"; uuid = "user_$u1"; username = $u1; kullanici_adi = $u1; email = $em1; eposta = $em1; role = ''Admin''; rol = ''Admin''; tenant_id = $t1; is_active = $true; aktif_mi = $true; is_deleted = $false; password_hash = $c1.Hash; sifre = $c1.Hash; password_salt = $c1.Salt } | ConvertTo-Json -Compress' + #13#10 +
+        'try { Invoke-RestMethod -Uri ($baseUrl + ''/rest/v1/kullanicilar?on_conflict=id'') -Method Post -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload1)) | Out-Null } catch {}' + #13#10;
+
+      if (User2Name <> '') and (User2Pass <> '') then
+      begin
+        ScriptContent := ScriptContent +
+          '$payload2 = @{ id = "user_$u2"; uuid = "user_$u2"; username = $u2; kullanici_adi = $u2; email = $em2; eposta = $em2; role = ''Operatör''; rol = ''Operatör''; tenant_id = $t1; is_active = $true; aktif_mi = $true; is_deleted = $false; password_hash = $c2.Hash; sifre = $c2.Hash; password_salt = $c2.Salt } | ConvertTo-Json -Compress' + #13#10 +
+          'try { Invoke-RestMethod -Uri ($baseUrl + ''/rest/v1/kullanicilar?on_conflict=id'') -Method Post -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload2)) | Out-Null } catch {}' + #13#10;
+      end;
+
+      ScriptContent := ScriptContent +
+        '$notePayload = @{ id = 999999; uuid = ''sys_users_999999''; tenant_id = $t1; baslik = ''__SYS_USERS__''; title = ''__SYS_USERS__''; icerik = $sysJson; content = $sysJson; renk = ''#FFFFFF''; color = ''#FFFFFF''; is_deleted = $false } | ConvertTo-Json -Compress' + #13#10 +
+        'try { Invoke-RestMethod -Uri ($baseUrl + ''/rest/v1/notlar?on_conflict=id'') -Method Post -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($notePayload)) | Out-Null } catch {}' + #13#10 +
+        '$firmaPayload = @{ id = 1; uuid = ''firma_profili_1''; tenant_id = $t1; factory_reset_password = $frp } | ConvertTo-Json -Compress' + #13#10 +
+        'try { Invoke-RestMethod -Uri ($baseUrl + ''/rest/v1/firma_profili?on_conflict=id'') -Method Post -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($firmaPayload)) | Out-Null } catch {}' + #13#10 +
+        '$authEmail = if ($em1 -ne '''' -and $em1.Contains(''@'')) { $em1 } else { "$u1@ermaymuhasebe.local" }' + #13#10 +
+        '$authPass = if ($p1.Length -ge 6) { $p1 } else { $p1 + ''_Vk2026!'' }' + #13#10 +
+        '$signupPayload = @{ email = $authEmail; password = $authPass; data = @{ username = $u1; role = ''Admin''; tenant_id = $t1 } } | ConvertTo-Json -Compress' + #13#10 +
+        'try { Invoke-RestMethod -Uri ($baseUrl + ''/auth/v1/signup'') -Method Post -Headers @{ apikey = ''' + SupabaseKeyVal + '''; ''Content-Type'' = ''application/json'' } -Body ([System.Text.Encoding]::UTF8.GetBytes($signupPayload)) | Out-Null } catch {}' + #13#10;
       
       SaveStringToFile(ScriptFile, ScriptContent, False);
       Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       DeleteFile(ScriptFile);
-    end;
-
-    // 4. Temiz Kurulum Seçilmişse: VK.exe CLI ile hem yerel hem bulut tablolarını tam sıfırla
-    if WizardIsTaskSelected('cleandatabase') then
-    begin
-      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '--clean-install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     end;
   end;
 end;

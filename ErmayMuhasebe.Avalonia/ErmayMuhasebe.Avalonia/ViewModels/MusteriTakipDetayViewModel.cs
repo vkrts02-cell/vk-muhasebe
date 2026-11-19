@@ -193,6 +193,8 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
             };
 
             await _uow.MusteriTakip.SaveDetayAsync(detay);
+            Klasor.SonIslemTarihi = DateTime.Now;
+            await _uow.MusteriTakip.SaveAsync(Klasor);
             NewGorusmeBaslik = string.Empty;
             NewGorusmeIcerik = string.Empty;
             NewGorusmeTarih = DateTime.Now;
@@ -217,6 +219,8 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
             };
 
             await _uow.MusteriTakip.SaveDetayAsync(detay);
+            Klasor.SonIslemTarihi = DateTime.Now;
+            await _uow.MusteriTakip.SaveAsync(Klasor);
             NewNotBaslik = string.Empty;
             NewNotIcerik = string.Empty;
             NewNotTarih = DateTime.Now;
@@ -243,6 +247,8 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
             };
 
             await _uow.MusteriTakip.SaveDetayAsync(detay);
+            Klasor.SonIslemTarihi = DateTime.Now;
+            await _uow.MusteriTakip.SaveAsync(Klasor);
             NewFiyatBaslik = string.Empty;
             NewFiyatTutar = null;
             NewFiyatAciklama = string.Empty;
@@ -283,6 +289,8 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
                 };
 
                 await _uow.MusteriTakip.SaveDetayAsync(detay);
+                Klasor.SonIslemTarihi = DateTime.Now;
+                await _uow.MusteriTakip.SaveAsync(Klasor);
                 NewGorselBaslik = string.Empty;
                 await LoadDetaylarAsync();
             }
@@ -299,6 +307,22 @@ namespace ErmayMuhasebe.Avalonia.ViewModels
             if (!string.IsNullOrEmpty(item.DosyaYolu) && File.Exists(item.DosyaYolu))
             {
                 OpenImageExternalAction?.Invoke(item.DosyaYolu);
+            }
+            else if (!string.IsNullOrEmpty(item.Model.GorselBase64))
+            {
+                try
+                {
+                    string appDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ErmayMusteriTakip", Klasor.Id.ToString());
+                    if (!Directory.Exists(appDir)) Directory.CreateDirectory(appDir);
+                    string destPath = Path.Combine(appDir, $"cache_{item.Id}.jpg");
+                    File.WriteAllBytes(destPath, Convert.FromBase64String(item.Model.GorselBase64));
+                    item.Model.DosyaYolu = destPath;
+                    OpenImageExternalAction?.Invoke(destPath);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MusteriTakipDetayViewModel] OpenGorsel base64 cache error: {ex.Message}");
+                }
             }
         }
 
